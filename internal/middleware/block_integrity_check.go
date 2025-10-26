@@ -1,16 +1,17 @@
-package cli
+package middleware
 
 import (
+	"app/internal/cli"
 	"app/internal/verify"
 	"fmt"
 )
 
-// WithRepoCheck ensures the repository is healthy before running the command
-func WithRepoCheck() Middleware {
-	return func(cmd Command) Command {
-		return &wrappedCommand{
+// WithBlockIntegrityCheck is a middleware that checks the integrity of the repository blocks
+func WithBlockIntegrityCheck() cli.Middleware {
+	return func(cmd cli.Command) cli.Command {
+		return &cli.WrappedCommand{
 			Command: cmd,
-			wrap: func(ctx *Context) error {
+			Wrap: func(ctx *cli.Context) error {
 				fmt.Println("Checking repository integrity...")
 				if err := verify.ScanRepositoryBlocks(); err != nil {
 					return fmt.Errorf(

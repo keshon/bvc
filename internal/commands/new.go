@@ -3,6 +3,7 @@ package commands
 import (
 	"app/internal/cli"
 	"app/internal/core"
+	"app/internal/middleware"
 	"fmt"
 )
 
@@ -25,6 +26,6 @@ func (c *NewBranchCommand) Run(ctx *cli.Context) error {
 
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&NewBranchCommand{}, cli.WithRepoCheck()),
+		cli.ApplyMiddlewares(&NewBranchCommand{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

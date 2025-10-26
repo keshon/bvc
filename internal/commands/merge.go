@@ -4,6 +4,7 @@ import (
 	"app/internal/cli"
 	"app/internal/core"
 	"app/internal/merge"
+	"app/internal/middleware"
 	"fmt"
 )
 
@@ -36,6 +37,6 @@ func (c *MergeCommand) Run(ctx *cli.Context) error {
 
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&MergeCommand{}, cli.WithRepoCheck()),
+		cli.ApplyMiddlewares(&MergeCommand{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

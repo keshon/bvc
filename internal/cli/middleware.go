@@ -2,14 +2,14 @@ package cli
 
 type Middleware func(Command) Command
 
-type wrappedCommand struct {
+type WrappedCommand struct {
 	Command
-	wrap func(ctx *Context) error
+	Wrap func(ctx *Context) error
 }
 
-func (w *wrappedCommand) Run(ctx *Context) error {
-	if w.wrap != nil {
-		return w.wrap(ctx)
+func (w *WrappedCommand) Run(ctx *Context) error {
+	if w.Wrap != nil {
+		return w.Wrap(ctx)
 	}
 	return w.Command.Run(ctx)
 }

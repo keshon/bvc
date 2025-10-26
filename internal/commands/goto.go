@@ -4,6 +4,7 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
+	"app/internal/middleware"
 	"app/internal/storage"
 	"app/internal/util"
 	"fmt"
@@ -80,6 +81,6 @@ func checkoutBranch(branch string) error {
 
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&GotoCommand{}, cli.WithRepoCheck()),
+		cli.ApplyMiddlewares(&GotoCommand{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

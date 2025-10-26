@@ -8,6 +8,7 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
+	"app/internal/middleware"
 	"app/internal/storage"
 	"app/internal/util"
 )
@@ -75,6 +76,6 @@ func commit(message string) error {
 
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&CommitCommand{}, cli.WithRepoCheck()),
+		cli.ApplyMiddlewares(&CommitCommand{}, middleware.WithBlockIntegrityCheck()),
 	)
 }
