@@ -21,7 +21,8 @@ func (c *NewBranchCommand) Run(ctx *cli.Context) error {
 		return fmt.Errorf("branch name required")
 	}
 	name := ctx.Args[0]
-	return core.CreateBranch(name)
+	_, err := core.CreateBranch(name)
+	return err
 }
 
 func init() {

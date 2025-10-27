@@ -7,42 +7,59 @@ import (
 	"path/filepath"
 )
 
-// CurrentBranch returns the name of the current branch
-func CurrentBranch() (string, error) {
-	head, err := HeadRef()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Base(head), nil
+type Branch struct {
+	Name string
 }
 
-// Branches returns a list of branch names
-func Branches() ([]string, error) {
+// CurrentBranch returns the name of the current branch
+func CurrentBranch() (Branch, error) {
+	ref, err := GetHeadRef()
+	if err != nil {
+		return Branch{}, err
+	}
+	return Branch{Name: filepath.Base(ref.String())}, nil
+}
+
+// Branches returns ordered list of branches
+func Branches() ([]Branch, error) {
 	dirEntries, err := os.ReadDir(config.BranchesDir)
 	if err != nil {
 		return nil, err
 	}
 
-	names := make([]string, 0, len(dirEntries))
+	branches := make([]Branch, 0, len(dirEntries))
 	for _, entry := range dirEntries {
-		names = append(names, entry.Name())
+		branches = append(branches, Branch{Name: entry.Name()})
 	}
-	return names, nil
+
+	for i := 0; i < len(branches)-1; i++ {
+		for j := i + 1; j < len(branches); j++ {
+			if branches[i].Name > branches[j].Name {
+				branches[i], branches[j] = branches[j], branches[i]
+			}
+		}
+	}
+
+	return branches, nil
 }
 
 // CreateBranch creates a new branch and sets last commit of parent branch
-func CreateBranch(name string) error {
-	currBranch, err := CurrentBranch()
+func CreateBranch(name string) (Branch, error) {
+	branch, err := CurrentBranch()
 	if err != nil {
-		return err
+		return Branch{}, err
 	}
-	currCommit, err := LastCommit(currBranch)
+	currCommit, err := LastCommitID(branch.Name)
 	if err != nil {
-		return err
+		return Branch{}, err
 	}
 	path := filepath.Join(config.BranchesDir, name)
 	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("branch already exists")
+		return Branch{}, fmt.Errorf("branch already exists")
 	}
-	return os.WriteFile(path, []byte(currCommit), 0644)
+	err = os.WriteFile(path, []byte(currCommit), 0644)
+	if err != nil {
+		return Branch{}, fmt.Errorf("could save a new branch")
+	}
+	return Branch{Name: name}, nil
 }

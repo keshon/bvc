@@ -47,7 +47,7 @@ func commit(message string) error {
 
 	branch, _ := core.CurrentBranch()
 	parent := ""
-	if bc, err := core.LastCommit(branch); err == nil {
+	if bc, err := core.LastCommitID(branch.Name); err == nil {
 		parent = bc
 	}
 
@@ -55,7 +55,7 @@ func commit(message string) error {
 	c := core.Commit{
 		ID:        commitID,
 		Parents:   []string{},
-		Branch:    branch,
+		Branch:    branch.Name,
 		Message:   message,
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: fileset.ID,
@@ -67,7 +67,7 @@ func commit(message string) error {
 	if err := util.WriteJSON(filepath.Join(config.CommitsDir, commitID+".json"), c); err != nil {
 		return err
 	}
-	if err := core.SetLastCommit(branch, commitID); err != nil {
+	if err := core.SetLastCommit(branch.Name, commitID); err != nil {
 		return err
 	}
 	fmt.Println("Committed:", commitID)

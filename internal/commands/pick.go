@@ -42,11 +42,11 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
-	branch, err := core.CurrentBranch()
+	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
 	}
-	parent, err := core.LastCommit(branch)
+	parent, err := core.LastCommitID(currentBranch.Name)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func pickCommit(commitID string) error {
 	newCommit := core.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
-		Branch:    branch,
+		Branch:    currentBranch.Name,
 		Message:   fmt.Sprintf("Pick commit %s", commitID),
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: target.FilesetID,
@@ -65,7 +65,7 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
-	if err := core.SetLastCommit(branch, newCommit.ID); err != nil {
+	if err := core.SetLastCommit(currentBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 
@@ -73,7 +73,7 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
-	fmt.Printf("Picked commit %s into branch '%s' as %s\n", commitID, branch, newCommit.ID)
+	fmt.Printf("Picked commit %s into branch '%s' as %s\n", commitID, currentBranch.Name, newCommit.ID)
 	return nil
 }
 

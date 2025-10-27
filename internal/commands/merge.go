@@ -27,12 +27,12 @@ func (c *MergeCommand) Run(ctx *cli.Context) error {
 		return err
 	}
 
-	targetBranch := ctx.Args[0]
-	if currentBranch == targetBranch {
+	targetBranchName := ctx.Args[0]
+	if currentBranch.Name == targetBranchName {
 		return fmt.Errorf("cannot merge branch into itself")
 	}
 
-	return merge.PerformMerge(currentBranch, targetBranch)
+	return merge.PerformMerge(currentBranch.Name, targetBranchName)
 }
 
 func init() {

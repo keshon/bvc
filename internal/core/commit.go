@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-
-	"github.com/zeebo/xxh3"
 )
 
 type Commit struct {
@@ -20,7 +17,8 @@ type Commit struct {
 	FilesetID string   `json:"fileset_id"`
 }
 
-func LoadCommit(commitID string) (*Commit, error) {
+// GetCommit returns the commit with the given ID
+func GetCommit(commitID string) (*Commit, error) {
 	var c Commit
 	path := filepath.Join(config.CommitsDir, commitID+".json")
 	if err := util.ReadJSON(path, &c); err != nil {
@@ -29,7 +27,8 @@ func LoadCommit(commitID string) (*Commit, error) {
 	return &c, nil
 }
 
-func LastCommit(branch string) (string, error) {
+// LastCommitID returns the last commit ID of the given branch
+func LastCommitID(branch string) (string, error) {
 	path := filepath.Join(config.BranchesDir, branch)
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -38,23 +37,44 @@ func LastCommit(branch string) (string, error) {
 	return string(data), nil
 }
 
+// SetLastCommit sets the last commit ID of the given branch
 func SetLastCommit(branch, commitID string) error {
 	path := filepath.Join(config.BranchesDir, branch)
 	return os.WriteFile(path, []byte(commitID), 0644)
 }
 
-// not used
-func GenerateCommitID(filesetID string, parents ...string) string {
-	// concatenate input
-	data := []byte(filesetID)
-	for _, p := range parents {
-		data = append(data, []byte(p)...)
+// GetBranchCommmits returns a slice of commits for selected branch
+func GetBranchCommits(branch string, fn func(*Commit) bool) error {
+	commitID, err := LastCommitID(branch)
+	if err != nil {
+		return err
 	}
-	data = append(data, []byte(time.Now().String())...)
+	if commitID == "" {
+		return nil
+	}
 
-	hash := xxh3.Hash128(data)
+	seen := map[string]bool{}
 
-	// convert to bytes
-	hashBytes := hash.Bytes()
-	return fmt.Sprintf("%x", hashBytes[:8])
+	for commitID != "" {
+		if seen[commitID] {
+			break
+		}
+		seen[commitID] = true
+
+		c, err := GetCommit(commitID)
+		if err != nil {
+			return fmt.Errorf("read commit %s: %w", commitID, err)
+		}
+
+		if cont := fn(c); !cont {
+			break
+		}
+
+		if len(c.Parents) == 0 {
+			break
+		}
+		commitID = c.Parents[0]
+	}
+
+	return nil
 }

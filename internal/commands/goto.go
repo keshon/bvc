@@ -46,7 +46,8 @@ func checkoutBranch(branch string) error {
 			return err
 		}
 
-		if err := core.SetHeadRef(filepath.Join("branches", branch)); err != nil {
+		_, err = core.SetHeadRef(filepath.Join("branches", branch))
+		if err != nil {
 			return err
 		}
 
@@ -70,7 +71,8 @@ func checkoutBranch(branch string) error {
 		return err
 	}
 
-	if err := core.SetHeadRef(filepath.Join("branches", branch)); err != nil {
+	_, err = core.SetHeadRef(filepath.Join("branches", branch))
+	if err != nil {
 		return err
 	}
 	_ = core.SetLastCommit(branch, commitID)

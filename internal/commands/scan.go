@@ -14,20 +14,22 @@ func (c *ScanCommand) Name() string        { return "scan" }
 func (c *ScanCommand) Description() string { return "Verify repository blocks and file integrity" }
 func (c *ScanCommand) Usage() string       { return "scan" }
 func (c *ScanCommand) DetailedDescription() string {
-	return "Scan repository blocks and verify file integrity"
+	return "Scan repository blocks, verify file integrity, and detect leftover temp files"
 }
 
 func (c *ScanCommand) Run(ctx *cli.Context) error {
-	results := []storage.BlockCheck{}
+	// First, clean up or promote tmp-* files
+	if err := storage.CleanupTmpBlocks(); err != nil {
+		fmt.Printf("Warning: tmp file cleanup failed: %v\n", err)
+	}
 
 	out, errCh := verify.ScanRepositoryBlocksStream()
-
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
 
 	start := time.Now()
-	lineWidth := 100
-	count := 0
-	okCount, missingCount, damagedCount := 0, 0, 0
+	count, okCount, missingCount, damagedCount := 0, 0, 0, 0
+
+	results := []storage.BlockCheck{}
 
 	for out != nil || errCh != nil {
 		select {
@@ -37,7 +39,6 @@ func (c *ScanCommand) Run(ctx *cli.Context) error {
 				continue
 			}
 			results = append(results, bc)
-
 			switch bc.Status {
 			case storage.BlockOK:
 				fmt.Print("\033[32m█\033[0m")
@@ -49,12 +50,10 @@ func (c *ScanCommand) Run(ctx *cli.Context) error {
 				fmt.Print("\033[33m█\033[0m")
 				damagedCount++
 			}
-
 			count++
-			if count%lineWidth == 0 {
+			if count%100 == 0 {
 				fmt.Printf("  %d\n", count)
 			}
-
 		case err, ok := <-errCh:
 			if !ok {
 				errCh = nil
@@ -66,7 +65,7 @@ func (c *ScanCommand) Run(ctx *cli.Context) error {
 		}
 	}
 
-	if count%lineWidth != 0 {
+	if count%100 != 0 {
 		fmt.Printf("  %d\n", count)
 	}
 
@@ -74,24 +73,8 @@ func (c *ScanCommand) Run(ctx *cli.Context) error {
 	fmt.Printf("Blocks OK: \033[32m%d\033[0m   Missing: \033[31m%d\033[0m   Damaged: \033[33m%d\033[0m\n",
 		okCount, missingCount, damagedCount)
 
-	if missingCount > 0 {
-		fmt.Println("\nMissing blocks:")
-		for _, bc := range results {
-			if bc.Status == storage.BlockMissing {
-				fmt.Printf("\033[31m%s\033[0m  files: %v  branches: %v\n",
-					bc.Hash, bc.Files, bc.Branches)
-			}
-		}
-	}
-
-	if damagedCount > 0 {
-		fmt.Println("\nDamaged blocks:")
-		for _, bc := range results {
-			if bc.Status == storage.BlockDamaged {
-				fmt.Printf("\033[33m%s\033[0m  files: %v  branches: %v\n",
-					bc.Hash, bc.Files, bc.Branches)
-			}
-		}
+	if missingCount+damagedCount > 0 {
+		fmt.Println("\nSome blocks may need repair. Run `bvc repair`.")
 	}
 
 	return nil

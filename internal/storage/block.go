@@ -217,7 +217,7 @@ func CountAllBlocks() (int, error) {
 	blockHashes := map[string]struct{}{}
 
 	for _, branch := range branches {
-		commitID, err := core.LastCommit(branch)
+		commitID, err := core.LastCommitID(branch.Name)
 		if err != nil {
 			return 0, err
 		}

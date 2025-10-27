@@ -33,7 +33,7 @@ func FindCommonAncestor(aCommitID, bCommitID string) (string, error) {
 		seen[commitID] = true
 
 		var c *core.Commit
-		c, err := core.LoadCommit(commitID)
+		c, err := core.GetCommit(commitID)
 		if err != nil {
 			continue
 		}
@@ -60,7 +60,7 @@ func FindCommonAncestor(aCommitID, bCommitID string) (string, error) {
 		}
 
 		var c *core.Commit
-		c, err := core.LoadCommit(commitID)
+		c, err := core.GetCommit(commitID)
 		if err != nil {
 			continue
 		}
@@ -83,7 +83,7 @@ func LoadFilesetFromCommit(commitID string) (storage.Fileset, error) {
 		return fs, nil
 	}
 	var c *core.Commit
-	c, err := core.LoadCommit(commitID)
+	c, err := core.GetCommit(commitID)
 	if err != nil {
 		return fs, err
 	}
@@ -208,8 +208,8 @@ func PerformMerge(currentBranch, targetBranch string) error {
 	}
 
 	// get commits
-	currentCommitID, _ := core.LastCommit(currentBranch)
-	targetCommitID, err := core.LastCommit(targetBranch)
+	currentCommitID, _ := core.LastCommitID(currentBranch)
+	targetCommitID, err := core.LastCommitID(targetBranch)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,7 @@ func (c *LogCommand) Description() string {
 	return "Show commit history (use 'all' for all branches)"
 }
 func (c *LogCommand) DetailedDescription() string {
-	return "List commits for the current branch or all branches if 'all' is specified.\nUse this command if you need to grab (cherrypick) a commit from another branch."
+	return "List commits for the current branch or all branches if 'all' is specified."
 }
 
 func (c *LogCommand) Run(ctx *cli.Context) error {
@@ -27,7 +27,7 @@ func (c *LogCommand) Run(ctx *cli.Context) error {
 	return listCommits(showAll)
 }
 
-type Row struct {
+type LogRow struct {
 	ID        string
 	Date      string
 	Branch    string
@@ -42,24 +42,47 @@ func listCommits(showAll bool) error {
 		return err
 	}
 
-	var rows []Row
-	seen := make(map[string]bool)
-
+	// Determine which branches to list
+	var branchNames []string
 	if showAll {
 		entries, err := os.ReadDir(config.BranchesDir)
 		if err != nil {
 			return err
 		}
-		for _, entry := range entries {
-			collectBranchCommits(entry.Name(), seen, &rows)
+		for _, e := range entries {
+			branchNames = append(branchNames, e.Name())
 		}
-
-		// Sort by timestamp descending
-		sort.Slice(rows, func(i, j int) bool {
-			return rows[i].Timestamp.After(rows[j].Timestamp)
-		})
 	} else {
-		collectBranchCommits(currentBranch, seen, &rows)
+		branchNames = []string{currentBranch.Name}
+	}
+
+	var rows []LogRow
+	seen := make(map[string]bool)
+
+	// Collect commits from all relevant branches
+	for _, branch := range branchNames {
+		_ = core.GetBranchCommits(branch, func(c *core.Commit) bool {
+			if seen[c.ID] {
+				return true
+			}
+			seen[c.ID] = true
+
+			parent := "<none>"
+			if len(c.Parents) > 0 {
+				parent = strings.Join(c.Parents, ", ")
+			}
+
+			t, _ := time.Parse(time.RFC3339, c.Timestamp)
+			rows = append(rows, LogRow{
+				ID:        c.ID,
+				Date:      c.Timestamp,
+				Branch:    c.Branch,
+				Parent:    parent,
+				Message:   c.Message,
+				Timestamp: t,
+			})
+			return true
+		})
 	}
 
 	if len(rows) == 0 {
@@ -67,6 +90,12 @@ func listCommits(showAll bool) error {
 		return nil
 	}
 
+	// Sort newest first
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].Timestamp.After(rows[j].Timestamp)
+	})
+
+	// Output formatting
 	fmt.Println("Commits history")
 	fmt.Println(strings.Repeat("\033[90m─\033[0m", 100))
 	fmt.Printf("\033[90m%-16s  %-19s  %-8s  %-28s  %s\033[0m\n", "ID", "Date", "Branch", "Parent(s)", "Message")
@@ -84,55 +113,10 @@ func listCommits(showAll bool) error {
 	if showAll {
 		fmt.Printf("\nTotal commits: %d (all branches)\n", len(rows))
 	} else {
-		fmt.Printf("\nTotal commits: %d (branch: %s)\n", len(rows), currentBranch)
+		fmt.Printf("\nTotal commits: %d (branch: %s)\n", len(rows), currentBranch.Name)
 	}
 
 	return nil
-}
-
-// collectBranchCommits walks the history of a branch and fills `rows`.
-func collectBranchCommits(branch string, seen map[string]bool, rows *[]Row) {
-	commitID, err := core.LastCommit(branch)
-	if err != nil || commitID == "" {
-		return
-	}
-
-	for commitID != "" {
-		if seen[commitID] {
-			break
-		}
-
-		var c *core.Commit
-		c, err = core.LoadCommit(commitID)
-		if err != nil {
-			fmt.Printf("Warning: cannot read commit %s: %v\n", commitID, err)
-			break
-		}
-		seen[commitID] = true
-
-		// Parent(s)
-		parent := "<none>"
-		if len(c.Parents) > 0 {
-			parent = strings.Join(c.Parents, ", ")
-		}
-
-		// Parse timestamp
-		t, _ := time.Parse(time.RFC3339, c.Timestamp)
-
-		*rows = append(*rows, Row{
-			ID:        c.ID,
-			Date:      c.Timestamp,
-			Branch:    c.Branch,
-			Parent:    parent,
-			Message:   c.Message,
-			Timestamp: t,
-		})
-
-		if len(c.Parents) == 0 {
-			break
-		}
-		commitID = c.Parents[0]
-	}
 }
 
 func init() {

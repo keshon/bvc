@@ -8,7 +8,6 @@ import (
 	"app/internal/util"
 	"fmt"
 	"path/filepath"
-	"sort"
 )
 
 // ScanRepositoryBlocks verifies all repository blocks with a progress bar and returns an error if any are missing/damaged.
@@ -46,12 +45,11 @@ func ScanRepositoryBlocksStream() (<-chan storage.BlockCheck, <-chan error) {
 		defer close(out)
 		defer close(errCh)
 
-		branches, err := core.Branches()
+		allBranches, err := core.Branches()
 		if err != nil {
 			errCh <- err
 			return
 		}
-		sort.Strings(branches)
 
 		type blockRef struct {
 			files    map[string]struct{}
@@ -62,8 +60,8 @@ func ScanRepositoryBlocksStream() (<-chan storage.BlockCheck, <-chan error) {
 		blockHashes := map[string]struct{}{}
 
 		// Phase 1: Collect all block references
-		for _, branch := range branches {
-			commitID, err := core.LastCommit(branch)
+		for _, branch := range allBranches {
+			commitID, err := core.LastCommitID(branch.Name)
 			if err != nil {
 				errCh <- err
 				return
@@ -94,7 +92,7 @@ func ScanRepositoryBlocksStream() (<-chan storage.BlockCheck, <-chan error) {
 						blockHashes[b.Hash] = struct{}{}
 					}
 					r.files[f.Path] = struct{}{}
-					r.branches[branch] = struct{}{}
+					r.branches[branch.Name] = struct{}{}
 				}
 			}
 		}

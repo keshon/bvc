@@ -48,11 +48,11 @@ func revertToCommit(targetID string) error {
 	}
 
 	branch, _ := core.CurrentBranch()
-	parent, _ := core.LastCommit(branch)
+	parent, _ := core.LastCommitID(branch.Name)
 	newCommit := core.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
-		Branch:    branch,
+		Branch:    branch.Name,
 		Message:   fmt.Sprintf("Revert to %s", targetID),
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: target.FilesetID,
@@ -61,7 +61,7 @@ func revertToCommit(targetID string) error {
 	if err := util.WriteJSON(filepath.Join(config.CommitsDir, newCommit.ID+".json"), newCommit); err != nil {
 		return err
 	}
-	if err := core.SetLastCommit(branch, newCommit.ID); err != nil {
+	if err := core.SetLastCommit(branch.Name, newCommit.ID); err != nil {
 		return err
 	}
 

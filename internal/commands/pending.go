@@ -26,12 +26,12 @@ func (c *PendingCommand) Run(ctx *cli.Context) error {
 }
 
 func listPending() error {
-	branch, err := core.CurrentBranch()
+	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
 	}
 
-	commitID, _ := core.LastCommit(branch)
+	commitID, _ := core.LastCommitID(currentBranch.Name)
 	var lastFileset storage.Fileset
 	if commitID != "" {
 		var commit core.Commit

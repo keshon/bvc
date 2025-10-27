@@ -34,7 +34,6 @@ func overviewBlocks(sortMode string) error {
 	if err != nil {
 		return err
 	}
-	sort.Strings(branches)
 
 	type BlockInfo struct {
 		Branches map[string]struct{}
@@ -44,7 +43,7 @@ func overviewBlocks(sortMode string) error {
 	blocks := map[string]*BlockInfo{}
 
 	for _, branch := range branches {
-		commitID, _ := core.LastCommit(branch)
+		commitID, _ := core.LastCommitID(branch.Name)
 		if commitID == "" {
 			continue
 		}
@@ -69,7 +68,7 @@ func overviewBlocks(sortMode string) error {
 					}
 					blocks[b.Hash] = info
 				}
-				info.Branches[branch] = struct{}{}
+				info.Branches[branch.Name] = struct{}{}
 				info.Files[filepath.Base(f.Path)] = struct{}{}
 			}
 		}

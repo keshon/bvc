@@ -28,7 +28,7 @@ func discardChanges() error {
 	if err != nil {
 		return err
 	}
-	commitID, err := core.LastCommit(branch)
+	commitID, err := core.LastCommitID(branch.Name)
 	if err != nil || commitID == "" {
 		return fmt.Errorf("no commit to drop to")
 	}

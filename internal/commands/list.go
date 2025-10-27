@@ -16,17 +16,17 @@ func (c *ListBrancheCommand) DetailedDescription() string {
 }
 
 func (c *ListBrancheCommand) Run(ctx *cli.Context) error {
-	curr, _ := core.CurrentBranch()
-	names, err := core.Branches()
+	currentBranch, _ := core.CurrentBranch()
+	allBranches, err := core.Branches()
 	if err != nil {
 		return err
 	}
-	for _, name := range names {
+	for _, branch := range allBranches {
 		prefix := "  "
-		if name == curr {
+		if branch.Name == currentBranch.Name {
 			prefix = "* "
 		}
-		fmt.Println(prefix + name)
+		fmt.Println(prefix + currentBranch.Name)
 	}
 	return nil
 }
