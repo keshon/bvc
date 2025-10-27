@@ -12,12 +12,12 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 Display repository blocks overview
 
 ### branch
-`branch <branch-name>`
-Create a new branch from the current branch
-
-### branch
 `branch`
 List all branches
+
+### branch
+`branch <branch-name>`
+Create a new branch from the current branch
 
 ### checkout
 `checkout <branch-name>`
@@ -52,12 +52,8 @@ Merge another branch into the current branch
 Repair missing or damaged repository blocks
 
 ### reset
-`reset <commit-id>`
-Revert the workspace to a specific commit
-
-### reset
-`reset [--hard]`
-Reset current branch state
+`reset [<commit-id>] [--soft|--mixed|--hard]`
+Reset current branch to a commit or HEAD
 
 ### scan
 `scan`

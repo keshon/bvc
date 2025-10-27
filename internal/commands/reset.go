@@ -1,0 +1,192 @@
+package commands
+
+import (
+	"fmt"
+	"path/filepath"
+
+	"app/internal/cli"
+	"app/internal/config"
+	"app/internal/core"
+	"app/internal/middleware"
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
+	"app/internal/util"
+)
+
+// ResetCommand implements Git-like reset
+type ResetCommand struct{}
+
+// Name
+func (c *ResetCommand) Name() string { return "reset" }
+
+// Usage
+func (c *ResetCommand) Usage() string { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
+
+// Description
+func (c *ResetCommand) Description() string { return "Reset current branch to a commit or HEAD" }
+
+// Detailed description
+func (c *ResetCommand) DetailedDescription() string {
+	return `Reset the current branch.
+Modes:
+  --soft  : move HEAD only
+  --mixed : move HEAD and reset index (default)
+  --hard  : move HEAD, reset index and working directory
+If <commit-id> is omitted, the last commit is used (mixed).`
+}
+
+// Aliases
+func (c *ResetCommand) Aliases() []string { return []string{"drop"} }
+
+// Shortcut
+func (c *ResetCommand) Short() string { return "R" }
+
+// Run executes the command
+func (c *ResetCommand) Run(ctx *cli.Context) error {
+	var targetID string
+	mode := "mixed" // default
+	var modeSet bool
+
+	// Parse arguments
+	for _, arg := range ctx.Args {
+		switch arg {
+		case "--soft":
+			if modeSet && mode != "soft" {
+				return fmt.Errorf("conflicting reset modes: %s and soft", mode)
+			}
+			mode = "soft"
+			modeSet = true
+		case "--mixed":
+			if modeSet && mode != "mixed" {
+				return fmt.Errorf("conflicting reset modes: %s and mixed", mode)
+			}
+			mode = "mixed"
+			modeSet = true
+		case "--hard":
+			if modeSet && mode != "hard" {
+				return fmt.Errorf("conflicting reset modes: %s and hard", mode)
+			}
+			mode = "hard"
+			modeSet = true
+		default:
+			if targetID == "" {
+				targetID = arg
+			} else {
+				return fmt.Errorf("unknown option or duplicate commit-id: %s", arg)
+			}
+		}
+	}
+
+	branch, err := core.CurrentBranch()
+	if err != nil {
+		return err
+	}
+
+	// If commit-id is not specified, use the last commit
+	if targetID == "" {
+		last, err := core.LastCommitID(branch.Name)
+		if err != nil {
+			return fmt.Errorf("cannot determine last commit: %v", err)
+		}
+		if last == "" {
+			return fmt.Errorf("no commits to reset to")
+		}
+		targetID = last
+	}
+
+	return resetToCommit(targetID, mode)
+}
+
+// resetToCommit performs the actual reset based on mode
+func resetToCommit(targetID, mode string) error {
+	// Load target commit
+	target, err := core.GetCommit(targetID)
+	if err != nil {
+		return fmt.Errorf("unknown commit: %s", targetID)
+	}
+
+	branch, err := core.CurrentBranch()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Resetting branch '%s' to commit %s (%s)...\n", branch.Name, targetID, mode)
+
+	switch mode {
+	case "soft":
+		// Move HEAD only
+		if err := core.SetLastCommit(branch.Name, targetID); err != nil {
+			return err
+		}
+
+	case "mixed":
+		// Move HEAD and reset index, keep working directory
+		if err := core.SetLastCommit(branch.Name, targetID); err != nil {
+			return err
+		}
+		if err := resetIndex(target.FilesetID); err != nil {
+			return err
+		}
+
+	case "hard":
+		// Move HEAD, reset index and working directory
+		if err := core.SetLastCommit(branch.Name, targetID); err != nil {
+			return err
+		}
+		if err := resetIndex(target.FilesetID); err != nil {
+			return err
+		}
+		if err := resetWorkingDirectory(target.FilesetID); err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("unsupported reset mode: %s", mode)
+	}
+
+	fmt.Println("Reset complete.")
+	return nil
+}
+
+// resetIndex resets the staging area to the specified fileset
+func resetIndex(filesetID string) error {
+	fsPath := filepath.Join(config.FilesetsDir, filesetID+".json")
+	var fs snapshot.Fileset
+	if err := util.ReadJSON(fsPath, &fs); err != nil {
+		return err
+	}
+
+	// Clear current staging and stage all files from the fileset
+	if err := file.ClearIndex(); err != nil {
+		return err
+	}
+	if err := file.StageFiles(fs.Files); err != nil {
+		return err
+	}
+
+	fmt.Println("Index reset.")
+	return nil
+}
+
+// resetWorkingDirectory restores files to the state of the commit
+func resetWorkingDirectory(filesetID string) error {
+	fsPath := filepath.Join(config.FilesetsDir, filesetID+".json")
+	var fs snapshot.Fileset
+	if err := util.ReadJSON(fsPath, &fs); err != nil {
+		return err
+	}
+
+	if err := file.RestoreAll(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
+		return err
+	}
+
+	fmt.Println("Working directory reset.")
+	return nil
+}
+
+// Register command
+func init() {
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(&ResetCommand{}, middleware.WithBlockIntegrityCheck()),
+	)
+}

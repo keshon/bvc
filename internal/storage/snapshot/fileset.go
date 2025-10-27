@@ -49,7 +49,7 @@ func (fs *Fileset) Store() error {
 		totalBlocks += len(f.Blocks)
 	}
 
-	bar := progress.NewProgress(totalBlocks, "Storing blocks")
+	bar := progress.NewProgress(totalBlocks, "Storing blocks ")
 	defer bar.Finish()
 
 	return util.Parallel(fs.Files, util.WorkerCount(), func(f file.Entry) error {

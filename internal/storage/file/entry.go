@@ -43,7 +43,7 @@ func (e *Entry) Store() error {
 }
 
 func BuildAll(paths []string) ([]Entry, error) {
-	bar := progress.NewProgress(len(paths), "Scanning files")
+	bar := progress.NewProgress(len(paths), "Scanning files ")
 	defer bar.Finish()
 
 	jobs := make(chan string, len(paths))
