@@ -7,17 +7,21 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 
 ## Available Commands
 
+### add
+`add <file|dir|.>`
+Stage files or directories for the next commit
+
 ### blocks
 `blocks [branch|name]`
 Display repository blocks overview
 
 ### branch
-`branch`
-List all branches
-
-### branch
 `branch <branch-name>`
 Create a new branch from the current branch
+
+### branch
+`branch`
+List all branches
 
 ### checkout
 `checkout <branch-name>`
@@ -28,8 +32,8 @@ Switch to another branch
 Apply selected commit to the current branch
 
 ### commit
-`commit -m "<message>" | --message="<message>"`
-Commit current changes to the branch
+`commit -m "<message>" [--allow-empty]`
+Commit staged changes to the current branch
 
 ### help
 `help [command]`

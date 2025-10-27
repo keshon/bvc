@@ -9,34 +9,28 @@ import (
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-
 	"app/internal/util"
 )
 
+// CommitCommand implements Git-like commit behavior
 type CommitCommand struct{}
 
-// Canonical name
-func (c *CommitCommand) Name() string { return "commit" }
-
-// Git-style usage
-func (c *CommitCommand) Usage() string {
-	return `commit -m "<message>" | --message="<message>"`
-}
-
+func (c *CommitCommand) Name() string  { return "commit" }
+func (c *CommitCommand) Usage() string { return `commit -m "<message>" [--allow-empty]` }
 func (c *CommitCommand) Description() string {
-	return "Commit current changes to the branch"
+	return "Commit staged changes to the current branch"
 }
-
 func (c *CommitCommand) DetailedDescription() string {
-	return "Create a new commit with the staged changes.\nMessage is mandatory. Supports -m / --message flags or first positional argument."
+	return `Create a new commit with the staged changes.
+Supports -m / --message for commit message.
+Supports --allow-empty to commit even if no staged changes exist.`
 }
-
-// Short alias and one-letter
 func (c *CommitCommand) Aliases() []string { return []string{"ci"} }
 func (c *CommitCommand) Short() string     { return "c" }
 
-// Run executes the commit
+// Run executes the commit command
 func (c *CommitCommand) Run(ctx *cli.Context) error {
 	message := ""
 
@@ -46,7 +40,7 @@ func (c *CommitCommand) Run(ctx *cli.Context) error {
 	} else if val, ok := ctx.Flags["message"]; ok {
 		message = val
 	} else if len(ctx.Args) > 0 {
-		// fallback to positional argument
+		// fallback to first positional argument
 		message = ctx.Args[0]
 	}
 
@@ -54,23 +48,41 @@ func (c *CommitCommand) Run(ctx *cli.Context) error {
 		return fmt.Errorf("commit message required")
 	}
 
-	return c.commit(message)
+	allowEmpty := false
+	if _, ok := ctx.Flags["allow-empty"]; ok {
+		allowEmpty = true
+	}
+
+	return c.commit(message, allowEmpty)
 }
 
-// commit actualizes the commit
-func (c *CommitCommand) commit(message string) error {
-	fileset, err := snapshot.Build()
+// commit actualizes a new commit
+func (c *CommitCommand) commit(message string, allowEmpty bool) error {
+	// Get staged files
+	stagedFiles, err := file.GetIndexFiles()
 	if err != nil {
 		return err
 	}
 
-	if err := fileset.Store(); err != nil {
+	if len(stagedFiles) == 0 && !allowEmpty {
+		return fmt.Errorf("no staged changes to commit")
+	}
+
+	// Build fileset from staged files (empty fileset allowed with --allow-empty)
+	fileset, err := snapshot.BuildFromFiles(stagedFiles)
+	if err != nil {
 		return err
 	}
 
-	filesetPath := filepath.Join(config.FilesetsDir, fileset.ID+".json")
-	if err := util.WriteJSON(filesetPath, fileset); err != nil {
-		return err
+	if len(fileset.Files) > 0 {
+		if err := fileset.Store(); err != nil {
+			return err
+		}
+
+		filesetPath := filepath.Join(config.FilesetsDir, fileset.ID+".json")
+		if err := util.WriteJSON(filesetPath, fileset); err != nil {
+			return err
+		}
 	}
 
 	branch, _ := core.CurrentBranch()
@@ -97,6 +109,13 @@ func (c *CommitCommand) commit(message string) error {
 	}
 	if err := core.SetLastCommit(branch.Name, commitID); err != nil {
 		return err
+	}
+
+	// Clear staged changes after commit
+	if len(stagedFiles) > 0 {
+		if err := file.ClearIndex(); err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("Committed:", commitID)

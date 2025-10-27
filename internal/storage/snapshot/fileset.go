@@ -29,6 +29,29 @@ func Build() (Fileset, error) {
 	}, nil
 }
 
+// BuildFromFiles builds a fileset from a list of file entries.
+// This is used for committing only staged files.
+func BuildFromFiles(entries []file.Entry) (Fileset, error) {
+	if len(entries) == 0 {
+		return Fileset{}, fmt.Errorf("no files to commit")
+	}
+
+	// Store all blocks for the staged files
+	for _, e := range entries {
+		if err := e.Store(); err != nil {
+			return Fileset{}, fmt.Errorf("storing file %s: %w", e.Path, err)
+		}
+	}
+
+	// Compute a fileset hash
+	fileset := Fileset{
+		Files: entries,
+		ID:    Hash(entries),
+	}
+
+	return fileset, nil
+}
+
 // func (fs *Fileset) Store() error {
 // 	if err := block.CleanupTmp(); err != nil {
 // 		fmt.Printf("Warning: cleanup failed: %v\n", err)

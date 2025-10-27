@@ -10,7 +10,7 @@ import (
 
 var indexFile = filepath.Join(config.RepoDir, "index.json")
 
-// StageFiles записывает файлы в индекс (staging area)
+// Stage Files writes files to the index (staging area)
 func StageFiles(entries []Entry) error {
 	data, err := json.Marshal(entries)
 	if err != nil {
@@ -22,7 +22,7 @@ func StageFiles(entries []Entry) error {
 	return os.WriteFile(indexFile, data, 0644)
 }
 
-// ClearIndex очищает staging
+// ClearIndex clears the staging area
 func ClearIndex() error {
 	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
 		return nil
@@ -30,7 +30,7 @@ func ClearIndex() error {
 	return os.Remove(indexFile)
 }
 
-// GetIndexFiles возвращает файлы в staging
+// GetIndexFiles reads the staging area
 func GetIndexFiles() ([]Entry, error) {
 	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
 		return nil, nil
