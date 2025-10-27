@@ -8,7 +8,8 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
-	"app/internal/storage"
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
 	"app/internal/util"
 )
 
@@ -36,14 +37,14 @@ func revertToCommit(targetID string) error {
 	}
 
 	fsPath := filepath.Join(config.FilesetsDir, target.FilesetID+".json")
-	var fs storage.Fileset
+	var fs snapshot.Fileset
 	if err := util.ReadJSON(fsPath, &fs); err != nil {
 		return err
 	}
 
 	fmt.Printf("Reverting to commit %s...\n", targetID)
 
-	if err := storage.RestoreFileset(fs, fmt.Sprintf("for commit %s", targetID)); err != nil {
+	if err := file.RestoreAll(fs.Files, fmt.Sprintf("for commit %s", targetID)); err != nil {
 		return err
 	}
 

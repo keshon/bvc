@@ -9,7 +9,8 @@ import (
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 )
 
@@ -30,13 +31,12 @@ func (c *CommitCommand) Run(ctx *cli.Context) error {
 }
 
 func commit(message string) error {
-	fileset, err := storage.BuildFileset()
+	fileset, err := snapshot.Build()
 	if err != nil {
 		return err
 	}
 
-	err = storage.StoreFileset(fileset)
-	if err != nil {
+	if err := fileset.Store(); err != nil {
 		return err
 	}
 

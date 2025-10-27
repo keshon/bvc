@@ -5,7 +5,10 @@ import (
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage"
+
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 	"fmt"
 	"os"
@@ -41,8 +44,8 @@ func checkoutBranch(branch string) error {
 	commitID := string(commitIDBytes)
 
 	if commitID == "" {
-		emptyFS := storage.Fileset{ID: "empty", Files: nil}
-		if err := storage.RestoreFileset(emptyFS, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
+		emptyFS := snapshot.Fileset{ID: "empty", Files: nil}
+		if err := file.RestoreAll(emptyFS.Files, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
 			return err
 		}
 
@@ -62,12 +65,12 @@ func checkoutBranch(branch string) error {
 	}
 
 	fsPath := filepath.Join(config.FilesetsDir, c.FilesetID+".json")
-	var fs storage.Fileset
-	if err := util.ReadJSON(fsPath, &fs); err != nil {
+	var fileset snapshot.Fileset
+	if err := util.ReadJSON(fsPath, &fileset); err != nil {
 		return err
 	}
 
-	if err := storage.RestoreFileset(fs, fmt.Sprintf("for branch '%s'", branch)); err != nil {
+	if err := file.RestoreAll(fileset.Files, fmt.Sprintf("for branch '%s'", branch)); err != nil {
 		return err
 	}
 

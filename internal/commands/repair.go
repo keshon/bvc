@@ -3,7 +3,7 @@ package commands
 import (
 	"app/internal/cli"
 	"app/internal/config"
-	"app/internal/storage"
+
 	"app/internal/verify"
 	"fmt"
 	"os"

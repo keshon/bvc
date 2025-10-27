@@ -9,7 +9,8 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
-	"app/internal/storage"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 )
 
@@ -52,7 +53,7 @@ func overviewBlocks(sortMode string) error {
 			continue
 		}
 
-		var fs storage.Fileset
+		var fs snapshot.Fileset
 		if err := util.ReadJSON(filepath.Join(config.FilesetsDir, commit.FilesetID+".json"), &fs); err != nil {
 			continue
 		}

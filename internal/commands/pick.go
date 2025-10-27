@@ -5,7 +5,9 @@ import (
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage"
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 	"fmt"
 	"path/filepath"
@@ -37,7 +39,7 @@ func pickCommit(commitID string) error {
 	}
 
 	fsPath := filepath.Join(config.FilesetsDir, target.FilesetID+".json")
-	var fs storage.Fileset
+	var fs snapshot.Fileset
 	if err := util.ReadJSON(fsPath, &fs); err != nil {
 		return err
 	}
@@ -69,7 +71,7 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
-	if err := storage.RestoreFileset(fs, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := file.RestoreAll(fs.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

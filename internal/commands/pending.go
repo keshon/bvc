@@ -9,7 +9,9 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
-	"app/internal/storage"
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 )
 
@@ -32,7 +34,7 @@ func listPending() error {
 	}
 
 	commitID, _ := core.LastCommitID(currentBranch.Name)
-	var lastFileset storage.Fileset
+	var lastFileset snapshot.Fileset
 	if commitID != "" {
 		var commit core.Commit
 		commitPath := filepath.Join(config.CommitsDir, commitID+".json")
@@ -42,17 +44,17 @@ func listPending() error {
 		}
 	}
 
-	lastFiles := make(map[string]storage.FileEntry)
+	lastFiles := make(map[string]file.Entry)
 	for _, f := range lastFileset.Files {
 		lastFiles[filepath.Clean(f.Path)] = f
 	}
 
-	currFS, err := storage.BuildFileset()
+	currFS, err := snapshot.Build()
 	if err != nil {
 		return err
 	}
 
-	currFiles := make(map[string]storage.FileEntry)
+	currFiles := make(map[string]file.Entry)
 	for _, f := range currFS.Files {
 		currFiles[filepath.Clean(f.Path)] = f
 	}

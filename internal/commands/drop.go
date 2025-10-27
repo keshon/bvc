@@ -7,7 +7,10 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
-	"app/internal/storage"
+
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 )
 
@@ -42,12 +45,12 @@ func discardChanges() error {
 	}
 
 	fsPath := filepath.Join(config.FilesetsDir, c.FilesetID+".json")
-	var fs storage.Fileset
-	if err := util.ReadJSON(fsPath, &fs); err != nil {
+	var fileset snapshot.Fileset
+	if err := util.ReadJSON(fsPath, &fileset); err != nil {
 		return err
 	}
 
-	if err := storage.RestoreFileset(fs, fmt.Sprintf("discard to %s", commitID)); err != nil {
+	if err := file.RestoreAll(fileset.Files, fmt.Sprintf("discard to %s", commitID)); err != nil {
 		return err
 	}
 

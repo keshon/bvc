@@ -1,4 +1,4 @@
-package storage
+package file
 
 import (
 	"app/internal/config"
@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 )
 
-// listFiles returns all relevant file paths except the repository dir and binary itself.
-func listFiles() ([]string, error) {
+// ListAll returns all user files to be included in a snapshot.
+func ListAll() ([]string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -24,7 +24,6 @@ func listFiles() ([]string, error) {
 		if d.IsDir() {
 			return nil
 		}
-
 		abs, _ := filepath.Abs(path)
 		if abs == exe {
 			return nil
