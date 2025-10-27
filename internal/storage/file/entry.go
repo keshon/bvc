@@ -7,33 +7,29 @@ import (
 	"sync"
 )
 
-// Entry represents a file broken into content-defined chunks.
 type Entry struct {
-	Path   string           `json:"path"`
-	Blocks []block.BlockRef `json:"blocks"`
+	Path   string
+	Blocks []block.BlockRef
 }
 
-// Equal checks if two entries have identical block structures.
-func (f *Entry) Equal(other *Entry) bool {
-	if f == nil && other == nil {
+func (e *Entry) Equal(other *Entry) bool {
+	if e == nil && other == nil {
 		return true
 	}
-	if f == nil || other == nil {
+	if e == nil || other == nil {
 		return false
 	}
-	if len(f.Blocks) != len(other.Blocks) {
+	if len(e.Blocks) != len(other.Blocks) {
 		return false
 	}
-	for i := range f.Blocks {
-		if f.Blocks[i].Hash != other.Blocks[i].Hash ||
-			f.Blocks[i].Size != other.Blocks[i].Size {
+	for i := range e.Blocks {
+		if e.Blocks[i].Hash != other.Blocks[i].Hash || e.Blocks[i].Size != other.Blocks[i].Size {
 			return false
 		}
 	}
 	return true
 }
 
-// Build splits a single file into content-defined blocks.
 func Build(path string) (Entry, error) {
 	blocks, err := block.SplitFileIntoBlocks(path)
 	if err != nil {
@@ -42,23 +38,17 @@ func Build(path string) (Entry, error) {
 	return Entry{Path: path, Blocks: blocks}, nil
 }
 
-// Store writes all blocks of this file to the object store.
 func (e *Entry) Store() error {
 	return block.Store(e.Path, e.Blocks)
 }
 
-// BuildAll concurrently builds file entries for multiple paths.
 func BuildAll(paths []string) ([]Entry, error) {
 	bar := progress.NewProgress(len(paths), "Scanning files")
 	defer bar.Finish()
 
-	type result struct {
-		entry Entry
-		err   error
-	}
-
 	jobs := make(chan string, len(paths))
-	results := make(chan result, len(paths))
+	results := make(chan Entry, len(paths))
+	errs := make(chan error, len(paths))
 	workers := util.WorkerCount()
 
 	var wg sync.WaitGroup
@@ -66,30 +56,35 @@ func BuildAll(paths []string) ([]Entry, error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for path := range jobs {
-				entry, err := Build(path)
-				results <- result{entry, err}
+			for p := range jobs {
+				entry, err := Build(p)
+				if err != nil {
+					errs <- err
+					continue
+				}
+				results <- entry
 				bar.Increment()
 			}
 		}()
 	}
 
-	for _, path := range paths {
-		jobs <- path
+	for _, p := range paths {
+		jobs <- p
 	}
 	close(jobs)
 
 	go func() {
 		wg.Wait()
 		close(results)
+		close(errs)
 	}()
 
 	var entries []Entry
-	for r := range results {
-		if r.err != nil {
-			return nil, r.err
-		}
-		entries = append(entries, r.entry)
+	for entry := range results {
+		entries = append(entries, entry)
+	}
+	if len(errs) > 0 {
+		return entries, <-errs
 	}
 	return entries, nil
 }

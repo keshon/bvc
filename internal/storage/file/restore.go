@@ -1,7 +1,6 @@
 package file
 
 import (
-	"app/internal/config"
 	"app/internal/progress"
 	"app/internal/storage/block"
 	"bufio"
@@ -33,79 +32,60 @@ func RestoreAll(entries []Entry, label string) error {
 		bar.SetCurrent(i + 1)
 	}
 
-	cleanupExtraFiles(valid, exe)
+	cleanupExtra(valid, exe)
 	return nil
 }
 
-// restoreSingle rebuilds a single file from its blocks atomically.
-func restoreSingle(entry Entry) error {
-	if err := os.MkdirAll(filepath.Dir(entry.Path), 0o755); err != nil {
+func restoreSingle(e Entry) error {
+	if err := os.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
 		return err
 	}
-
-	tmp, err := os.CreateTemp(filepath.Dir(entry.Path), "tmp-*")
+	tmp, err := os.CreateTemp(filepath.Dir(e.Path), "tmp-*")
 	if err != nil {
 		return err
 	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
+	defer os.Remove(tmp.Name())
+	defer tmp.Close()
 
 	writer := bufio.NewWriterSize(tmp, 256*1024)
-	for _, ref := range entry.Blocks {
-		data, err := block.Read(ref.Hash)
+	for _, b := range e.Blocks {
+		data, err := block.Read(b.Hash)
 		if err != nil {
-			tmp.Close()
-			return fmt.Errorf("missing block %s for file %s", ref.Hash, entry.Path)
+			return fmt.Errorf("missing block %s for %s", b.Hash, e.Path)
 		}
 		if _, err := writer.Write(data); err != nil {
-			tmp.Close()
-			return fmt.Errorf("write failed for %s: %w", entry.Path, err)
+			return err
 		}
 	}
-	if err := writer.Flush(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
+	writer.Flush()
+	tmp.Sync()
 	tmp.Close()
 
-	return os.Rename(tmpPath, entry.Path)
+	return os.Rename(tmp.Name(), e.Path)
 }
 
-// cleanupExtraFiles removes files not in the snapshot and empties dirs.
-func cleanupExtraFiles(valid map[string]bool, exe string) {
+func cleanupExtra(valid map[string]bool, exe string) {
+	var dirs []string
 	filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
-		if err != nil || path == config.RepoDir {
-			return filepath.SkipDir
-		}
-		if d.IsDir() {
+		if err != nil || d == nil {
 			return nil
 		}
-		clean := filepath.Clean(path)
-		if filepath.Base(clean) != exe && !valid[clean] {
+		if d.IsDir() {
+			if path != "." {
+				dirs = append(dirs, path)
+			}
+			return nil
+		}
+		if !valid[filepath.Clean(path)] && filepath.Base(path) != exe {
 			_ = os.Remove(path)
 		}
 		return nil
 	})
-	removeEmptyDirs(".")
-}
 
-func removeEmptyDirs(root string) {
-	var dirs []string
-	filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || !d.IsDir() || path == root || path == config.RepoDir {
-			return nil
-		}
-		dirs = append(dirs, path)
-		return nil
-	})
 	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
-	for _, dir := range dirs {
-		if entries, _ := os.ReadDir(dir); len(entries) == 0 {
-			_ = os.Remove(dir)
+	for _, d := range dirs {
+		if entries, _ := os.ReadDir(d); len(entries) == 0 {
+			_ = os.Remove(d)
 		}
 	}
 }

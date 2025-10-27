@@ -1,29 +1,47 @@
 package commands
 
 import (
+	"fmt"
+	"path/filepath"
+	"time"
+
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-
 	"app/internal/util"
-	"fmt"
-	"path/filepath"
-	"time"
 )
 
-type PickCommand struct{}
+// CherryPickCommand applies a specific commit to the current branch
+type CherryPickCommand struct{}
 
-func (c *PickCommand) Name() string        { return "pick" }
-func (c *PickCommand) Usage() string       { return "pick <commit-id>" }
-func (c *PickCommand) Description() string { return "Apply selected commit to current branch" }
-func (c *PickCommand) DetailedDescription() string {
-	return "Apply a specific commit to current branch\nUse 'bvc log all' command to find the commit ID you want to grab"
+// Canonical name
+func (c *CherryPickCommand) Name() string { return "cherry-pick" }
+
+// Usage string
+func (c *CherryPickCommand) Usage() string { return "cherry-pick <commit-id>" }
+
+// Short description
+func (c *CherryPickCommand) Description() string {
+	return "Apply selected commit to the current branch"
 }
 
-func (c *PickCommand) Run(ctx *cli.Context) error {
+// Detailed description
+func (c *CherryPickCommand) DetailedDescription() string {
+	return `Apply a specific commit to the current branch.
+Use 'bvc log all' to find the commit ID you want to apply.`
+}
+
+// Optional aliases
+func (c *CherryPickCommand) Aliases() []string { return []string{"cp"} }
+
+// One-letter shortcut
+func (c *CherryPickCommand) Short() string { return "C" }
+
+// Run executes the command
+func (c *CherryPickCommand) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("commit ID required")
 	}
@@ -31,28 +49,35 @@ func (c *PickCommand) Run(ctx *cli.Context) error {
 	return pickCommit(commitID)
 }
 
+// pickCommit applies the target commit to the current branch
 func pickCommit(commitID string) error {
+	// Load target commit
 	targetPath := filepath.Join(config.CommitsDir, commitID+".json")
 	var target core.Commit
 	if err := util.ReadJSON(targetPath, &target); err != nil {
 		return fmt.Errorf("unknown commit: %s", commitID)
 	}
 
+	// Load fileset of target commit
 	fsPath := filepath.Join(config.FilesetsDir, target.FilesetID+".json")
 	var fs snapshot.Fileset
 	if err := util.ReadJSON(fsPath, &fs); err != nil {
 		return err
 	}
 
+	// Get current branch
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
 	}
+
+	// Get parent commit
 	parent, err := core.LastCommitID(currentBranch.Name)
 	if err != nil {
 		return err
 	}
 
+	// Create new commit on current branch referencing the picked commit
 	newCommit := core.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
@@ -67,10 +92,12 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
+	// Update last commit for the branch
 	if err := core.SetLastCommit(currentBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 
+	// Restore files from picked commit
 	if err := file.RestoreAll(fs.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
@@ -79,8 +106,9 @@ func pickCommit(commitID string) error {
 	return nil
 }
 
+// Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&PickCommand{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(&CherryPickCommand{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

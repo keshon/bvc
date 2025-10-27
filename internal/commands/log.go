@@ -1,32 +1,59 @@
 package commands
 
 import (
-	"app/internal/cli"
-	"app/internal/config"
-	"app/internal/core"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"app/internal/cli"
+	"app/internal/config"
+	"app/internal/core"
 )
 
 type LogCommand struct{}
 
-func (c *LogCommand) Name() string  { return "log" }
-func (c *LogCommand) Usage() string { return "log [all]" }
+// Canonical name
+func (c *LogCommand) Name() string { return "log" }
+
+// Usage string
+func (c *LogCommand) Usage() string {
+	return "log [-a|--all]"
+}
+
+// Short description
 func (c *LogCommand) Description() string {
-	return "Show commit history (use 'all' for all branches)"
+	return "Show commit history (current branch by default)"
 }
+
+// Detailed description
 func (c *LogCommand) DetailedDescription() string {
-	return "List commits for the current branch or all branches if 'all' is specified."
+	return "List commits for the current branch or all branches if -a / --all is specified."
 }
 
+// Optional aliases
+func (c *LogCommand) Aliases() []string { return []string{"lg"} }
+
+// One-letter shortcut
+func (c *LogCommand) Short() string { return "l" }
+
+// Run executes the log command
 func (c *LogCommand) Run(ctx *cli.Context) error {
-	showAll := len(ctx.Args) > 0 && ctx.Args[0] == "all"
-	return listCommits(showAll)
+	showAll := false
+	if _, ok := ctx.Flags["a"]; ok {
+		showAll = true
+	} else if _, ok := ctx.Flags["all"]; ok {
+		showAll = true
+	} else if len(ctx.Args) > 0 && ctx.Args[0] == "all" {
+		// Positional fallback for backward compatibility
+		showAll = true
+	}
+
+	return c.listCommits(showAll)
 }
 
+// LogRow holds structured commit information for printing
 type LogRow struct {
 	ID        string
 	Date      string
@@ -36,13 +63,14 @@ type LogRow struct {
 	Timestamp time.Time
 }
 
-func listCommits(showAll bool) error {
+// listCommits gathers and prints commits in descending order
+func (c *LogCommand) listCommits(showAll bool) error {
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
 	}
 
-	// Determine which branches to list
+	// Determine which branches to process
 	var branchNames []string
 	if showAll {
 		entries, err := os.ReadDir(config.BranchesDir)
@@ -59,26 +87,26 @@ func listCommits(showAll bool) error {
 	var rows []LogRow
 	seen := make(map[string]bool)
 
-	// Collect commits from all relevant branches
+	// Collect commits from each branch
 	for _, branch := range branchNames {
-		_ = core.GetBranchCommits(branch, func(c *core.Commit) bool {
-			if seen[c.ID] {
+		_ = core.GetBranchCommits(branch, func(cmt *core.Commit) bool {
+			if seen[cmt.ID] {
 				return true
 			}
-			seen[c.ID] = true
+			seen[cmt.ID] = true
 
 			parent := "<none>"
-			if len(c.Parents) > 0 {
-				parent = strings.Join(c.Parents, ", ")
+			if len(cmt.Parents) > 0 {
+				parent = strings.Join(cmt.Parents, ", ")
 			}
 
-			t, _ := time.Parse(time.RFC3339, c.Timestamp)
+			t, _ := time.Parse(time.RFC3339, cmt.Timestamp)
 			rows = append(rows, LogRow{
-				ID:        c.ID,
-				Date:      c.Timestamp,
-				Branch:    c.Branch,
+				ID:        cmt.ID,
+				Date:      cmt.Timestamp,
+				Branch:    cmt.Branch,
 				Parent:    parent,
-				Message:   c.Message,
+				Message:   cmt.Message,
 				Timestamp: t,
 			})
 			return true
@@ -119,6 +147,7 @@ func listCommits(showAll bool) error {
 	return nil
 }
 
+// Register the command
 func init() {
 	cli.RegisterCommand(&LogCommand{})
 }

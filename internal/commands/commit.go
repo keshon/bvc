@@ -16,21 +16,49 @@ import (
 
 type CommitCommand struct{}
 
-func (c *CommitCommand) Name() string        { return "commit" }
-func (c *CommitCommand) Usage() string       { return "commit \"<message>\"" }
-func (c *CommitCommand) Description() string { return "Commit current changes" }
-func (c *CommitCommand) DetailedDescription() string {
-	return "Commit changes to the current branch.\nMessage is mandatory."
-}
-func (c *CommitCommand) Run(ctx *cli.Context) error {
-	if len(ctx.Args) < 1 {
-		return fmt.Errorf("commit message required")
-	}
-	message := ctx.Args[0]
-	return commit(message)
+// Canonical name
+func (c *CommitCommand) Name() string { return "commit" }
+
+// Git-style usage
+func (c *CommitCommand) Usage() string {
+	return `commit -m "<message>" | --message="<message>"`
 }
 
-func commit(message string) error {
+func (c *CommitCommand) Description() string {
+	return "Commit current changes to the branch"
+}
+
+func (c *CommitCommand) DetailedDescription() string {
+	return "Create a new commit with the staged changes.\nMessage is mandatory. Supports -m / --message flags or first positional argument."
+}
+
+// Short alias and one-letter
+func (c *CommitCommand) Aliases() []string { return []string{"ci"} }
+func (c *CommitCommand) Short() string     { return "c" }
+
+// Run executes the commit
+func (c *CommitCommand) Run(ctx *cli.Context) error {
+	message := ""
+
+	// Check flags first
+	if val, ok := ctx.Flags["m"]; ok {
+		message = val
+	} else if val, ok := ctx.Flags["message"]; ok {
+		message = val
+	} else if len(ctx.Args) > 0 {
+		// fallback to positional argument
+		message = ctx.Args[0]
+	}
+
+	if message == "" {
+		return fmt.Errorf("commit message required")
+	}
+
+	return c.commit(message)
+}
+
+// commit actualizes the commit
+func (c *CommitCommand) commit(message string) error {
 	fileset, err := snapshot.Build()
 	if err != nil {
 		return err
@@ -47,12 +75,12 @@ func commit(message string) error {
 
 	branch, _ := core.CurrentBranch()
 	parent := ""
-	if bc, err := core.LastCommitID(branch.Name); err == nil {
-		parent = bc
+	if last, err := core.LastCommitID(branch.Name); err == nil {
+		parent = last
 	}
 
 	commitID := fmt.Sprintf("%x", time.Now().UnixNano())
-	c := core.Commit{
+	cmt := core.Commit{
 		ID:        commitID,
 		Parents:   []string{},
 		Branch:    branch.Name,
@@ -61,15 +89,16 @@ func commit(message string) error {
 		FilesetID: fileset.ID,
 	}
 	if parent != "" {
-		c.Parents = append(c.Parents, parent)
+		cmt.Parents = append(cmt.Parents, parent)
 	}
 
-	if err := util.WriteJSON(filepath.Join(config.CommitsDir, commitID+".json"), c); err != nil {
+	if err := util.WriteJSON(filepath.Join(config.CommitsDir, commitID+".json"), cmt); err != nil {
 		return err
 	}
 	if err := core.SetLastCommit(branch.Name, commitID); err != nil {
 		return err
 	}
+
 	fmt.Println("Committed:", commitID)
 	return nil
 }

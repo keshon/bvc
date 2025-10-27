@@ -7,64 +7,64 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 
 ## Available Commands
 
-### back
-`back <commit-id>`
-Revert to a specific commit
-
-### block
-`block [branch|name]`
+### blocks
+`blocks [branch|name]`
 Display repository blocks overview
 
-### commit
-`commit "<message>"`
-Commit current changes
+### branch
+`branch <branch-name>`
+Create a new branch from the current branch
 
-### drop
-`drop`
-Discard pending changes
+### branch
+`branch`
+List all branches
 
-### goto
-`goto <branch-name>`
+### checkout
+`checkout <branch-name>`
 Switch to another branch
 
+### cherry-pick
+`cherry-pick <commit-id>`
+Apply selected commit to the current branch
+
+### commit
+`commit -m "<message>" | --message="<message>"`
+Commit current changes to the branch
+
 ### help
-`help <command-name>`
+`help [command]`
 Show help for commands
 
 ### init
 `init`
 Initialize a new repository
 
-### list
-`list`
-List all branches
-
 ### log
-`log [all]`
-Show commit history (use 'all' for all branches)
+`log [-a|--all]`
+Show commit history (current branch by default)
 
 ### merge
 `merge <branch-name>`
-Merge another branch into current
-
-### new
-`new <branch-name>`
-Create a new branch
-
-### pending
-`pending`
-Show uncommitted changes
-
-### pick
-`pick <commit-id>`
-Apply selected commit to current branch
+Merge another branch into the current branch
 
 ### repair
 `repair`
 Repair missing or damaged repository blocks
 
+### reset
+`reset <commit-id>`
+Revert the workspace to a specific commit
+
+### reset
+`reset [--hard]`
+Reset current branch state
+
 ### scan
 `scan`
 Verify repository blocks and file integrity
+
+### status
+`status`
+Show uncommitted changes
 
 

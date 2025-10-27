@@ -1,11 +1,13 @@
 package block
 
 import (
-	"app/internal/config"
-	"app/internal/util"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+
+	"app/internal/config"
+	"app/internal/util"
 
 	"github.com/zeebo/xxh3"
 )
@@ -16,9 +18,30 @@ const (
 	rollMod      = 4096
 )
 
-// SplitFileIntoBlocks divides a file into content-defined chunks.
-func SplitFileIntoBlocks(srcPath string) ([]BlockRef, error) {
-	f, err := os.Open(srcPath)
+type BlockRef struct {
+	Hash   string `json:"hash"`
+	Size   int64  `json:"size"`
+	Offset int64  `json:"offset"`
+}
+
+type BlockStatus int
+
+const (
+	OK BlockStatus = iota
+	Missing
+	Damaged
+)
+
+type BlockCheck struct {
+	Hash     string
+	Status   BlockStatus
+	Files    []string
+	Branches []string
+}
+
+// SplitFileIntoBlocks splits a file into content-defined blocks.
+func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -40,22 +63,17 @@ func SplitFileIntoBlocks(srcPath string) ([]BlockRef, error) {
 				chunk = append(chunk, b)
 				rh = (rh<<1 + uint32(b)) & 0xFFFFFFFF
 				if shouldSplit(len(chunk), rh) {
-					blocks = append(blocks, hashBlock(chunk, offset))
+					blocks = append(blocks, hash(chunk, offset))
 					offset += int64(len(chunk))
 					chunk = chunk[:0]
 				}
 			}
 		}
 		if err != nil {
-			if err == os.ErrClosed || err.Error() == "EOF" {
-				break
-			}
 			if err.Error() == "EOF" {
 				break
 			}
-			if err != nil {
-				break
-			}
+			return nil, err
 		}
 		if n == 0 {
 			break
@@ -63,13 +81,17 @@ func SplitFileIntoBlocks(srcPath string) ([]BlockRef, error) {
 	}
 
 	if len(chunk) > 0 {
-		blocks = append(blocks, hashBlock(chunk, offset))
+		blocks = append(blocks, hash(chunk, offset))
 	}
+
 	return blocks, nil
 }
 
-// hashBlock computes a hash and creates a BlockBlockRef.
-func hashBlock(data []byte, offset int64) BlockRef {
+func shouldSplit(size int, rh uint32) bool {
+	return (size >= minChunkSize && rh%rollMod == 0) || size >= maxChunkSize
+}
+
+func hash(data []byte, offset int64) BlockRef {
 	hash := xxh3.Hash128(data).Bytes()
 	return BlockRef{
 		Hash:   fmt.Sprintf("%x", hash),
@@ -78,54 +100,57 @@ func hashBlock(data []byte, offset int64) BlockRef {
 	}
 }
 
-// shouldSplit decides when to end a chunk.
-func shouldSplit(size int, rh uint32) bool {
-	return (size >= minChunkSize && rh%rollMod == 0) || size >= maxChunkSize
-}
-
-func Store(srcPath string, blocks []BlockRef) error {
-	return util.Parallel(blocks, util.WorkerCount(), func(b BlockRef) error {
-		return writeAtomic(srcPath, b)
+// Store writes all blocks concurrently and safely on Windows.
+func Store(filePath string, blocks []BlockRef) error {
+	workers := util.WorkerCount()
+	return util.Parallel(blocks, workers, func(b BlockRef) error {
+		return WriteAtomic(filePath, b)
 	})
 }
 
-func writeAtomic(srcPath string, block BlockRef) error {
+// writeAtomic streams a single block to a temp file, then renames it.
+func WriteAtomic(filePath string, block BlockRef) error {
 	dst := filepath.Join(config.ObjectsDir, block.Hash+".bin")
 	if fi, err := os.Stat(dst); err == nil && fi.Size() == block.Size {
 		return nil
 	}
 
-	f, err := os.Open(srcPath)
+	src, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	data := make([]byte, block.Size)
-	if _, err := f.ReadAt(data, block.Offset); err != nil {
-		return fmt.Errorf("read block: %w", err)
-	}
+	defer src.Close()
 
 	tmp, err := os.CreateTemp(filepath.Dir(dst), "tmp-*")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
-	defer tmp.Close()
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
 
-	if _, err := tmp.Write(data); err != nil {
-		os.Remove(tmp.Name())
-		return err
+	// Stream copy block
+	if _, err := src.Seek(block.Offset, io.SeekStart); err != nil {
+		tmp.Close()
+		return fmt.Errorf("seek block: %w", err)
+	}
+	if _, err := io.CopyN(tmp, src, block.Size); err != nil {
+		tmp.Close()
+		return fmt.Errorf("copy block: %w", err)
 	}
 
+	// Flush & close before rename
 	if err := tmp.Sync(); err != nil {
-		os.Remove(tmp.Name())
+		tmp.Close()
 		return err
 	}
-	tmp.Close()
+	if err := tmp.Close(); err != nil {
+		return err
+	}
 
-	return os.Rename(tmp.Name(), dst)
+	return os.Rename(tmpPath, dst)
 }
 
+// Read retrieves a block from storage.
 func Read(hash string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(config.ObjectsDir, hash+".bin"))
 }

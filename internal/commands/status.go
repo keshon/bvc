@@ -11,28 +11,49 @@ import (
 	"app/internal/core"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-
 	"app/internal/util"
 )
 
-type PendingCommand struct{}
+// StatusCommand shows uncommitted changes (added, modified, deleted)
+type StatusCommand struct{}
 
-func (c *PendingCommand) Name() string        { return "pending" }
-func (c *PendingCommand) Usage() string       { return "pending" }
-func (c *PendingCommand) Description() string { return "Show uncommitted changes" }
-func (c *PendingCommand) DetailedDescription() string {
-	return "List uncommitted changes\nATTENTION: Dont switch branches having uncommitted changes, or (pending) files will be lost."
+// Canonical name
+func (c *StatusCommand) Name() string { return "status" }
+
+// Usage string
+func (c *StatusCommand) Usage() string { return "status" }
+
+// Short description
+func (c *StatusCommand) Description() string {
+	return "Show uncommitted changes"
 }
-func (c *PendingCommand) Run(ctx *cli.Context) error {
+
+// Detailed description
+func (c *StatusCommand) DetailedDescription() string {
+	return `List uncommitted changes in the current branch.
+WARNING: Switching branches with pending changes may cause data loss.`
+}
+
+// Optional aliases
+func (c *StatusCommand) Aliases() []string { return []string{"st"} }
+
+// One-letter shortcut
+func (c *StatusCommand) Short() string { return "S" }
+
+// Run executes the command
+func (c *StatusCommand) Run(ctx *cli.Context) error {
 	return listPending()
 }
 
+// listPending calculates added, modified, and deleted files
 func listPending() error {
+	// Get current branch
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
 	}
 
+	// Load last commit's fileset
 	commitID, _ := core.LastCommitID(currentBranch.Name)
 	var lastFileset snapshot.Fileset
 	if commitID != "" {
@@ -49,6 +70,7 @@ func listPending() error {
 		lastFiles[filepath.Clean(f.Path)] = f
 	}
 
+	// Build current workspace snapshot
 	currFS, err := snapshot.Build()
 	if err != nil {
 		return err
@@ -61,6 +83,7 @@ func listPending() error {
 
 	var added, modified, deleted []string
 
+	// Detect added and modified
 	for path, currFile := range currFiles {
 		if lastFile, exists := lastFiles[path]; !exists {
 			added = append(added, path)
@@ -69,54 +92,51 @@ func listPending() error {
 		}
 	}
 
+	// Detect deleted
 	for path := range lastFiles {
 		if _, exists := currFiles[path]; !exists {
 			deleted = append(deleted, path)
 		}
 	}
 
+	// Sort for consistent output
 	sort.Strings(added)
 	sort.Strings(modified)
 	sort.Strings(deleted)
 
-	fmt.Println("Pending changes")
+	// Display results
+	fmt.Println("Pending changes:")
 	if len(added) == 0 && len(modified) == 0 && len(deleted) == 0 {
 		fmt.Println("  (no uncommitted changes)")
 		return nil
 	}
 
-	if len(added) > 0 {
-		fmt.Println("Added:")
-		for _, f := range added {
-			printPathWithGrayColor("+", f, 0)
-		}
-		fmt.Print("\n")
-	}
-
-	if len(modified) > 0 {
-		fmt.Println("Modified:")
-		for _, f := range modified {
-			printPathWithGrayColor("~", f, 0)
-		}
-		fmt.Print("\n")
-	}
-
-	if len(deleted) > 0 {
-		fmt.Println("Deleted:")
-		for _, f := range deleted {
-			printPathWithGrayColor("-", f, 0)
-		}
-	}
+	printChanges("Added", "+", added)
+	printChanges("Modified", "~", modified)
+	printChanges("Deleted", "-", deleted)
 
 	return nil
 }
 
-func printPathWithGrayColor(prefix, path string, _ int) {
+// printChanges prints a list of files with a prefix and gray-colored path
+func printChanges(title, prefix string, files []string) {
+	if len(files) == 0 {
+		return
+	}
+	fmt.Println(title + ":")
+	for _, f := range files {
+		printPathWithGrayColor(prefix, f)
+	}
+	fmt.Print("\n")
+}
+
+// printPathWithGrayColor prints a single path with formatting
+func printPathWithGrayColor(prefix, path string) {
 	dir := filepath.Clean(filepath.Dir(path))
 	if dir == "." || dir == string(os.PathSeparator) {
 		dir = ""
 	} else {
-		dir = dir + string(os.PathSeparator)
+		dir += string(os.PathSeparator)
 	}
 
 	base := filepath.Base(path)
@@ -124,10 +144,9 @@ func printPathWithGrayColor(prefix, path string, _ int) {
 
 	const maxLen = 100
 	if len(full) > maxLen {
-
 		keep := maxLen - len(base) - 3
 		if keep < 10 {
-			keep = 10 // safety
+			keep = 10
 		}
 		if len(dir) > keep {
 			start := dir[:keep/2]
@@ -139,6 +158,7 @@ func printPathWithGrayColor(prefix, path string, _ int) {
 	fmt.Printf("%s \033[90m%s\033[0m%s\n", prefix, dir, base)
 }
 
+// Register the command
 func init() {
-	cli.RegisterCommand(&PendingCommand{})
+	cli.RegisterCommand(&StatusCommand{})
 }

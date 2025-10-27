@@ -1,38 +1,56 @@
 package commands
 
 import (
-	"app/internal/cli"
-	"app/internal/config"
-
-	"app/internal/verify"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
+	"app/internal/cli"
+	"app/internal/config"
+	"app/internal/storage/block"
+	"app/internal/storage/file"
+	"app/internal/verify"
+
 	"github.com/zeebo/xxh3"
 )
 
+// RepairCommand repairs missing or damaged repository blocks.
 type RepairCommand struct{}
 
-func (c *RepairCommand) Name() string  { return "repair" }
+// Canonical name
+func (c *RepairCommand) Name() string { return "repair" }
+
+// Usage string
 func (c *RepairCommand) Usage() string { return "repair" }
+
+// Short description
 func (c *RepairCommand) Description() string {
 	return "Repair missing or damaged repository blocks"
 }
+
+// Detailed description
 func (c *RepairCommand) DetailedDescription() string {
-	return "Repair missing or damaged blocks from repository files"
+	return "Repair missing or damaged blocks from repository files. Scans blocks and attempts to restore from known files."
 }
 
+// Aliases
+func (c *RepairCommand) Aliases() []string { return []string{"fix"} }
+
+// Shortcut
+func (c *RepairCommand) Short() string { return "R" }
+
+// Run executes the repair process
 func (c *RepairCommand) Run(ctx *cli.Context) error {
+	// Stream blocks to identify missing or damaged ones
 	out, errCh := verify.ScanRepositoryBlocksStream()
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
 
-	var toFix []storage.BlockCheck
+	var toFix []block.BlockCheck
 
-	// Stream results safely (avoid deadlocks)
+	// Stream results safely to avoid deadlocks
 	for out != nil || errCh != nil {
 		select {
 		case bc, ok := <-out:
@@ -40,7 +58,7 @@ func (c *RepairCommand) Run(ctx *cli.Context) error {
 				out = nil
 				continue
 			}
-			if bc.Status != storage.BlockOK {
+			if bc.Status != block.OK {
 				toFix = append(toFix, bc)
 			}
 
@@ -66,20 +84,19 @@ func (c *RepairCommand) Run(ctx *cli.Context) error {
 	count := 0
 	repaired := 0
 
-	var fixedList []storage.BlockCheck
-	var failedList []storage.BlockCheck
+	var fixedList []block.BlockCheck
+	var failedList []block.BlockCheck
 
 	for _, bc := range toFix {
 		targetPath := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
 
-		// Always remove damaged or stale block file first
+		// Remove any damaged or stale block file
 		_ = os.Remove(targetPath)
-
 		fixed := false
 
 		// Try to rebuild block from known files
-		for _, file := range bc.Files {
-			entry, err := storage.BuildFileEntry(file)
+		for _, currFile := range bc.Files {
+			entry, err := file.Build(currFile)
 			if err != nil {
 				continue
 			}
@@ -89,33 +106,31 @@ func (c *RepairCommand) Run(ctx *cli.Context) error {
 					continue
 				}
 
-				// Attempt to rewrite the block
-				if err := storage.StoreBlocks(entry.Path, []storage.BlockRef{b}); err != nil {
+				// Store the block
+				if err := block.Store(entry.Path, []block.BlockRef{b}); err != nil {
 					continue
 				}
 
-				// Verify integrity after writing
-				status, _ := storage.VerifyBlock(b.Hash)
-				if status == storage.BlockOK {
+				// Verify integrity
+				status, _ := block.Verify(b.Hash)
+				if status == block.OK {
 					fixed = true
 					repaired++
 					break
 				} else {
-					// delete invalid block to avoid confusion
-					_ = os.Remove(targetPath)
+					_ = os.Remove(targetPath) // delete invalid block
 				}
 			}
-
 			if fixed {
 				break
 			}
 		}
 
 		if fixed {
-			fmt.Print("\033[32m█\033[0m") // green block = success
+			fmt.Print("\033[32m█\033[0m") // success
 			fixedList = append(fixedList, bc)
 		} else {
-			fmt.Print("\033[31m█\033[0m") // red block = failure
+			fmt.Print("\033[31m█\033[0m") // failure
 			failedList = append(failedList, bc)
 		}
 
@@ -173,8 +188,8 @@ func verifyBlockHash(path, expected string) (bool, error) {
 	return sum == expected, nil
 }
 
-// verifyRepairedBlocks re-checks integrity after repair and lists any failures.
-func verifyRepairedBlocks(toFix []storage.BlockCheck) int {
+// verifyRepairedBlocks re-checks integrity after repair and lists failures.
+func verifyRepairedBlocks(toFix []block.BlockCheck) int {
 	fmt.Println("\nVerifying repaired blocks...")
 	failed := 0
 
@@ -193,6 +208,7 @@ func verifyRepairedBlocks(toFix []storage.BlockCheck) int {
 	return failed
 }
 
+// Register command
 func init() {
 	cli.RegisterCommand(&RepairCommand{})
 }

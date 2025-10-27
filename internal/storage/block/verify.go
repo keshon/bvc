@@ -2,7 +2,6 @@ package block
 
 import (
 	"app/internal/config"
-	"app/internal/util"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,48 +11,44 @@ import (
 )
 
 func Verify(hash string) (BlockStatus, error) {
-	path := filepath.Join(config.ObjectsDir, hash+".bin")
+	path := filepath.Join(config.ObjectsDir, hash+".bin") // <- fix here
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Missing, nil
 		}
-		return Missing, err
+		return Damaged, err
 	}
-
 	if fmt.Sprintf("%x", xxh3.Hash128(data).Bytes()) == hash {
 		return OK, nil
 	}
 	return Damaged, nil
 }
 
-func VerifyMany(blocks map[string]struct{}, workers int) <-chan BlockCheck {
+func VerifyMany(hashes map[string]struct{}, workers int) <-chan BlockCheck {
 	out := make(chan BlockCheck, 128)
-
 	go func() {
 		defer close(out)
-		tasks := make(chan string, len(blocks))
-		for h := range blocks {
+		if workers <= 0 {
+			workers = 4
+		}
+		tasks := make(chan string, len(hashes))
+		for h := range hashes {
 			tasks <- h
 		}
 		close(tasks)
 
 		var wg sync.WaitGroup
-		if workers <= 0 {
-			workers = util.WorkerCount()
-		}
-
 		for i := 0; i < workers; i++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				for h := range tasks {
-					BlockStatus, _ := Verify(h)
-					out <- BlockCheck{Hash: h, BlockStatus: BlockStatus}
+					status, _ := Verify(h)
+					out <- BlockCheck{Hash: h, Status: status}
 				}
 			}()
 		}
-
 		wg.Wait()
 	}()
 	return out

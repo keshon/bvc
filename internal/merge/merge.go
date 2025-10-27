@@ -3,7 +3,9 @@ package merge
 import (
 	"app/internal/config"
 	"app/internal/core"
-	"app/internal/storage"
+	"app/internal/storage/file"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 	"fmt"
 	"path/filepath"
@@ -77,8 +79,8 @@ func FindCommonAncestor(aCommitID, bCommitID string) (string, error) {
 }
 
 // LoadFilesetFromCommit retrieves the fileset for a commit.
-func LoadFilesetFromCommit(commitID string) (storage.Fileset, error) {
-	var fs storage.Fileset
+func LoadFilesetFromCommit(commitID string) (snapshot.Fileset, error) {
+	var fs snapshot.Fileset
 	if commitID == "" {
 		return fs, nil
 	}
@@ -96,21 +98,21 @@ func LoadFilesetFromCommit(commitID string) (storage.Fileset, error) {
 
 // MergeFilesets performs three-way merge of filesets.
 // Returns merged fileset and list of conflicting paths.
-func MergeFilesets(base, ours, theirs storage.Fileset) (storage.Fileset, []string) {
+func MergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []string) {
 	// returns merged fileset and list of conflict paths
 	conflicts := []string{}
-	mergedMap := map[string]storage.FileEntry{}
+	mergedMap := map[string]file.Entry{}
 
 	// Build maps for quick lookup
-	baseMap := map[string]storage.FileEntry{}
+	baseMap := map[string]file.Entry{}
 	for _, f := range base.Files {
 		baseMap[filepath.Clean(f.Path)] = f
 	}
-	oursMap := map[string]storage.FileEntry{}
+	oursMap := map[string]file.Entry{}
 	for _, f := range ours.Files {
 		oursMap[filepath.Clean(f.Path)] = f
 	}
-	theirsMap := map[string]storage.FileEntry{}
+	theirsMap := map[string]file.Entry{}
 	for _, f := range theirs.Files {
 		theirsMap[filepath.Clean(f.Path)] = f
 	}
@@ -128,9 +130,9 @@ func MergeFilesets(base, ours, theirs storage.Fileset) (storage.Fileset, []strin
 	}
 
 	for path := range allPaths {
-		var b *storage.FileEntry
-		var o *storage.FileEntry
-		var t *storage.FileEntry
+		var b *file.Entry
+		var o *file.Entry
+		var t *file.Entry
 
 		if v, ok := baseMap[path]; ok {
 			tmp := v
@@ -187,7 +189,7 @@ func MergeFilesets(base, ours, theirs storage.Fileset) (storage.Fileset, []strin
 	}
 
 	// build Fileset struct
-	mergedFiles := make([]storage.FileEntry, 0, len(mergedMap))
+	mergedFiles := make([]file.Entry, 0, len(mergedMap))
 	for _, f := range mergedMap {
 		mergedFiles = append(mergedFiles, f)
 	}
@@ -196,8 +198,8 @@ func MergeFilesets(base, ours, theirs storage.Fileset) (storage.Fileset, []strin
 		return filepath.Clean(mergedFiles[i].Path) < filepath.Clean(mergedFiles[j].Path)
 	})
 
-	filesetID := storage.HashFileset(mergedFiles)
-	return storage.Fileset{ID: filesetID, Files: mergedFiles}, conflicts
+	filesetID := snapshot.Hash(mergedFiles)
+	return snapshot.Fileset{ID: filesetID, Files: mergedFiles}, conflicts
 }
 
 // PerformMerge executes a full merge operation between branches.
@@ -275,7 +277,7 @@ func PerformMerge(currentBranch, targetBranch string) error {
 	}
 
 	// apply merged fileset to working directory
-	if err := storage.RestoreFileset(mergedFS, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
+	if err := file.RestoreAll(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
 		return fmt.Errorf("failed to apply merged fileset: %v", err)
 	}
 

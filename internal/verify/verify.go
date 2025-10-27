@@ -4,7 +4,10 @@ import (
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/progress"
-	"app/internal/storage"
+	"app/internal/repo"
+	"app/internal/storage/block"
+	"app/internal/storage/snapshot"
+
 	"app/internal/util"
 	"fmt"
 	"path/filepath"
@@ -14,17 +17,17 @@ import (
 func ScanRepositoryBlocks() error {
 	out, errCh := ScanRepositoryBlocksStream()
 
-	totalBlocks, err := storage.CountAllBlocks()
+	totalBlocks, err := repo.CountAllBlocks()
 	if err != nil {
 		return err
 	}
 
-	bar := progress.NewProgress(totalBlocks, "Verifying repository blocks")
+	bar := progress.NewProgress(totalBlocks, "Checking blocks")
 	defer bar.Finish()
 
 	for bc := range out {
 		bar.Increment()
-		if bc.Status != storage.BlockOK {
+		if bc.Status != block.OK {
 			return fmt.Errorf("block %s is missing or damaged", bc.Hash)
 		}
 	}
@@ -37,8 +40,8 @@ func ScanRepositoryBlocks() error {
 }
 
 // ScanRepositoryBlocksStream verifies blocks and streams results live.
-func ScanRepositoryBlocksStream() (<-chan storage.BlockCheck, <-chan error) {
-	out := make(chan storage.BlockCheck, 128)
+func ScanRepositoryBlocksStream() (<-chan block.BlockCheck, <-chan error) {
+	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -75,7 +78,7 @@ func ScanRepositoryBlocksStream() (<-chan storage.BlockCheck, <-chan error) {
 				continue
 			}
 
-			var fs storage.Fileset
+			var fs snapshot.Fileset
 			if err := util.ReadJSON(filepath.Join(config.FilesetsDir, commit.FilesetID+".json"), &fs); err != nil {
 				continue
 			}
@@ -98,7 +101,7 @@ func ScanRepositoryBlocksStream() (<-chan storage.BlockCheck, <-chan error) {
 		}
 
 		// Phase 2: Verify blocks concurrently using storage API
-		verifyOut := storage.VerifyBlocks(blockHashes, 8)
+		verifyOut := block.VerifyMany(blockHashes, 8)
 		for bc := range verifyOut {
 			ref := blockRefs[bc.Hash]
 			bc.Files = util.SortedKeys(ref.files)

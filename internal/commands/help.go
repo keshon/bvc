@@ -8,22 +8,38 @@ import (
 	"app/internal/cli"
 )
 
+// HelpCommand shows help information for commands
 type HelpCommand struct{}
 
-func (c *HelpCommand) Name() string        { return "help" }
-func (c *HelpCommand) Usage() string       { return "help <command-name>" }
+// Canonical name
+func (c *HelpCommand) Name() string { return "help" }
+
+// Usage string
+func (c *HelpCommand) Usage() string { return "help [command]" }
+
+// Short description
 func (c *HelpCommand) Description() string { return "Show help for commands" }
+
+// Detailed description
 func (c *HelpCommand) DetailedDescription() string {
-	return "Show help information for a specific command."
+	return "Display detailed help information for a specific command, or list all commands if none is provided."
 }
 
+// Aliases
+func (c *HelpCommand) Aliases() []string { return []string{"h", "?"} }
+
+// Shortcut
+func (c *HelpCommand) Short() string { return "H" }
+
+// Run executes the help command
 func (c *HelpCommand) Run(ctx *cli.Context) error {
 	if len(ctx.Args) > 0 {
 		return commandHelp(ctx.Args[0])
 	}
-	return allCommands()
+	return listAllCommands()
 }
 
+// commandHelp shows detailed help for a single command
 func commandHelp(name string) error {
 	cmd, ok := cli.GetCommand(name)
 	if !ok {
@@ -31,15 +47,24 @@ func commandHelp(name string) error {
 		return nil
 	}
 
-	if u := cmd.Usage(); u != "" {
-		fmt.Printf("\033[90mUsage:\033[0m %s\n\n", u)
+	if usage := cmd.Usage(); usage != "" {
+		fmt.Printf("\033[90mUsage:\033[0m %s\n\n", usage)
 	}
-	fmt.Printf("%s\n", cmd.DetailedDescription())
-	fmt.Println()
+	fmt.Printf("%s\n\n", cmd.DetailedDescription())
+
+	// Show aliases if available
+	if aliasesCmd, ok := cmd.(interface{ Aliases() []string }); ok {
+		aliases := aliasesCmd.Aliases()
+		if len(aliases) > 0 {
+			fmt.Printf("Aliases: %s\n", strings.Join(aliases, ", "))
+		}
+	}
+
 	return nil
 }
 
-func allCommands() error {
+// listAllCommands lists all registered commands
+func listAllCommands() error {
 	commands := cli.AllCommands()
 	sort.Slice(commands, func(i, j int) bool {
 		return commands[i].Name() < commands[j].Name()
@@ -67,6 +92,7 @@ func allCommands() error {
 	return nil
 }
 
+// Register command
 func init() {
 	cli.RegisterCommand(&HelpCommand{})
 }

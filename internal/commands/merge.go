@@ -1,22 +1,41 @@
 package commands
 
 import (
+	"fmt"
+
 	"app/internal/cli"
 	"app/internal/core"
 	"app/internal/merge"
 	"app/internal/middleware"
-	"fmt"
 )
 
+// MergeCommand merges another branch into the current branch
 type MergeCommand struct{}
 
-func (c *MergeCommand) Name() string        { return "merge" }
-func (c *MergeCommand) Usage() string       { return "merge <branch-name>" }
-func (c *MergeCommand) Description() string { return "Merge another branch into current" }
-func (c *MergeCommand) DetailedDescription() string {
-	return "Merge another branch into current branch using three-way merge."
+// Canonical name
+func (c *MergeCommand) Name() string { return "merge" }
+
+// Usage string
+func (c *MergeCommand) Usage() string { return "merge <branch-name>" }
+
+// Short description
+func (c *MergeCommand) Description() string {
+	return "Merge another branch into the current branch"
 }
 
+// Detailed description
+func (c *MergeCommand) DetailedDescription() string {
+	return `Perform a three-way merge of the specified branch into the current branch.
+Conflicts may need manual resolution.`
+}
+
+// Optional aliases
+func (c *MergeCommand) Aliases() []string { return []string{"mg"} }
+
+// One-letter shortcut
+func (c *MergeCommand) Short() string { return "M" }
+
+// Run executes the merge
 func (c *MergeCommand) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
@@ -27,14 +46,16 @@ func (c *MergeCommand) Run(ctx *cli.Context) error {
 		return err
 	}
 
-	targetBranchName := ctx.Args[0]
-	if currentBranch.Name == targetBranchName {
+	targetBranch := ctx.Args[0]
+	if currentBranch.Name == targetBranch {
 		return fmt.Errorf("cannot merge branch into itself")
 	}
 
-	return merge.PerformMerge(currentBranch.Name, targetBranchName)
+	fmt.Printf("Merging branch '%s' into '%s'...\n", targetBranch, currentBranch.Name)
+	return merge.PerformMerge(currentBranch.Name, targetBranch)
 }
 
+// Register command
 func init() {
 	cli.RegisterCommand(
 		cli.ApplyMiddlewares(&MergeCommand{}, middleware.WithBlockIntegrityCheck()),

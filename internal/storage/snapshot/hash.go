@@ -10,7 +10,6 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// Hash computes a deterministic ID for the fileset.
 func Hash(entries []file.Entry) string {
 	paths := make([]string, 0, len(entries))
 	index := make(map[string]file.Entry, len(entries))
