@@ -16,12 +16,12 @@ Stage files or directories for the next commit
 Display repository blocks overview
 
 ### branch
-`branch <branch-name>`
-Create a new branch from the current branch
-
-### branch
 `branch`
 List all branches
+
+### branch
+`branch <branch-name>`
+Create a new branch from the current branch
 
 ### checkout
 `checkout <branch-name>`

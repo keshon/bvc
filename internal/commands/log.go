@@ -70,7 +70,6 @@ func (c *LogCommand) listCommits(showAll bool) error {
 		return err
 	}
 
-	// Determine which branches to process
 	var branchNames []string
 	if showAll {
 		entries, err := os.ReadDir(config.BranchesDir)
@@ -84,64 +83,58 @@ func (c *LogCommand) listCommits(showAll bool) error {
 		branchNames = []string{currentBranch.Name}
 	}
 
-	var rows []LogRow
+	var commits []*core.Commit
 	seen := make(map[string]bool)
 
-	// Collect commits from each branch
 	for _, branch := range branchNames {
 		_ = core.GetBranchCommits(branch, func(cmt *core.Commit) bool {
 			if seen[cmt.ID] {
 				return true
 			}
 			seen[cmt.ID] = true
-
-			parent := "<none>"
-			if len(cmt.Parents) > 0 {
-				parent = strings.Join(cmt.Parents, ", ")
-			}
-
-			t, _ := time.Parse(time.RFC3339, cmt.Timestamp)
-			rows = append(rows, LogRow{
-				ID:        cmt.ID,
-				Date:      cmt.Timestamp,
-				Branch:    cmt.Branch,
-				Parent:    parent,
-				Message:   cmt.Message,
-				Timestamp: t,
-			})
+			commits = append(commits, cmt)
 			return true
 		})
 	}
 
-	if len(rows) == 0 {
+	if len(commits) == 0 {
 		fmt.Println("No commits found")
 		return nil
 	}
 
 	// Sort newest first
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].Timestamp.After(rows[j].Timestamp)
+	sort.Slice(commits, func(i, j int) bool {
+		ti, _ := time.Parse(time.RFC3339, commits[i].Timestamp)
+		tj, _ := time.Parse(time.RFC3339, commits[j].Timestamp)
+		return ti.After(tj)
 	})
 
-	// Output formatting
-	fmt.Println("Commits history")
-	fmt.Println(strings.Repeat("\033[90m─\033[0m", 100))
-	fmt.Printf("\033[90m%-16s  %-19s  %-8s  %-28s  %s\033[0m\n", "ID", "Date", "Branch", "Parent(s)", "Message")
-	fmt.Println(strings.Repeat("\033[90m─\033[0m", 100))
+	for _, cmt := range commits {
+		t, _ := time.Parse(time.RFC3339, cmt.Timestamp)
 
-	for _, r := range rows {
-		parent := r.Parent
-		if len(parent) > 28 {
-			parent = parent[:25] + "..."
+		fmt.Printf("\033[90mCommit:\033[0m %s\n", cmt.ID)
+		fmt.Printf("\033[90mBranch:\033[0m %s\n", cmt.Branch)
+		if len(cmt.Parents) > 0 {
+			fmt.Printf("\033[90mParent:\033[0m %s\n", strings.Join(cmt.Parents, " "))
 		}
-		fmt.Printf("\033[90m%-16s\033[0m  %-19s  %-8s  %-28s  %s\n",
-			r.ID, r.Timestamp.Format("2006-01-02 15:04:05"), r.Branch, parent, r.Message)
+		fmt.Printf("\033[90mDate:\033[0m   %s\n\n", t.Format("Mon Jan 2 15:04:05 2006"))
+
+		// Print message with Git-style indentation
+		lines := strings.Split(cmt.Message, "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) == "" {
+				fmt.Println()
+			} else {
+				fmt.Printf("    %s\n", line)
+			}
+		}
+		fmt.Println()
 	}
 
 	if showAll {
-		fmt.Printf("\nTotal commits: %d (all branches)\n", len(rows))
+		fmt.Printf("Total commits: %d (all branches)\n", len(commits))
 	} else {
-		fmt.Printf("\nTotal commits: %d (branch: %s)\n", len(rows), currentBranch.Name)
+		fmt.Printf("Total commits: %d (branch: %s)\n", len(commits), currentBranch.Name)
 	}
 
 	return nil

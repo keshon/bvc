@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"app/internal/cli"
@@ -32,26 +33,51 @@ func (c *CommitCommand) Short() string     { return "c" }
 
 // Run executes the commit command
 func (c *CommitCommand) Run(ctx *cli.Context) error {
-	message := ""
+	var messages []string
+	var allowEmpty bool
 
-	// Check flags first
+	// Parse args and flags in any order (Git-style)
+	for i := 0; i < len(ctx.Args); i++ {
+		arg := ctx.Args[i]
+
+		switch {
+		case arg == "-m" && i+1 < len(ctx.Args):
+			messages = append(messages, ctx.Args[i+1])
+			i++
+		case len(arg) > 3 && arg[:3] == "-m=":
+			messages = append(messages, arg[3:])
+		case arg == "--message" && i+1 < len(ctx.Args):
+			messages = append(messages, ctx.Args[i+1])
+			i++
+		case len(arg) > 10 && arg[:10] == "--message=":
+			messages = append(messages, arg[10:])
+		case arg == "--allow-empty":
+			allowEmpty = true
+		default:
+			// fallback: treat first positional argument as message if none yet
+			if len(messages) == 0 {
+				messages = append(messages, arg)
+			}
+		}
+	}
+
+	// Also parse your CLI’s flag map for compatibility
 	if val, ok := ctx.Flags["m"]; ok {
-		message = val
-	} else if val, ok := ctx.Flags["message"]; ok {
-		message = val
-	} else if len(ctx.Args) > 0 {
-		// fallback to first positional argument
-		message = ctx.Args[0]
+		messages = append(messages, val)
 	}
-
-	if message == "" {
-		return fmt.Errorf("commit message required")
+	if val, ok := ctx.Flags["message"]; ok {
+		messages = append(messages, val)
 	}
-
-	allowEmpty := false
 	if _, ok := ctx.Flags["allow-empty"]; ok {
 		allowEmpty = true
 	}
+
+	if len(messages) == 0 {
+		return fmt.Errorf("commit message required")
+	}
+
+	// Join multiple -m messages with blank lines, like Git
+	message := strings.Join(messages, "\n\n")
 
 	return c.commit(message, allowEmpty)
 }

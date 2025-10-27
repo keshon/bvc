@@ -4,6 +4,8 @@ import (
 	"app/internal/progress"
 	"app/internal/storage/block"
 	"app/internal/util"
+	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -87,4 +89,69 @@ func BuildAll(paths []string) ([]Entry, error) {
 		return entries, <-errs
 	}
 	return entries, nil
+}
+
+// BuildTrackedAndUntracked builds entries for all tracked + untracked files.
+func BuildTrackedAndUntracked(paths []string) ([]Entry, error) {
+	allFiles, err := ListAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build entries for everything that currently exists in working directory
+	entries, err := BuildAll(allFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	// Also handle deleted files (tracked but no longer exist)
+	tracked, _ := GetIndexFiles()
+	var deleted []Entry
+	for _, t := range tracked {
+		if !fileExists(t.Path) {
+			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
+		}
+	}
+
+	return append(entries, deleted...), nil
+}
+
+// BuildModifiedAndDeleted builds entries only for modified and deleted files.
+func BuildModifiedAndDeleted(paths []string) ([]Entry, error) {
+	tracked, err := GetIndexFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	var toUpdate []string
+	var deleted []Entry
+
+	for _, t := range tracked {
+		if !fileExists(t.Path) {
+			// tracked file deleted in working tree
+			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
+			continue
+		}
+
+		// Compare block hashes to detect modification
+		current, err := Build(t.Path)
+		if err != nil {
+			return nil, err
+		}
+		if !t.Equal(&current) {
+			toUpdate = append(toUpdate, t.Path)
+		}
+	}
+
+	modified, err := BuildAll(toUpdate)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(modified, deleted...), nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(filepath.Clean(path))
+	return err == nil
 }
