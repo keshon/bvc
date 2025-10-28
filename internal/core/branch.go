@@ -20,29 +20,6 @@ func CurrentBranch() (Branch, error) {
 	return Branch{Name: filepath.Base(ref.String())}, nil
 }
 
-// Branches returns ordered list of branches
-func Branches() ([]Branch, error) {
-	dirEntries, err := os.ReadDir(config.BranchesDir)
-	if err != nil {
-		return nil, err
-	}
-
-	branches := make([]Branch, 0, len(dirEntries))
-	for _, entry := range dirEntries {
-		branches = append(branches, Branch{Name: entry.Name()})
-	}
-
-	for i := 0; i < len(branches)-1; i++ {
-		for j := i + 1; j < len(branches); j++ {
-			if branches[i].Name > branches[j].Name {
-				branches[i], branches[j] = branches[j], branches[i]
-			}
-		}
-	}
-
-	return branches, nil
-}
-
 func IsBranchExist(name string) (bool, error) {
 	_, err := os.Stat(filepath.Join(config.BranchesDir, name))
 	if err == nil {
@@ -64,6 +41,29 @@ func GetBranch(name string) (Branch, error) {
 		return Branch{}, fmt.Errorf("branch '%s' does not exist", name)
 	}
 	return Branch{Name: name}, nil
+}
+
+// Branches returns ordered list of branches
+func GetBranches() ([]Branch, error) {
+	dirEntries, err := os.ReadDir(config.BranchesDir)
+	if err != nil {
+		return nil, err
+	}
+
+	branches := make([]Branch, 0, len(dirEntries))
+	for _, entry := range dirEntries {
+		branches = append(branches, Branch{Name: entry.Name()})
+	}
+
+	for i := 0; i < len(branches)-1; i++ {
+		for j := i + 1; j < len(branches); j++ {
+			if branches[i].Name > branches[j].Name {
+				branches[i], branches[j] = branches[j], branches[i]
+			}
+		}
+	}
+
+	return branches, nil
 }
 
 // CreateBranch creates a new branch and sets last commit of parent branch

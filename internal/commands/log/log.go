@@ -2,13 +2,11 @@ package log
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"app/internal/cli"
-	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 )
@@ -60,13 +58,15 @@ func (c *Command) runLog(showAll bool) error {
 
 	var branchNames []string
 	if showAll {
-		entries, err := os.ReadDir(config.BranchesDir)
+		allBranches, err := core.GetBranches()
 		if err != nil {
 			return err
 		}
-		for _, e := range entries {
-			branchNames = append(branchNames, e.Name())
+
+		for _, branch := range allBranches {
+			branchNames = append(branchNames, branch.Name)
 		}
+
 	} else {
 		branchNames = []string{currentBranch.Name}
 	}

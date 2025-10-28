@@ -20,7 +20,7 @@ type BlockInfo struct {
 // ListAllBlocks returns a map[hash] of BlockInfo for all blocks in all branches.
 // If allHistory is true, collects blocks from all commits in all branches; otherwise only latest commits.
 func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
-	branches, err := core.Branches()
+	branches, err := core.GetBranches()
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 // CountBlocks returns the total number of blocks in all branches.
 // If allHistory is true, counts blocks from all commits; otherwise only latest commits.
 func CountBlocks(allHistory bool) (int, error) {
-	branches, err := core.Branches()
+	branches, err := core.GetBranches()
 	if err != nil {
 		return 0, err
 	}

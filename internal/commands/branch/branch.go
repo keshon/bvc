@@ -43,7 +43,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 		return err
 	}
 
-	allBranches, err := core.Branches()
+	allBranches, err := core.GetBranches()
 	if err != nil {
 		return err
 	}
