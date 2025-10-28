@@ -1,4 +1,4 @@
-package commands
+package commit
 
 import (
 	"fmt"
@@ -15,24 +15,24 @@ import (
 	"app/internal/util"
 )
 
-// CommitCommand implements Git-like commit behavior
-type CommitCommand struct{}
+// Command implements Git-like commit behavior
+type Command struct{}
 
-func (c *CommitCommand) Name() string  { return "commit" }
-func (c *CommitCommand) Usage() string { return `commit -m "<message>" [--allow-empty]` }
-func (c *CommitCommand) Description() string {
+func (c *Command) Name() string  { return "commit" }
+func (c *Command) Usage() string { return `commit -m "<message>" [--allow-empty]` }
+func (c *Command) Description() string {
 	return "Commit staged changes to the current branch"
 }
-func (c *CommitCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Create a new commit with the staged changes.
 Supports -m / --message for commit message.
 Supports --allow-empty to commit even if no staged changes exist.`
 }
-func (c *CommitCommand) Aliases() []string { return []string{"ci"} }
-func (c *CommitCommand) Short() string     { return "c" }
+func (c *Command) Aliases() []string { return []string{"ci"} }
+func (c *Command) Short() string     { return "c" }
 
 // Run executes the commit command
-func (c *CommitCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	var messages []string
 	var allowEmpty bool
 
@@ -83,7 +83,7 @@ func (c *CommitCommand) Run(ctx *cli.Context) error {
 }
 
 // commit actualizes a new commit
-func (c *CommitCommand) commit(message string, allowEmpty bool) error {
+func (c *Command) commit(message string, allowEmpty bool) error {
 	// Get staged files
 	stagedFiles, err := file.GetIndexFiles()
 	if err != nil {
@@ -150,6 +150,6 @@ func (c *CommitCommand) commit(message string, allowEmpty bool) error {
 
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&CommitCommand{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

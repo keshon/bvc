@@ -1,4 +1,4 @@
-package commands
+package status
 
 import (
 	"fmt"
@@ -14,34 +14,34 @@ import (
 	"app/internal/util"
 )
 
-// StatusCommand shows uncommitted changes (added, modified, deleted)
-type StatusCommand struct{}
+// Command shows uncommitted changes (added, modified, deleted)
+type Command struct{}
 
 // Canonical name
-func (c *StatusCommand) Name() string { return "status" }
+func (c *Command) Name() string { return "status" }
 
 // Usage string
-func (c *StatusCommand) Usage() string { return "status" }
+func (c *Command) Usage() string { return "status" }
 
 // Short description
-func (c *StatusCommand) Description() string {
+func (c *Command) Description() string {
 	return "Show uncommitted changes"
 }
 
 // Detailed description
-func (c *StatusCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `List uncommitted changes in the current branch.
 WARNING: Switching branches with pending changes may cause data loss.`
 }
 
 // Optional aliases
-func (c *StatusCommand) Aliases() []string { return []string{"st"} }
+func (c *Command) Aliases() []string { return []string{"st"} }
 
 // One-letter shortcut
-func (c *StatusCommand) Short() string { return "S" }
+func (c *Command) Short() string { return "S" }
 
 // Run executes the command
-func (c *StatusCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	return listPending()
 }
 
@@ -160,5 +160,5 @@ func printPathWithGrayColor(prefix, path string) {
 
 // Register the command
 func init() {
-	cli.RegisterCommand(&StatusCommand{})
+	cli.RegisterCommand(&Command{})
 }

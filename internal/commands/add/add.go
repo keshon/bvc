@@ -1,4 +1,4 @@
-package commands
+package add
 
 import (
 	"fmt"
@@ -6,29 +6,30 @@ import (
 	"strings"
 
 	"app/internal/cli"
+	"app/internal/middleware"
 	"app/internal/storage/file"
 )
 
-// AddCommand implements Git-like 'add'
-type AddCommand struct{}
+// Command implements Git-like 'add'
+type Command struct{}
 
-func (c *AddCommand) Name() string  { return "add" }
-func (c *AddCommand) Usage() string { return "add <file|dir|.>" }
-func (c *AddCommand) Description() string {
+func (c *Command) Name() string  { return "add" }
+func (c *Command) Usage() string { return "add <file|dir|.>" }
+func (c *Command) Description() string {
 	return "Stage files or directories for the next commit"
 }
-func (c *AddCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Stage changes for commit.
 Usage:
-  add .          - stage new and modified files
-  add -A or --all - stage all changes, including deletions
-  add -u         - stage modifications and deletions (no new files)
-  add <path>     - stage a specific file or directory`
+  add .              - stage new and modified files
+  add -A or --all    - stage all changes, including deletions
+  add -u or --update - stage modifications and deletions (no new files)
+  add <path>         - stage a specific file or directory`
 }
-func (c *AddCommand) Aliases() []string { return nil }
-func (c *AddCommand) Short() string     { return "a" }
+func (c *Command) Aliases() []string { return nil }
+func (c *Command) Short() string     { return "a" }
 
-func (c *AddCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	includeAll := false // -A or --all
 	updateOnly := false // -u
 
@@ -36,7 +37,7 @@ func (c *AddCommand) Run(ctx *cli.Context) error {
 		if arg == "--all" || arg == "-A" {
 			includeAll = true
 		}
-		if arg == "-u" {
+		if arg == "--update" || arg == "-u" {
 			updateOnly = true
 		}
 	}
@@ -106,5 +107,10 @@ func filterNonFlags(args []string) []string {
 }
 
 func init() {
-	cli.RegisterCommand(&AddCommand{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }

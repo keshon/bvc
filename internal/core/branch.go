@@ -43,6 +43,17 @@ func Branches() ([]Branch, error) {
 	return branches, nil
 }
 
+func IsBranchExist(name string) (bool, error) {
+	_, err := os.Stat(filepath.Join(config.BranchesDir, name))
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 // CreateBranch creates a new branch and sets last commit of parent branch
 func CreateBranch(name string) (Branch, error) {
 	branch, err := CurrentBranch()

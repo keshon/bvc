@@ -1,4 +1,4 @@
-package commands
+package cherry_pick
 
 import (
 	"fmt"
@@ -14,34 +14,34 @@ import (
 	"app/internal/util"
 )
 
-// CherryPickCommand applies a specific commit to the current branch
-type CherryPickCommand struct{}
+// Command applies a specific commit to the current branch
+type Command struct{}
 
 // Canonical name
-func (c *CherryPickCommand) Name() string { return "cherry-pick" }
+func (c *Command) Name() string { return "cherry-pick" }
 
 // Usage string
-func (c *CherryPickCommand) Usage() string { return "cherry-pick <commit-id>" }
+func (c *Command) Usage() string { return "cherry-pick <commit-id>" }
 
 // Short description
-func (c *CherryPickCommand) Description() string {
+func (c *Command) Description() string {
 	return "Apply selected commit to the current branch"
 }
 
 // Detailed description
-func (c *CherryPickCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Apply a specific commit to the current branch.
 Use 'bvc log all' to find the commit ID you want to apply.`
 }
 
 // Optional aliases
-func (c *CherryPickCommand) Aliases() []string { return []string{"cp"} }
+func (c *Command) Aliases() []string { return []string{"cp"} }
 
 // One-letter shortcut
-func (c *CherryPickCommand) Short() string { return "C" }
+func (c *Command) Short() string { return "C" }
 
 // Run executes the command
-func (c *CherryPickCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("commit ID required")
 	}
@@ -109,6 +109,6 @@ func pickCommit(commitID string) error {
 // Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&CherryPickCommand{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

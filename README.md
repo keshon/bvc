@@ -12,12 +12,8 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 Stage files or directories for the next commit
 
 ### analyze
-`analyze [--sort reuse|unique|size] [--json]`
+`analyze [--sort reuse|unique|size]`
 Analyze block reuse across the entire repository (all snapshots and branches)
-
-### blocks
-`blocks [branch|name]`
-Display repository blocks overview
 
 ### branch
 `branch`
@@ -55,20 +51,16 @@ Show commit history (current branch by default)
 `merge <branch-name>`
 Merge another branch into the current branch
 
-### repair
-`repair`
-Repair missing or damaged repository blocks
-
 ### reset
 `reset [<commit-id>] [--soft|--mixed|--hard]`
 Reset current branch to a commit or HEAD
 
-### scan
-`scan`
-Verify repository blocks and file integrity
-
 ### status
 `status`
 Show uncommitted changes
+
+### verify
+`verify [--repair|--auto]`
+Verify repository integrity or attempt to repair missing/damaged blocks
 
 

@@ -1,4 +1,4 @@
-package commands
+package blocks
 
 import (
 	"fmt"
@@ -12,24 +12,24 @@ import (
 	"app/internal/util"
 )
 
-// BlockCommand displays repository block overview
-type BlockCommand struct{}
+// Command displays repository block overview
+type Command struct{}
 
 // Canonical name
-func (c *BlockCommand) Name() string { return "blocks" }
+func (c *Command) Name() string { return "blocks" }
 
 // Usage string
-func (c *BlockCommand) Usage() string {
+func (c *Command) Usage() string {
 	return "blocks [branch|name]"
 }
 
 // Short description
-func (c *BlockCommand) Description() string {
+func (c *Command) Description() string {
 	return "Display repository blocks overview"
 }
 
 // Detailed description
-func (c *BlockCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Show repository blocks list with optional sort:
   - default: by block hash
   - branch: sort by branch name
@@ -39,22 +39,24 @@ Useful for identifying shared blocks between branches and associated files.`
 }
 
 // Optional aliases
-func (c *BlockCommand) Aliases() []string { return []string{"block"} }
+func (c *Command) Aliases() []string { return []string{"block"} }
 
 // One-letter shortcut
-func (c *BlockCommand) Short() string { return "B" }
+func (c *Command) Short() string { return "B" }
 
 // Run executes the command
-func (c *BlockCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	sortMode := "block"
+
 	if len(ctx.Args) > 0 {
 		sortMode = strings.ToLower(ctx.Args[0])
 	}
+
 	return c.overviewBlocks(sortMode)
 }
 
 // overviewBlocks collects blocks and prints the table
-func (c *BlockCommand) overviewBlocks(sortMode string) error {
+func (c *Command) overviewBlocks(sortMode string) error {
 	// Collect all blocks from repo
 	blocksMap, err := repo.CollectAllBlocks()
 	if err != nil {
@@ -152,5 +154,5 @@ func truncateMid(s string, width int) string {
 
 // Register the command
 func init() {
-	cli.RegisterCommand(&BlockCommand{})
+	cli.RegisterCommand(&Command{})
 }

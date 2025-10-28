@@ -16,7 +16,7 @@ import (
 )
 
 // FindCommonAncestor walks commit history to find merge base.
-func FindCommonAncestor(aCommitID, bCommitID string) (string, error) {
+func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 
 	if aCommitID == "" || bCommitID == "" {
 		return "", nil
@@ -79,7 +79,7 @@ func FindCommonAncestor(aCommitID, bCommitID string) (string, error) {
 }
 
 // LoadFilesetFromCommit retrieves the fileset for a commit.
-func LoadFilesetFromCommit(commitID string) (snapshot.Fileset, error) {
+func loadFilesetFromCommit(commitID string) (snapshot.Fileset, error) {
 	var fs snapshot.Fileset
 	if commitID == "" {
 		return fs, nil
@@ -98,7 +98,7 @@ func LoadFilesetFromCommit(commitID string) (snapshot.Fileset, error) {
 
 // MergeFilesets performs three-way merge of filesets.
 // Returns merged fileset and list of conflicting paths.
-func MergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []string) {
+func mergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []string) {
 	// returns merged fileset and list of conflict paths
 	conflicts := []string{}
 	mergedMap := map[string]file.Entry{}
@@ -203,7 +203,7 @@ func MergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []str
 }
 
 // PerformMerge executes a full merge operation between branches.
-func PerformMerge(currentBranch, targetBranch string) error {
+func performMerge(currentBranch, targetBranch string) error {
 	// basic checks
 	if currentBranch == targetBranch {
 		return fmt.Errorf("cannot merge branch into itself")
@@ -220,7 +220,7 @@ func PerformMerge(currentBranch, targetBranch string) error {
 	}
 
 	// find base
-	baseID, err := FindCommonAncestor(currentCommitID, targetCommitID)
+	baseID, err := findCommonAncestor(currentCommitID, targetCommitID)
 	if err != nil {
 		return err
 	}
@@ -229,21 +229,21 @@ func PerformMerge(currentBranch, targetBranch string) error {
 	}
 
 	// load filesets
-	baseFS, err := LoadFilesetFromCommit(baseID)
+	baseFS, err := loadFilesetFromCommit(baseID)
 	if err != nil {
 		return fmt.Errorf("failed to load base fileset: %v", err)
 	}
-	oursFS, err := LoadFilesetFromCommit(currentCommitID)
+	oursFS, err := loadFilesetFromCommit(currentCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load our fileset: %v", err)
 	}
-	theirsFS, err := LoadFilesetFromCommit(targetCommitID)
+	theirsFS, err := loadFilesetFromCommit(targetCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load their fileset: %v", err)
 	}
 
 	// perform three-way merge
-	mergedFS, conflicts := MergeFilesets(baseFS, oursFS, theirsFS)
+	mergedFS, conflicts := mergeFilesets(baseFS, oursFS, theirsFS)
 
 	// save merged fileset
 	filesetPath := filepath.Join(config.FilesetsDir, mergedFS.ID+".json")

@@ -1,10 +1,10 @@
-package verify
+package repo
 
 import (
 	"app/internal/config"
 	"app/internal/core"
 	"app/internal/progress"
-	"app/internal/repo"
+
 	"app/internal/storage/block"
 	"app/internal/storage/snapshot"
 
@@ -17,7 +17,7 @@ import (
 func ScanRepositoryBlocks() error {
 	out, errCh := ScanRepositoryBlocksStream()
 
-	totalBlocks, err := repo.CountAllBlocks()
+	totalBlocks, err := CountAllBlocks()
 	if err != nil {
 		return err
 	}

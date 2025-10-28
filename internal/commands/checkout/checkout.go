@@ -1,4 +1,4 @@
-package commands
+package checkout
 
 import (
 	"fmt"
@@ -15,32 +15,32 @@ import (
 	"app/internal/util"
 )
 
-// CheckoutCommand switches to another branch
-type CheckoutCommand struct{}
+// Command switches to another branch
+type Command struct{}
 
 // Canonical name
-func (c *CheckoutCommand) Name() string { return "checkout" }
+func (c *Command) Name() string { return "checkout" }
 
 // Usage string
-func (c *CheckoutCommand) Usage() string { return "checkout <branch-name>" }
+func (c *Command) Usage() string { return "checkout <branch-name>" }
 
 // Short description
-func (c *CheckoutCommand) Description() string { return "Switch to another branch" }
+func (c *Command) Description() string { return "Switch to another branch" }
 
 // Detailed description
-func (c *CheckoutCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Switch to another branch.
 Restores the branch's fileset and updates HEAD reference.`
 }
 
 // Optional aliases
-func (c *CheckoutCommand) Aliases() []string { return []string{"co"} }
+func (c *Command) Aliases() []string { return []string{"co"} }
 
 // One-letter shortcut
-func (c *CheckoutCommand) Short() string { return "C" }
+func (c *Command) Short() string { return "C" }
 
 // Run executes the command
-func (c *CheckoutCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
@@ -53,7 +53,11 @@ func checkoutBranch(branch string) error {
 	branchPath := filepath.Join(config.BranchesDir, branch)
 
 	// Check if branch exists
-	if _, err := os.Stat(branchPath); os.IsNotExist(err) {
+	exist, err := core.IsBranchExist(branchPath)
+	if err != nil {
+		return err
+	}
+	if !exist {
 		return fmt.Errorf("branch '%s' does not exist", branch)
 	}
 
@@ -109,6 +113,6 @@ func checkoutBranch(branch string) error {
 // Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&CheckoutCommand{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

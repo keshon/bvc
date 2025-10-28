@@ -1,4 +1,4 @@
-package commands
+package reset
 
 import (
 	"fmt"
@@ -13,20 +13,20 @@ import (
 	"app/internal/util"
 )
 
-// ResetCommand implements Git-like reset
-type ResetCommand struct{}
+// Command implements Git-like reset
+type Command struct{}
 
 // Name
-func (c *ResetCommand) Name() string { return "reset" }
+func (c *Command) Name() string { return "reset" }
 
 // Usage
-func (c *ResetCommand) Usage() string { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
+func (c *Command) Usage() string { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
 
 // Description
-func (c *ResetCommand) Description() string { return "Reset current branch to a commit or HEAD" }
+func (c *Command) Description() string { return "Reset current branch to a commit or HEAD" }
 
 // Detailed description
-func (c *ResetCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Reset the current branch.
 Modes:
   --soft  : move HEAD only
@@ -36,13 +36,13 @@ If <commit-id> is omitted, the last commit is used (mixed).`
 }
 
 // Aliases
-func (c *ResetCommand) Aliases() []string { return []string{"drop"} }
+func (c *Command) Aliases() []string { return []string{"drop"} }
 
 // Shortcut
-func (c *ResetCommand) Short() string { return "R" }
+func (c *Command) Short() string { return "R" }
 
 // Run executes the command
-func (c *ResetCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	var targetID string
 	mode := "mixed" // default
 	var modeSet bool
@@ -187,6 +187,6 @@ func resetWorkingDirectory(filesetID string) error {
 // Register command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&ResetCommand{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

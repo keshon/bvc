@@ -1,0 +1,281 @@
+package veirfy
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"time"
+
+	"app/internal/cli"
+	"app/internal/config"
+	"app/internal/repo"
+	"app/internal/storage/block"
+	"app/internal/storage/file"
+
+	"github.com/zeebo/xxh3"
+)
+
+// VerifyCommand combines scan + repair behavior
+type VerifyCommand struct{}
+
+func (c *VerifyCommand) Name() string  { return "verify" }
+func (c *VerifyCommand) Usage() string { return "verify [--repair|--auto]" }
+func (c *VerifyCommand) Description() string {
+	return "Verify repository integrity or attempt to repair missing/damaged blocks"
+}
+func (c *VerifyCommand) DetailedDescription() string {
+	return `Verify repository blocks and file integrity.
+
+Usage:
+  verify           - Scan all blocks and report missing/damaged ones.
+  verify --repair  - Attempt to repair any missing or damaged blocks automatically.
+  verify --auto    - Same as --repair but continues verification pass after repair.
+`
+}
+func (c *VerifyCommand) Aliases() []string { return []string{"scan", "check"} }
+func (c *VerifyCommand) Short() string     { return "V" }
+
+// Run executes the verify process
+func (c *VerifyCommand) Run(ctx *cli.Context) error {
+	doRepair := false
+	autoMode := false
+
+	for _, arg := range ctx.Args {
+		if arg == "--repair" || arg == "-R" {
+			doRepair = true
+		}
+		if arg == "--auto" || arg == "-A" {
+			doRepair = true
+			autoMode = true
+		}
+	}
+
+	if doRepair {
+		return c.runRepair(autoMode)
+	}
+
+	return c.runScan()
+}
+
+// runScan performs integrity verification only
+func (c *VerifyCommand) runScan() error {
+	out, errCh := repo.ScanRepositoryBlocksStream()
+
+	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
+
+	start := time.Now()
+	count, okCount, missingCount, damagedCount := 0, 0, 0, 0
+
+	for out != nil || errCh != nil {
+		select {
+		case bc, ok := <-out:
+			if !ok {
+				out = nil
+				continue
+			}
+			switch bc.Status {
+			case block.OK:
+				fmt.Print("\033[32m█\033[0m")
+				okCount++
+			case block.Missing:
+				fmt.Print("\033[31m█\033[0m")
+				missingCount++
+			case block.Damaged:
+				fmt.Print("\033[33m█\033[0m")
+				damagedCount++
+			}
+			count++
+			if count%100 == 0 {
+				fmt.Printf("  %d\n", count)
+			}
+
+		case err, ok := <-errCh:
+			if !ok {
+				errCh = nil
+				continue
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if count%100 != 0 {
+		fmt.Printf("  %d\n", count)
+	}
+
+	fmt.Printf("\nScan complete in %s.\n", time.Since(start).Truncate(time.Millisecond))
+	fmt.Printf("Blocks OK: \033[32m%d\033[0m   Missing: \033[31m%d\033[0m   Damaged: \033[33m%d\033[0m\n",
+		okCount, missingCount, damagedCount)
+
+	if missingCount+damagedCount > 0 {
+		fmt.Println("\nSome blocks may need repair. Run `bvc verify --repair`.")
+	}
+
+	return nil
+}
+
+// runRepair performs repair of missing/damaged blocks
+func (c *VerifyCommand) runRepair(autoMode bool) error {
+	out, errCh := repo.ScanRepositoryBlocksStream()
+
+	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
+
+	var toFix []block.BlockCheck
+
+	for out != nil || errCh != nil {
+		select {
+		case bc, ok := <-out:
+			if !ok {
+				out = nil
+				continue
+			}
+			if bc.Status != block.OK {
+				toFix = append(toFix, bc)
+			}
+		case err, ok := <-errCh:
+			if !ok {
+				errCh = nil
+				continue
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(toFix) == 0 {
+		fmt.Println("No missing or damaged blocks found. Nothing to repair.")
+		return nil
+	}
+
+	fmt.Printf("Attempting to repair %d blocks...\n", len(toFix))
+	start := time.Now()
+	lineWidth := 50
+	count := 0
+	repaired := 0
+
+	var fixedList, failedList []block.BlockCheck
+
+	for _, bc := range toFix {
+		targetPath := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
+		_ = os.Remove(targetPath) // remove stale/damaged file
+
+		fixed := false
+
+		for _, currFile := range bc.Files {
+			entry, err := file.Build(currFile)
+			if err != nil {
+				continue
+			}
+
+			for _, b := range entry.Blocks {
+				if b.Hash != bc.Hash {
+					continue
+				}
+				if err := block.Store(entry.Path, []block.BlockRef{b}); err != nil {
+					continue
+				}
+				status, _ := block.Verify(b.Hash)
+				if status == block.OK {
+					fixed = true
+					repaired++
+					break
+				} else {
+					_ = os.Remove(targetPath)
+				}
+			}
+			if fixed {
+				break
+			}
+		}
+
+		if fixed {
+			fmt.Print("\033[32m█\033[0m")
+			fixedList = append(fixedList, bc)
+		} else {
+			fmt.Print("\033[31m█\033[0m")
+			failedList = append(failedList, bc)
+		}
+
+		count++
+		if count%lineWidth == 0 {
+			fmt.Printf("  %d\n", count)
+		}
+	}
+
+	if count%lineWidth != 0 {
+		fmt.Printf("  %d\n", count)
+	}
+
+	fmt.Printf("\nRepair complete in %s.\n", time.Since(start).Truncate(time.Millisecond))
+	fmt.Printf("Blocks repaired: \033[32m%d\033[0m / %d\n", repaired, len(toFix))
+
+	// Final verification pass
+	failed := c.verifyRepairedBlocks(toFix)
+
+	if len(fixedList) > 0 {
+		fmt.Println("\nRepaired blocks:")
+		for _, bc := range fixedList {
+			files := append([]string{}, bc.Files...)
+			sort.Strings(files)
+			fmt.Printf("\033[32m%s\033[0m  files: %v  branches: %v\n", bc.Hash, files, bc.Branches)
+		}
+	}
+
+	if len(failedList) > 0 {
+		fmt.Println("\nUnrepaired blocks:")
+		for _, bc := range failedList {
+			files := append([]string{}, bc.Files...)
+			sort.Strings(files)
+			fmt.Printf("\033[31m%s\033[0m  files: %v  branches: %v\n", bc.Hash, files, bc.Branches)
+		}
+	}
+
+	if failed > 0 {
+		fmt.Printf("\n\033[31m%d blocks remain corrupted or unrepaired.\033[0m\n", failed)
+	} else {
+		fmt.Println("\033[32mAll repaired blocks verified successfully.\033[0m")
+	}
+
+	if autoMode && failed == 0 {
+		fmt.Println("\nRunning final verification pass (--auto mode)...")
+		return c.runScan()
+	}
+
+	return nil
+}
+
+// verifyRepairedBlocks re-checks integrity after repair
+func (c *VerifyCommand) verifyRepairedBlocks(toFix []block.BlockCheck) int {
+	fmt.Println("\nVerifying repaired blocks...")
+	failed := 0
+
+	for _, bc := range toFix {
+		path := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
+		ok, _ := c.verifyBlockHash(path, bc.Hash)
+		if !ok {
+			failed++
+			files := append([]string{}, bc.Files...)
+			sort.Strings(files)
+			fmt.Printf("\033[31m%s\033[0m  files: %v  branches: %v\n",
+				bc.Hash, files, bc.Branches)
+		}
+	}
+	return failed
+}
+
+// verifyBlockHash checks block hash consistency
+func (c *VerifyCommand) verifyBlockHash(path, expected string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	sum := fmt.Sprintf("%x", xxh3.Hash128(data).Bytes())
+	return sum == expected, nil
+}
+
+func init() {
+	cli.RegisterCommand(&VerifyCommand{})
+}

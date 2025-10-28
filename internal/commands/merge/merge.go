@@ -1,42 +1,40 @@
-package commands
+package merge
 
 import (
-	"fmt"
-
 	"app/internal/cli"
 	"app/internal/core"
-	"app/internal/merge"
 	"app/internal/middleware"
+	"fmt"
 )
 
-// MergeCommand merges another branch into the current branch
-type MergeCommand struct{}
+// Command merges another branch into the current branch
+type Command struct{}
 
 // Canonical name
-func (c *MergeCommand) Name() string { return "merge" }
+func (c *Command) Name() string { return "merge" }
 
 // Usage string
-func (c *MergeCommand) Usage() string { return "merge <branch-name>" }
+func (c *Command) Usage() string { return "merge <branch-name>" }
 
 // Short description
-func (c *MergeCommand) Description() string {
+func (c *Command) Description() string {
 	return "Merge another branch into the current branch"
 }
 
 // Detailed description
-func (c *MergeCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return `Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.`
 }
 
 // Optional aliases
-func (c *MergeCommand) Aliases() []string { return []string{"mg"} }
+func (c *Command) Aliases() []string { return []string{"mg"} }
 
 // One-letter shortcut
-func (c *MergeCommand) Short() string { return "M" }
+func (c *Command) Short() string { return "M" }
 
 // Run executes the merge
-func (c *MergeCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
@@ -52,12 +50,12 @@ func (c *MergeCommand) Run(ctx *cli.Context) error {
 	}
 
 	fmt.Printf("Merging branch '%s' into '%s'...\n", targetBranch, currentBranch.Name)
-	return merge.PerformMerge(currentBranch.Name, targetBranch)
+	return performMerge(currentBranch.Name, targetBranch)
 }
 
 // Register command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&MergeCommand{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
 	)
 }

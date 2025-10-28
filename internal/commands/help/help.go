@@ -1,4 +1,4 @@
-package commands
+package help
 
 import (
 	"fmt"
@@ -8,33 +8,33 @@ import (
 	"app/internal/cli"
 )
 
-// HelpCommand shows help information for commands
-type HelpCommand struct{}
+// Command shows help information for commands
+type Command struct{}
 
 // Canonical name
-func (c *HelpCommand) Name() string { return "help" }
+func (c *Command) Name() string { return "help" }
 
 // Usage string
-func (c *HelpCommand) Usage() string { return "help [command]" }
+func (c *Command) Usage() string { return "help [command]" }
 
 // Short description
-func (c *HelpCommand) Description() string { return "Show help for commands" }
+func (c *Command) Description() string { return "Show help for commands" }
 
 // Detailed description
-func (c *HelpCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return "Display detailed help information for a specific command, or list all commands if none is provided."
 }
 
 // Aliases
-func (c *HelpCommand) Aliases() []string { return []string{"h", "?"} }
+func (c *Command) Aliases() []string { return []string{"h", "?"} }
 
 // Shortcut
-func (c *HelpCommand) Short() string { return "H" }
+func (c *Command) Short() string { return "H" }
 
 // Run executes the help command
-func (c *HelpCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) > 0 {
-		return commandHelp(ctx.Args[0])
+		return commandHelp(strings.ToLower(ctx.Args[0]))
 	}
 	return listAllCommands()
 }
@@ -94,5 +94,5 @@ func listAllCommands() error {
 
 // Register command
 func init() {
-	cli.RegisterCommand(&HelpCommand{})
+	cli.RegisterCommand(&Command{})
 }

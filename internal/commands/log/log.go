@@ -1,4 +1,4 @@
-package commands
+package log
 
 import (
 	"fmt"
@@ -10,61 +10,49 @@ import (
 	"app/internal/cli"
 	"app/internal/config"
 	"app/internal/core"
+	"app/internal/middleware"
 )
 
-type LogCommand struct{}
+type Command struct{}
 
 // Canonical name
-func (c *LogCommand) Name() string { return "log" }
+func (c *Command) Name() string { return "log" }
 
 // Usage string
-func (c *LogCommand) Usage() string {
+func (c *Command) Usage() string {
 	return "log [-a|--all]"
 }
 
 // Short description
-func (c *LogCommand) Description() string {
+func (c *Command) Description() string {
 	return "Show commit history (current branch by default)"
 }
 
 // Detailed description
-func (c *LogCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return "List commits for the current branch or all branches if -a / --all is specified."
 }
 
 // Optional aliases
-func (c *LogCommand) Aliases() []string { return []string{"lg"} }
+func (c *Command) Aliases() []string { return []string{"lg"} }
 
 // One-letter shortcut
-func (c *LogCommand) Short() string { return "l" }
+func (c *Command) Short() string { return "l" }
 
 // Run executes the log command
-func (c *LogCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	showAll := false
-	if _, ok := ctx.Flags["a"]; ok {
-		showAll = true
-	} else if _, ok := ctx.Flags["all"]; ok {
-		showAll = true
-	} else if len(ctx.Args) > 0 && ctx.Args[0] == "all" {
-		// Positional fallback for backward compatibility
-		showAll = true
+	for _, arg := range ctx.Args {
+		if arg == "--all" {
+			showAll = true
+		}
 	}
 
-	return c.listCommits(showAll)
+	return c.runLog(showAll)
 }
 
-// LogRow holds structured commit information for printing
-type LogRow struct {
-	ID        string
-	Date      string
-	Branch    string
-	Parent    string
-	Message   string
-	Timestamp time.Time
-}
-
-// listCommits gathers and prints commits in descending order
-func (c *LogCommand) listCommits(showAll bool) error {
+// runLog gathers and prints commits in descending order
+func (c *Command) runLog(showAll bool) error {
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
@@ -142,5 +130,10 @@ func (c *LogCommand) listCommits(showAll bool) error {
 
 // Register the command
 func init() {
-	cli.RegisterCommand(&LogCommand{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }

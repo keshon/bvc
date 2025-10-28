@@ -1,37 +1,37 @@
-package commands
+package analyze
 
 import (
 	"app/internal/cli"
+	"app/internal/middleware"
 	"app/internal/repo"
 	"fmt"
 	"sort"
 	"strings"
 )
 
-type AnalyzeCommand struct{}
+type Command struct{}
 
-func (c *AnalyzeCommand) Name() string  { return "analyze" }
-func (c *AnalyzeCommand) Usage() string { return "analyze [--sort reuse|unique|size] [--json]" }
-func (c *AnalyzeCommand) Description() string {
+func (c *Command) Name() string  { return "analyze" }
+func (c *Command) Usage() string { return "analyze [--sort reuse|unique|size]" }
+func (c *Command) Description() string {
 	return "Analyze block reuse across the entire repository (all snapshots and branches)"
 }
 
-func (c *AnalyzeCommand) DetailedDescription() string {
+func (c *Command) DetailedDescription() string {
 	return "Analyze block reuse across the entire repository"
 }
 
-func (c *AnalyzeCommand) Aliases() []string { return []string{"a"} }
+func (c *Command) Aliases() []string { return []string{"a"} }
 
-func (c *AnalyzeCommand) Short() string { return "a" }
+func (c *Command) Short() string { return "a" }
 
-func (c *AnalyzeCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	sortMode := "reuse"
+
 	for k, v := range ctx.Flags {
 		switch strings.ToLower(k) {
 		case "sort":
 			sortMode = strings.ToLower(v)
-		case "json":
-			// future: output json
 		}
 	}
 
@@ -120,5 +120,10 @@ func (c *AnalyzeCommand) Run(ctx *cli.Context) error {
 }
 
 func init() {
-	cli.RegisterCommand(&AnalyzeCommand{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }
