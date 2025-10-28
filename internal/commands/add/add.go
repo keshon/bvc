@@ -31,7 +31,7 @@ func (c *Command) Short() string     { return "a" }
 
 func (c *Command) Run(ctx *cli.Context) error {
 	includeAll := false // -A or --all
-	updateOnly := false // -u
+	updateOnly := false // -u or --update
 
 	for _, arg := range ctx.Args {
 		if arg == "--all" || arg == "-A" {
@@ -75,11 +75,11 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 	var entries []file.Entry
 	if includeAll {
-		entries, _ = file.BuildTrackedAndUntracked(toStage)
+		entries, _ = file.BuildAllEntries(toStage)
 	} else if updateOnly {
-		entries, _ = file.BuildModifiedAndDeleted(toStage)
+		entries, _ = file.BuildChangedEntries(toStage)
 	} else {
-		entries, _ = file.BuildAll(toStage)
+		entries, _ = file.BuildEntries(toStage)
 	}
 
 	if len(entries) == 0 {

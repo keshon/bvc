@@ -58,7 +58,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 // overviewBlocks collects blocks and prints the table
 func (c *Command) overviewBlocks(sortMode string) error {
 	// Collect all blocks from repo
-	blocksMap, err := repo.CollectAllBlocks()
+	blocksMap, err := repo.ListAllBlocks(true)
 	if err != nil {
 		return err
 	}

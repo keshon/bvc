@@ -5,36 +5,39 @@ import (
 
 	"app/internal/cli"
 	"app/internal/core"
+	"app/internal/middleware"
 )
 
-// Command lists all branches and highlights the current one
+// Command implements `branch` listing and creation (Git-style)
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "branch" }
-
-// Usage string
-func (c *Command) Usage() string { return "branch" }
-
-// Short description
+func (c *Command) Name() string  { return "branch" }
+func (c *Command) Usage() string { return "branch [<branch-name>]" }
 func (c *Command) Description() string {
-	return "List all branches"
+	return "List all branches or create a new one"
 }
-
-// Detailed description
 func (c *Command) DetailedDescription() string {
-	return `List all branches in the repository.
-The current branch is highlighted with '*'.`
+	return `Usage:
+  branch             - List all branches (current marked with '*')
+  branch <name>      - Create a new branch from the current one`
 }
-
-// Optional aliases
 func (c *Command) Aliases() []string { return []string{"br"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "B" }
+func (c *Command) Short() string     { return "B" }
 
 // Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
+	// If there’s an argument — create new branch
+	if len(ctx.Args) > 0 {
+		name := ctx.Args[0]
+		branch, err := core.CreateBranch(name)
+		if err != nil {
+			return fmt.Errorf("failed to create branch '%s': %w", name, err)
+		}
+		fmt.Printf("Branch '%s' created successfully.\n", branch.Name)
+		return nil
+	}
+
+	// Otherwise — list branches
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
@@ -45,7 +48,6 @@ func (c *Command) Run(ctx *cli.Context) error {
 		return err
 	}
 
-	// Print branches
 	for _, branch := range allBranches {
 		prefix := "  "
 		if branch.Name == currentBranch.Name {
@@ -59,5 +61,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 // Register the command
 func init() {
-	cli.RegisterCommand(&Command{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+	)
 }

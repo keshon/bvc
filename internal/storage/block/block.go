@@ -1,6 +1,7 @@
 package block
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -8,8 +9,6 @@ import (
 
 	"app/internal/config"
 	"app/internal/util"
-
-	"github.com/zeebo/xxh3"
 )
 
 const (
@@ -62,16 +61,19 @@ func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 				b := buf[i]
 				chunk = append(chunk, b)
 				rh = (rh<<1 + uint32(b)) & 0xFFFFFFFF
-				if shouldSplit(len(chunk), rh) {
-					blocks = append(blocks, hash(chunk, offset))
+				if shouldSplitBlock(len(chunk), rh) {
+					blocks = append(blocks, hashBlock(chunk, offset))
 					offset += int64(len(chunk))
 					chunk = chunk[:0]
 				}
 			}
 		}
 		if err != nil {
-			if err.Error() == "EOF" {
-				break
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				return nil, err
 			}
 			return nil, err
 		}
@@ -81,59 +83,53 @@ func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 	}
 
 	if len(chunk) > 0 {
-		blocks = append(blocks, hash(chunk, offset))
+		blocks = append(blocks, hashBlock(chunk, offset))
 	}
 
 	return blocks, nil
 }
 
-func shouldSplit(size int, rh uint32) bool {
-	return (size >= minChunkSize && rh%rollMod == 0) || size >= maxChunkSize
-}
-
-func hash(data []byte, offset int64) BlockRef {
-	hash := xxh3.Hash128(data).Bytes()
-	return BlockRef{
-		Hash:   fmt.Sprintf("%x", hash),
-		Size:   int64(len(data)),
-		Offset: offset,
-	}
-}
-
 // Store writes all blocks concurrently and safely on Windows.
-func Store(filePath string, blocks []BlockRef) error {
+func StoreBlocks(filePath string, blocks []BlockRef) error {
 	workers := util.WorkerCount()
 	return util.Parallel(blocks, workers, func(b BlockRef) error {
-		return WriteAtomic(filePath, b)
+		return writeBlockAtomic(filePath, b)
 	})
 }
 
-// writeAtomic streams a single block to a temp file, then renames it.
-func WriteAtomic(filePath string, block BlockRef) error {
+// WriteAtomic writes a single block to the object store atomically.
+func writeBlockAtomic(filePath string, block BlockRef) error {
 	dst := filepath.Join(config.ObjectsDir, block.Hash+".bin")
+
+	// Fast path — block already exists
 	if fi, err := os.Stat(dst); err == nil && fi.Size() == block.Size {
 		return nil
 	}
 
+	// Ensure target directory exists
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("ensure dir: %w", err)
+	}
+
 	src, err := os.Open(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("open source: %w", err)
 	}
 	defer src.Close()
 
-	tmp, err := os.CreateTemp(filepath.Dir(dst), "tmp-*")
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".tmp-*")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
 
-	// Stream copy block
+	// Stream copy the block
 	if _, err := src.Seek(block.Offset, io.SeekStart); err != nil {
 		tmp.Close()
 		return fmt.Errorf("seek block: %w", err)
 	}
-	if _, err := io.CopyN(tmp, src, block.Size); err != nil {
+	if _, err := io.CopyN(tmp, src, block.Size); err != nil && err != io.EOF {
 		tmp.Close()
 		return fmt.Errorf("copy block: %w", err)
 	}
@@ -141,16 +137,30 @@ func WriteAtomic(filePath string, block BlockRef) error {
 	// Flush & close before rename
 	if err := tmp.Sync(); err != nil {
 		tmp.Close()
-		return err
+		return fmt.Errorf("sync temp: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return fmt.Errorf("close temp: %w", err)
 	}
 
-	return os.Rename(tmpPath, dst)
+	// Atomic rename to final destination
+	if err := os.Rename(tmpPath, dst); err != nil {
+		return fmt.Errorf("rename temp: %w", err)
+	}
+
+	// Verify block integrity using existing Verify()
+	// status, err := Verify(block.Hash)
+	// if err != nil {
+	// 	return fmt.Errorf("verify block: %w", err)
+	// }
+	// if status != OK {
+	// 	return fmt.Errorf("verify block: integrity check failed for %s", block.Hash)
+	// }
+
+	return nil
 }
 
 // Read retrieves a block from storage.
-func Read(hash string) ([]byte, error) {
+func ReadBlock(hash string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(config.ObjectsDir, hash+".bin"))
 }

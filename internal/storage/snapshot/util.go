@@ -10,7 +10,7 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-func Hash(entries []file.Entry) string {
+func HashFileset(entries []file.Entry) string {
 	paths := make([]string, 0, len(entries))
 	index := make(map[string]file.Entry, len(entries))
 	for _, f := range entries {
@@ -23,7 +23,7 @@ func Hash(entries []file.Entry) string {
 	data := []byte{}
 	for _, p := range paths {
 		for _, b := range index[p].Blocks {
-			data = append(data, []byte(b.Hash)...)
+			data = append(data, []byte(b.Hash+"\n")...)
 		}
 	}
 

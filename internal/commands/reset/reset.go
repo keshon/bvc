@@ -176,7 +176,7 @@ func resetWorkingDirectory(filesetID string) error {
 		return err
 	}
 
-	if err := file.RestoreAll(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
+	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
 		return err
 	}
 

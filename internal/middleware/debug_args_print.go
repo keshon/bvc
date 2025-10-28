@@ -12,8 +12,6 @@ func WithDebugArgsPrint() cli.Middleware {
 			Command: cmd,
 			Wrap: func(ctx *cli.Context) error {
 				fmt.Printf("Args: %+v\n", ctx.Args)
-				fmt.Printf("Flags: %+v\n", ctx.Flags)
-				fmt.Printf("BoolFlags: %+v\n", ctx.BoolFlags)
 				return cmd.Run(ctx)
 			},
 		}

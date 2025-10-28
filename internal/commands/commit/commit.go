@@ -36,7 +36,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 	var messages []string
 	var allowEmpty bool
 
-	// Parse args and flags in any order (Git-style)
+	// Parse arguments manually (Git-like)
 	for i := 0; i < len(ctx.Args); i++ {
 		arg := ctx.Args[i]
 
@@ -44,41 +44,28 @@ func (c *Command) Run(ctx *cli.Context) error {
 		case arg == "-m" && i+1 < len(ctx.Args):
 			messages = append(messages, ctx.Args[i+1])
 			i++
-		case len(arg) > 3 && arg[:3] == "-m=":
-			messages = append(messages, arg[3:])
+		case strings.HasPrefix(arg, "-m="):
+			messages = append(messages, strings.TrimPrefix(arg, "-m="))
 		case arg == "--message" && i+1 < len(ctx.Args):
 			messages = append(messages, ctx.Args[i+1])
 			i++
-		case len(arg) > 10 && arg[:10] == "--message=":
-			messages = append(messages, arg[10:])
+		case strings.HasPrefix(arg, "--message="):
+			messages = append(messages, strings.TrimPrefix(arg, "--message="))
 		case arg == "--allow-empty":
 			allowEmpty = true
 		default:
-			// fallback: treat first positional argument as message if none yet
+			// fallback: if no -m given, treat arg as commit message
 			if len(messages) == 0 {
 				messages = append(messages, arg)
 			}
 		}
 	}
 
-	// Also parse your CLI’s flag map for compatibility
-	if val, ok := ctx.Flags["m"]; ok {
-		messages = append(messages, val)
-	}
-	if val, ok := ctx.Flags["message"]; ok {
-		messages = append(messages, val)
-	}
-	if _, ok := ctx.Flags["allow-empty"]; ok {
-		allowEmpty = true
-	}
-
 	if len(messages) == 0 {
-		return fmt.Errorf("commit message required")
+		return fmt.Errorf("commit message required (use -m or pass message directly)")
 	}
 
-	// Join multiple -m messages with blank lines, like Git
 	message := strings.Join(messages, "\n\n")
-
 	return c.commit(message, allowEmpty)
 }
 
@@ -95,7 +82,7 @@ func (c *Command) commit(message string, allowEmpty bool) error {
 	}
 
 	// Build fileset from staged files (empty fileset allowed with --allow-empty)
-	fileset, err := snapshot.BuildFromFiles(stagedFiles)
+	fileset, err := snapshot.BuildFilesetFromEntries(stagedFiles)
 	if err != nil {
 		return err
 	}

@@ -16,12 +16,8 @@ Stage files or directories for the next commit
 Analyze block reuse across the entire repository (all snapshots and branches)
 
 ### branch
-`branch`
-List all branches
-
-### branch
-`branch <branch-name>`
-Create a new branch from the current branch
+`branch [<branch-name>]`
+List all branches or create a new one
 
 ### checkout
 `checkout <branch-name>`

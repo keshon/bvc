@@ -198,7 +198,7 @@ func mergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []str
 		return filepath.Clean(mergedFiles[i].Path) < filepath.Clean(mergedFiles[j].Path)
 	})
 
-	filesetID := snapshot.Hash(mergedFiles)
+	filesetID := snapshot.HashFileset(mergedFiles)
 	return snapshot.Fileset{ID: filesetID, Files: mergedFiles}, conflicts
 }
 
@@ -277,7 +277,7 @@ func performMerge(currentBranch, targetBranch string) error {
 	}
 
 	// apply merged fileset to working directory
-	if err := file.RestoreAll(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
+	if err := file.RestoreFiles(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
 		return fmt.Errorf("failed to apply merged fileset: %v", err)
 	}
 

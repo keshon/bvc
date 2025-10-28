@@ -98,7 +98,7 @@ func pickCommit(commitID string) error {
 	}
 
 	// Restore files from picked commit
-	if err := file.RestoreAll(fs.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

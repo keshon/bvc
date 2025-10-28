@@ -30,7 +30,6 @@ func (c *VerifyCommand) DetailedDescription() string {
 Usage:
   verify           - Scan all blocks and report missing/damaged ones.
   verify --repair  - Attempt to repair any missing or damaged blocks automatically.
-  verify --auto    - Same as --repair but continues verification pass after repair.
 `
 }
 func (c *VerifyCommand) Aliases() []string { return []string{"scan", "check"} }
@@ -38,21 +37,10 @@ func (c *VerifyCommand) Short() string     { return "V" }
 
 // Run executes the verify process
 func (c *VerifyCommand) Run(ctx *cli.Context) error {
-	doRepair := false
-	autoMode := false
-
 	for _, arg := range ctx.Args {
 		if arg == "--repair" || arg == "-R" {
-			doRepair = true
+			return c.runRepair()
 		}
-		if arg == "--auto" || arg == "-A" {
-			doRepair = true
-			autoMode = true
-		}
-	}
-
-	if doRepair {
-		return c.runRepair(autoMode)
 	}
 
 	return c.runScan()
@@ -60,7 +48,7 @@ func (c *VerifyCommand) Run(ctx *cli.Context) error {
 
 // runScan performs integrity verification only
 func (c *VerifyCommand) runScan() error {
-	out, errCh := repo.ScanRepositoryBlocksStream()
+	out, errCh := repo.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
 
@@ -117,8 +105,8 @@ func (c *VerifyCommand) runScan() error {
 }
 
 // runRepair performs repair of missing/damaged blocks
-func (c *VerifyCommand) runRepair(autoMode bool) error {
-	out, errCh := repo.ScanRepositoryBlocksStream()
+func (c *VerifyCommand) runRepair() error {
+	out, errCh := repo.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
 
@@ -160,12 +148,12 @@ func (c *VerifyCommand) runRepair(autoMode bool) error {
 
 	for _, bc := range toFix {
 		targetPath := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
-		_ = os.Remove(targetPath) // remove stale/damaged file
+		_ = os.Remove(targetPath)
 
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := file.Build(currFile)
+			entry, err := file.BuildEntry(currFile)
 			if err != nil {
 				continue
 			}
@@ -174,10 +162,10 @@ func (c *VerifyCommand) runRepair(autoMode bool) error {
 				if b.Hash != bc.Hash {
 					continue
 				}
-				if err := block.Store(entry.Path, []block.BlockRef{b}); err != nil {
+				if err := block.StoreBlocks(entry.Path, []block.BlockRef{b}); err != nil {
 					continue
 				}
-				status, _ := block.Verify(b.Hash)
+				status, _ := block.VerifyBlock(b.Hash)
 				if status == block.OK {
 					fixed = true
 					repaired++
@@ -237,11 +225,6 @@ func (c *VerifyCommand) runRepair(autoMode bool) error {
 		fmt.Printf("\n\033[31m%d blocks remain corrupted or unrepaired.\033[0m\n", failed)
 	} else {
 		fmt.Println("\033[32mAll repaired blocks verified successfully.\033[0m")
-	}
-
-	if autoMode && failed == 0 {
-		fmt.Println("\nRunning final verification pass (--auto mode)...")
-		return c.runScan()
 	}
 
 	return nil

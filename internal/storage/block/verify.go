@@ -10,8 +10,8 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-func Verify(hash string) (BlockStatus, error) {
-	path := filepath.Join(config.ObjectsDir, hash+".bin") // <- fix here
+func VerifyBlock(hash string) (BlockStatus, error) {
+	path := filepath.Join(config.ObjectsDir, hash+".bin")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -25,7 +25,7 @@ func Verify(hash string) (BlockStatus, error) {
 	return Damaged, nil
 }
 
-func VerifyMany(hashes map[string]struct{}, workers int) <-chan BlockCheck {
+func VerifyBlocks(hashes map[string]struct{}, workers int) <-chan BlockCheck {
 	out := make(chan BlockCheck, 128)
 	go func() {
 		defer close(out)
@@ -44,7 +44,7 @@ func VerifyMany(hashes map[string]struct{}, workers int) <-chan BlockCheck {
 			go func() {
 				defer wg.Done()
 				for h := range tasks {
-					status, _ := Verify(h)
+					status, _ := VerifyBlock(h)
 					out <- BlockCheck{Hash: h, Status: status}
 				}
 			}()

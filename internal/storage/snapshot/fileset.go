@@ -2,7 +2,9 @@ package snapshot
 
 import (
 	"fmt"
+	"path/filepath"
 
+	"app/internal/config"
 	"app/internal/progress"
 	"app/internal/storage/block"
 	"app/internal/storage/file"
@@ -14,24 +16,34 @@ type Fileset struct {
 	Files []file.Entry `json:"files"`
 }
 
-func Build() (Fileset, error) {
+// BuildFileset builds a fileset from the current working tree
+func BuildFileset() (Fileset, error) {
 	paths, err := file.ListAll()
 	if err != nil {
 		return Fileset{}, err
 	}
-	entries, err := file.BuildAll(paths)
+	entries, err := file.BuildEntries(paths)
 	if err != nil {
 		return Fileset{}, err
 	}
 	return Fileset{
-		ID:    Hash(entries),
+		ID:    HashFileset(entries),
 		Files: entries,
 	}, nil
 }
 
-// BuildFromFiles builds a fileset from a list of file entries.
-// This is used for committing only staged files.
-func BuildFromFiles(entries []file.Entry) (Fileset, error) {
+// LoadFileset retrieves a fileset by ID from disk
+func LoadFileset(id string) (Fileset, error) {
+	path := filepath.Join(config.FilesetsDir, id+".json")
+	var fs Fileset
+	if err := util.ReadJSON(path, &fs); err != nil {
+		return Fileset{}, err
+	}
+	return fs, nil
+}
+
+// BuildFilesetFromEntries builds a fileset from a list of file entries.
+func BuildFilesetFromEntries(entries []file.Entry) (Fileset, error) {
 	if len(entries) == 0 {
 		return Fileset{}, fmt.Errorf("no files to commit")
 	}
@@ -46,42 +58,25 @@ func BuildFromFiles(entries []file.Entry) (Fileset, error) {
 	// Compute a fileset hash
 	fileset := Fileset{
 		Files: entries,
-		ID:    Hash(entries),
+		ID:    HashFileset(entries),
 	}
 
 	return fileset, nil
 }
-
-// func (fs *Fileset) Store() error {
-// 	if err := block.CleanupTmp(); err != nil {
-// 		fmt.Printf("Warning: cleanup failed: %v\n", err)
-// 	}
-// 	return util.Parallel(fs.Files, util.WorkerCount(), func(e file.Entry) error {
-// 		return e.Store()
-// 	})
-// }
 
 func (fs *Fileset) Store() error {
 	if err := block.CleanupTmp(); err != nil {
 		fmt.Printf("Warning: cleanup failed: %v\n", err)
 	}
 
-	// Count total blocks for the progress bar
-	totalBlocks := 0
-	for _, f := range fs.Files {
-		totalBlocks += len(f.Blocks)
-	}
-
-	bar := progress.NewProgress(totalBlocks, "Storing blocks ")
+	bar := progress.NewProgress(len(fs.Files), "Storing files ")
 	defer bar.Finish()
 
 	return util.Parallel(fs.Files, util.WorkerCount(), func(f file.Entry) error {
-		for _, b := range f.Blocks {
-			if err := block.WriteAtomic(f.Path, b); err != nil {
-				return err
-			}
-			bar.Increment()
+		if err := block.StoreBlocks(f.Path, f.Blocks); err != nil {
+			return err
 		}
+		bar.Increment()
 		return nil
 	})
 }

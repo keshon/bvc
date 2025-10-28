@@ -13,11 +13,11 @@ import (
 	"path/filepath"
 )
 
-// ScanRepositoryBlocks verifies all repository blocks with a progress bar and returns an error if any are missing/damaged.
-func ScanRepositoryBlocks() error {
-	out, errCh := ScanRepositoryBlocksStream()
+// VerifyBlocks verifies all repository blocks with a progress bar and returns an error if any are missing/damaged.
+func VerifyBlocks(allHistory bool) error {
+	out, errCh := VerifyBlocksStream(allHistory)
 
-	totalBlocks, err := CountAllBlocks()
+	totalBlocks, err := CountBlocks(allHistory)
 	if err != nil {
 		return err
 	}
@@ -39,8 +39,9 @@ func ScanRepositoryBlocks() error {
 	return nil
 }
 
-// ScanRepositoryBlocksStream verifies blocks and streams results live.
-func ScanRepositoryBlocksStream() (<-chan block.BlockCheck, <-chan error) {
+// VerifyBlocksStream verifies blocks and streams results live.// VerifyBlocksStream verifies blocks and streams results live.
+// If allHistory is true, it collects blocks from all commits in all branches; otherwise only latest commits.
+func VerifyBlocksStream(allHistory bool) (<-chan block.BlockCheck, <-chan error) {
 	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
@@ -54,56 +55,65 @@ func ScanRepositoryBlocksStream() (<-chan block.BlockCheck, <-chan error) {
 			return
 		}
 
-		type blockRef struct {
+		type blockMeta struct {
 			files    map[string]struct{}
 			branches map[string]struct{}
 		}
 
-		blockRefs := map[string]*blockRef{}
+		blockMetas := map[string]*blockMeta{}
 		blockHashes := map[string]struct{}{}
 
-		// Phase 1: Collect all block references
 		for _, branch := range allBranches {
-			commitID, err := core.LastCommitID(branch.Name)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			if commitID == "" {
-				continue
+			var commitIDs []string
+			if allHistory {
+				commitIDs, err = core.AllCommitIDs(branch.Name)
+				if err != nil {
+					errCh <- err
+					return
+				}
+			} else {
+				last, err := core.LastCommitID(branch.Name)
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if last != "" {
+					commitIDs = []string{last}
+				}
 			}
 
-			var commit core.Commit
-			if err := util.ReadJSON(filepath.Join(config.CommitsDir, commitID+".json"), &commit); err != nil {
-				continue
-			}
+			for _, commitID := range commitIDs {
+				var commit core.Commit
+				if err := util.ReadJSON(filepath.Join(config.CommitsDir, commitID+".json"), &commit); err != nil {
+					continue
+				}
 
-			var fs snapshot.Fileset
-			if err := util.ReadJSON(filepath.Join(config.FilesetsDir, commit.FilesetID+".json"), &fs); err != nil {
-				continue
-			}
+				var fs snapshot.Fileset
+				if err := util.ReadJSON(filepath.Join(config.FilesetsDir, commit.FilesetID+".json"), &fs); err != nil {
+					continue
+				}
 
-			for _, f := range fs.Files {
-				for _, b := range f.Blocks {
-					r, ok := blockRefs[b.Hash]
-					if !ok {
-						r = &blockRef{
-							files:    map[string]struct{}{},
-							branches: map[string]struct{}{},
+				for _, f := range fs.Files {
+					for _, b := range f.Blocks {
+						r, ok := blockMetas[b.Hash]
+						if !ok {
+							r = &blockMeta{
+								files:    map[string]struct{}{},
+								branches: map[string]struct{}{},
+							}
+							blockMetas[b.Hash] = r
+							blockHashes[b.Hash] = struct{}{}
 						}
-						blockRefs[b.Hash] = r
-						blockHashes[b.Hash] = struct{}{}
+						r.files[f.Path] = struct{}{}
+						r.branches[branch.Name] = struct{}{}
 					}
-					r.files[f.Path] = struct{}{}
-					r.branches[branch.Name] = struct{}{}
 				}
 			}
 		}
 
-		// Phase 2: Verify blocks concurrently using storage API
-		verifyOut := block.VerifyMany(blockHashes, 8)
+		verifyOut := block.VerifyBlocks(blockHashes, 8)
 		for bc := range verifyOut {
-			ref := blockRefs[bc.Hash]
+			ref := blockMetas[bc.Hash]
 			bc.Files = util.SortedKeys(ref.files)
 			bc.Branches = util.SortedKeys(ref.branches)
 			out <- bc

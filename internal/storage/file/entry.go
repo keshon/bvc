@@ -32,7 +32,7 @@ func (e *Entry) Equal(other *Entry) bool {
 	return true
 }
 
-func Build(path string) (Entry, error) {
+func BuildEntry(path string) (Entry, error) {
 	blocks, err := block.SplitFileIntoBlocks(path)
 	if err != nil {
 		return Entry{}, err
@@ -41,10 +41,10 @@ func Build(path string) (Entry, error) {
 }
 
 func (e *Entry) Store() error {
-	return block.Store(e.Path, e.Blocks)
+	return block.StoreBlocks(e.Path, e.Blocks)
 }
 
-func BuildAll(paths []string) ([]Entry, error) {
+func BuildEntries(paths []string) ([]Entry, error) {
 	bar := progress.NewProgress(len(paths), "Scanning files ")
 	defer bar.Finish()
 
@@ -59,7 +59,7 @@ func BuildAll(paths []string) ([]Entry, error) {
 		go func() {
 			defer wg.Done()
 			for p := range jobs {
-				entry, err := Build(p)
+				entry, err := BuildEntry(p)
 				if err != nil {
 					errs <- err
 					continue
@@ -91,15 +91,15 @@ func BuildAll(paths []string) ([]Entry, error) {
 	return entries, nil
 }
 
-// BuildTrackedAndUntracked builds entries for all tracked + untracked files.
-func BuildTrackedAndUntracked(paths []string) ([]Entry, error) {
+// BuildAllEntries builds entries for all tracked + untracked files.
+func BuildAllEntries(paths []string) ([]Entry, error) {
 	allFiles, err := ListAll()
 	if err != nil {
 		return nil, err
 	}
 
 	// Build entries for everything that currently exists in working directory
-	entries, err := BuildAll(allFiles)
+	entries, err := BuildEntries(allFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +116,8 @@ func BuildTrackedAndUntracked(paths []string) ([]Entry, error) {
 	return append(entries, deleted...), nil
 }
 
-// BuildModifiedAndDeleted builds entries only for modified and deleted files.
-func BuildModifiedAndDeleted(paths []string) ([]Entry, error) {
+// BuildChangedEntries builds entries only for modified and deleted files.
+func BuildChangedEntries(paths []string) ([]Entry, error) {
 	tracked, err := GetIndexFiles()
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func BuildModifiedAndDeleted(paths []string) ([]Entry, error) {
 		}
 
 		// Compare block hashes to detect modification
-		current, err := Build(t.Path)
+		current, err := BuildEntry(t.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +143,7 @@ func BuildModifiedAndDeleted(paths []string) ([]Entry, error) {
 		}
 	}
 
-	modified, err := BuildAll(toUpdate)
+	modified, err := BuildEntries(toUpdate)
 	if err != nil {
 		return nil, err
 	}

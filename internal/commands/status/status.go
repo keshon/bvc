@@ -71,7 +71,7 @@ func listPending() error {
 	}
 
 	// Build current workspace snapshot
-	currFS, err := snapshot.Build()
+	currFS, err := snapshot.BuildFileset()
 	if err != nil {
 		return err
 	}

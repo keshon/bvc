@@ -13,7 +13,7 @@ func WithBlockIntegrityCheck() cli.Middleware {
 			Command: cmd,
 			Wrap: func(ctx *cli.Context) error {
 				fmt.Println("Checking repository integrity...")
-				if err := repo.ScanRepositoryBlocks(); err != nil {
+				if err := repo.VerifyBlocks(false); err != nil {
 					return fmt.Errorf(
 						"repository verification failed: %v\nPlease run `bvc repair` before continuing",
 						err,

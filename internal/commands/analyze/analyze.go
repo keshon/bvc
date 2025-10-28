@@ -28,15 +28,19 @@ func (c *Command) Short() string { return "a" }
 func (c *Command) Run(ctx *cli.Context) error {
 	sortMode := "reuse"
 
-	for k, v := range ctx.Flags {
-		switch strings.ToLower(k) {
-		case "sort":
-			sortMode = strings.ToLower(v)
+	// Parse arguments
+	for i := 0; i < len(ctx.Args); i++ {
+		switch strings.ToLower(ctx.Args[i]) {
+		case "--sort":
+			if i+1 < len(ctx.Args) {
+				sortMode = strings.ToLower(ctx.Args[i+1])
+				i++
+			}
 		}
 	}
 
 	fmt.Println("Scanning repository...")
-	all, err := repo.CollectAllBlocks()
+	all, err := repo.ListAllBlocks(true) // allHistory = true
 	if err != nil {
 		return err
 	}
@@ -51,16 +55,17 @@ func (c *Command) Run(ctx *cli.Context) error {
 		SharedBlocks int
 		ReuseRatio   float64
 	}
+
 	fileStats := map[string]*FileStat{}
+	var totalBlocks, sharedBlocks int
 
-	var totalBlocks, totalSize, sharedBlocks int
-
+	// Collect per-file stats
 	for _, info := range all {
 		totalBlocks++
-		totalSize += int(info.Size)
 		if len(info.Files) > 1 {
 			sharedBlocks++
 		}
+
 		for path := range info.Files {
 			fs, ok := fileStats[path]
 			if !ok {
@@ -74,21 +79,22 @@ func (c *Command) Run(ctx *cli.Context) error {
 		}
 	}
 
-	// compute ratios
+	// Compute reuse ratio per file
 	for _, f := range fileStats {
 		if f.TotalBlocks > 0 {
 			f.ReuseRatio = float64(f.SharedBlocks) / float64(f.TotalBlocks) * 100
 		}
 	}
 
+	// Print summary
 	fmt.Println("────────────────────────────────────")
 	fmt.Printf("Total blocks:  %d\n", totalBlocks)
 	fmt.Printf("Unique blocks: %d\n", totalBlocks-sharedBlocks)
 	fmt.Printf("Shared blocks: %d\n", sharedBlocks)
 	fmt.Printf("Reuse ratio:   %.1f%%\n", float64(sharedBlocks)/float64(totalBlocks)*100)
-	fmt.Printf("────────────────────────────────────\n")
+	fmt.Println("────────────────────────────────────")
 
-	// sort by chosen metric
+	// Sort files according to chosen metric
 	stats := make([]*FileStat, 0, len(fileStats))
 	for _, f := range fileStats {
 		stats = append(stats, f)
@@ -109,10 +115,11 @@ func (c *Command) Run(ctx *cli.Context) error {
 		})
 	}
 
+	// Show top reused files
 	fmt.Println("Top reused files:")
 	for i := 0; i < len(stats) && i < 5; i++ {
 		f := stats[i]
-		fmt.Printf("  %-40s %5.1f%% (%d blocks)\n", f.Path, f.ReuseRatio, f.TotalBlocks)
+		fmt.Printf("  %-60s %5.1f%% (%d blocks)\n", f.Path, f.ReuseRatio, f.TotalBlocks)
 	}
 
 	fmt.Println("────────────────────────────────────")

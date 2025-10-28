@@ -4,7 +4,6 @@ import (
 	_ "app/internal/commands/add"
 	_ "app/internal/commands/analyze"
 	_ "app/internal/commands/branch"
-	_ "app/internal/commands/branch-name"
 	_ "app/internal/commands/checkout"
 	_ "app/internal/commands/cherry-pick"
 	_ "app/internal/commands/commit"

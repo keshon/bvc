@@ -54,6 +54,18 @@ func IsBranchExist(name string) (bool, error) {
 	return false, err
 }
 
+func GetBranch(name string) (Branch, error) {
+	//check if branch exists
+	exist, err := IsBranchExist(name)
+	if err != nil {
+		return Branch{}, err
+	}
+	if !exist {
+		return Branch{}, fmt.Errorf("branch '%s' does not exist", name)
+	}
+	return Branch{Name: name}, nil
+}
+
 // CreateBranch creates a new branch and sets last commit of parent branch
 func CreateBranch(name string) (Branch, error) {
 	branch, err := CurrentBranch()

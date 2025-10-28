@@ -2,17 +2,12 @@ package checkout
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"app/internal/cli"
-	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
-
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-	"app/internal/util"
 )
 
 // Command switches to another branch
@@ -45,66 +40,58 @@ func (c *Command) Run(ctx *cli.Context) error {
 		return fmt.Errorf("branch name required")
 	}
 	branch := ctx.Args[0]
-	return checkoutBranch(branch)
+	return runCheckout(branch)
 }
 
-// checkoutBranch performs the actual branch switch
-func checkoutBranch(branch string) error {
-	branchPath := filepath.Join(config.BranchesDir, branch)
-
-	// Check if branch exists
-	exist, err := core.IsBranchExist(branchPath)
+// runCheckout performs the actual branch switch using core and storage layers
+func runCheckout(branch string) error {
+	// Step 1: Ensure branch exists
+	b, err := core.GetBranch(branch)
 	if err != nil {
 		return err
 	}
-	if !exist {
-		return fmt.Errorf("branch '%s' does not exist", branch)
-	}
 
-	commitIDBytes, err := os.ReadFile(branchPath)
+	// Step 2: Resolve its last commit
+	commitID, err := core.LastCommitID(b.Name)
 	if err != nil {
 		return err
 	}
-	commitID := string(commitIDBytes)
 
-	// Empty branch handling
+	// Step 3: Handle empty branch
 	if commitID == "" {
-		emptyFS := snapshot.Fileset{ID: "empty", Files: nil}
-		if err := file.RestoreAll(emptyFS.Files, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
+		if err := file.RestoreFiles(nil, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
 			return err
 		}
-
-		if _, err := core.SetHeadRef(filepath.Join("branches", branch)); err != nil {
+		if _, err := core.SetHeadRef("branches/" + branch); err != nil {
 			return err
 		}
-
 		fmt.Println("Branch is empty, switched to", branch)
 		return nil
 	}
 
-	// Load commit fileset
-	commitPath := filepath.Join(config.CommitsDir, commitID+".json")
-	var commit core.Commit
-	if err := util.ReadJSON(commitPath, &commit); err != nil {
-		return err
+	// Step 4: Load commit and fileset
+	commit, err := core.GetCommit(commitID)
+	if err != nil {
+		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
 	}
 
-	fsPath := filepath.Join(config.FilesetsDir, commit.FilesetID+".json")
-	var fileset snapshot.Fileset
-	if err := util.ReadJSON(fsPath, &fileset); err != nil {
-		return err
+	fs, err := snapshot.LoadFileset(commit.FilesetID)
+	if err != nil {
+		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
 
-	// Restore files
-	if err := file.RestoreAll(fileset.Files, fmt.Sprintf("for branch '%s'", branch)); err != nil {
-		return err
+	// Step 5: Restore files
+	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("branch '%s'", branch)); err != nil {
+		return fmt.Errorf("restore failed: %w", err)
 	}
 
-	// Update HEAD and last commit
-	if _, err := core.SetHeadRef(filepath.Join("branches", branch)); err != nil {
+	// Step 6: Update HEAD and last commit
+	if _, err := core.SetHeadRef("branches/" + branch); err != nil {
 		return err
 	}
-	_ = core.SetLastCommit(branch, commitID)
+	if err := core.SetLastCommit(branch, commitID); err != nil {
+		return err
+	}
 
 	fmt.Println("Switched to branch", branch)
 	return nil
