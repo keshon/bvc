@@ -12,8 +12,8 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 Stage files or directories for the next commit
 
 ### analyze
-`analyze <path|.> [--compare <commit>] [--by-type] [--json] [--dry-run] [--top N]`
-Analyze block reuse potential for files (estimate new data to store)
+`analyze [--sort reuse|unique|size] [--json]`
+Analyze block reuse across the entire repository (all snapshots and branches)
 
 ### blocks
 `blocks [branch|name]`
