@@ -11,6 +11,10 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 `add <file|dir|.>`
 Stage files or directories for the next commit
 
+### analyze
+`analyze <path|.> [--compare <commit>] [--by-type] [--json] [--dry-run] [--top N]`
+Analyze block reuse potential for files (estimate new data to store)
+
 ### blocks
 `blocks [branch|name]`
 Display repository blocks overview
