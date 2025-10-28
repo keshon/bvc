@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"app/internal/cli"
+	"app/internal/config"
 	"fmt"
 )
 
@@ -11,7 +12,9 @@ func WithDebugArgsPrint() cli.Middleware {
 		return &cli.WrappedCommand{
 			Command: cmd,
 			Wrap: func(ctx *cli.Context) error {
-				fmt.Printf("Args: %+v\n", ctx.Args)
+				if config.IsDev {
+					fmt.Printf("Args: %+v\n", ctx.Args)
+				}
 				return cmd.Run(ctx)
 			},
 		}

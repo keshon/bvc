@@ -2,12 +2,10 @@ package blocks
 
 import (
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"app/internal/cli"
-	"app/internal/config"
 	"app/internal/repo"
 	"app/internal/util"
 )
@@ -58,7 +56,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 // overviewBlocks collects blocks and prints the table
 func (c *Command) overviewBlocks(sortMode string) error {
 	// Collect all blocks from repo
-	blocksMap, err := repo.ListAllBlocks(true)
+	blocksMap, err := repo.ListAllBlocks(false)
 	if err != nil {
 		return err
 	}
@@ -118,23 +116,6 @@ func (c *Command) overviewBlocks(sortMode string) error {
 		name := truncateMid(strings.Join(r.Files, ","), 32)
 		branch := truncateMid(strings.Join(r.Branches, ","), 32)
 		fmt.Printf("\033[90m%-32s\033[0m %-32s %-32s\n", r.Hash, name, branch)
-	}
-
-	// Orphaned blocks check
-	objFiles, _ := filepath.Glob(filepath.Join(config.ObjectsDir, "*.bin"))
-	var orphaned []string
-	for _, f := range objFiles {
-		h := strings.TrimSuffix(filepath.Base(f), ".bin")
-		if _, ok := blocksMap[h]; !ok {
-			orphaned = append(orphaned, h)
-		}
-	}
-	if len(orphaned) > 0 {
-		sort.Strings(orphaned)
-		fmt.Println("\nOrphaned blocks:")
-		for _, h := range orphaned {
-			fmt.Printf("\033[90m%s\033[0m\n", h)
-		}
 	}
 
 	return nil

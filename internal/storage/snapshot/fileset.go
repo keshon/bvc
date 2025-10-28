@@ -42,6 +42,23 @@ func LoadFileset(id string) (Fileset, error) {
 	return fs, nil
 }
 
+// LoadFilesets retrieves all filesets from disk
+func LoadFilesets() ([]Fileset, error) {
+	files, err := filepath.Glob(filepath.Join(config.FilesetsDir, "*.json"))
+	if err != nil {
+		return nil, err
+	}
+	var filesets []Fileset
+	for _, f := range files {
+		var fs Fileset
+		if err := util.ReadJSON(f, &fs); err != nil {
+			return nil, err
+		}
+		filesets = append(filesets, fs)
+	}
+	return filesets, nil
+}
+
 // BuildFilesetFromEntries builds a fileset from a list of file entries.
 func BuildFilesetFromEntries(entries []file.Entry) (Fileset, error) {
 	if len(entries) == 0 {

@@ -1,5 +1,7 @@
 package config
 
+const IsDev = false
+
 const (
 	RepoDir     = ".bvc"
 	CommitsDir  = RepoDir + "/commits"

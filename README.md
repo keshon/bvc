@@ -15,6 +15,10 @@ Stage files or directories for the next commit
 `analyze [--sort reuse|unique|size]`
 Analyze block reuse across the entire repository (all snapshots and branches)
 
+### blocks
+`blocks [branch|name]`
+Display repository blocks overview
+
 ### branch
 `branch [<branch-name>]`
 List all branches or create a new one
