@@ -6,6 +6,8 @@ import (
 	"app/internal/middleware"
 	"app/internal/storage/snapshot"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -14,22 +16,37 @@ import (
 type Command struct{}
 
 func (c *Command) Name() string  { return "analyze" }
-func (c *Command) Usage() string { return "analyze [--full]" }
+func (c *Command) Usage() string { return "analyze [--detail] [--export]" }
 func (c *Command) Brief() string {
 	return "Analyze block reuse across the entire repository (all snapshots and branches)"
 }
 func (c *Command) Help() string {
-	return "Analyze block reuse across all branches and commits. Use --full to print detailed shared block list."
+	return `Analyze block reuse across all branches and commits.
+	
+	Use --detail to print detailed shared block list.
+	Use --export to save output to .bvcanalyze.`
 }
 func (c *Command) Aliases() []string { return []string{"a"} }
 func (c *Command) Short() string     { return "a" }
 
 func (c *Command) Run(ctx *cli.Context) error {
 	full := false
+	export := false
 
 	for _, arg := range ctx.Args {
-		if arg == "--full" {
+		switch arg {
+		case "--full":
 			full = true
+		case "--export":
+			export = true
+		}
+	}
+
+	var exportBuf strings.Builder
+	writeOut := func(s string) {
+		fmt.Print(s)
+		if export {
+			exportBuf.WriteString(stripANSI(s))
 		}
 	}
 
@@ -38,7 +55,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 		return err
 	}
 	if len(branches) == 0 {
-		fmt.Println("No branches found.")
+		writeOut("No branches found.\n")
 		return nil
 	}
 
@@ -121,23 +138,22 @@ func (c *Command) Run(ctx *cli.Context) error {
 	}
 
 	// --- Summary output ---
-	fmt.Printf("\033[96mSummary\033[0m\n\n")
-
-	fmt.Println(prettyLine("\033[36mTotal branches\033[0m", fmt.Sprintf("%d", len(branches))))
-	fmt.Println()
-	fmt.Println(prettyLine("\033[36mTotal blocks\033[0m", fmt.Sprintf("%d", totalBlocks)))
-	fmt.Println(prettyLine("\033[36mUnique blocks\033[0m", fmt.Sprintf("%d", totalBlocks-sharedBlocks)))
-	fmt.Println(prettyLine("\033[36mShared blocks\033[0m", fmt.Sprintf("%d", sharedBlocks)))
-	fmt.Println(prettyLine("\033[36mOverall reuse ratio\033[0m", fmt.Sprintf("%.1f%%", float64(sharedBlocks)/float64(totalBlocks)*100)))
-	fmt.Println()
-	fmt.Println(prettyLine("\033[36mTotal files\033[0m", fmt.Sprintf("%d", totalFiles)))
-	fmt.Println(prettyLine("\033[36mFiles with shared blocks\033[0m", fmt.Sprintf("%d", filesWithShared)))
-	fmt.Println(prettyLine("\033[36mFile reuse ratio\033[0m", fmt.Sprintf("%.1f%%", fileSharedPercent)))
-	fmt.Println(prettyLine("\033[36mAvg. file reuse ratio\033[0m", fmt.Sprintf("%.1f%%", avgFileReuse)))
-	fmt.Println()
+	writeOut("\033[96mSummary\033[0m\n\n")
+	writeOut(prettyLine("\033[36mTotal branches\033[0m", fmt.Sprintf("%d", len(branches))) + "\n\n")
+	writeOut(prettyLine("\033[36mTotal blocks\033[0m", fmt.Sprintf("%d", totalBlocks)) + "\n")
+	writeOut(prettyLine("\033[36mUnique blocks\033[0m", fmt.Sprintf("%d", totalBlocks-sharedBlocks)) + "\n")
+	writeOut(prettyLine("\033[36mShared blocks\033[0m", fmt.Sprintf("%d", sharedBlocks)) + "\n")
+	writeOut(prettyLine("\033[36mOverall reuse ratio\033[0m", fmt.Sprintf("%.1f%%", float64(sharedBlocks)/float64(totalBlocks)*100)) + "\n\n")
+	writeOut(prettyLine("\033[36mTotal files\033[0m", fmt.Sprintf("%d", totalFiles)) + "\n")
+	writeOut(prettyLine("\033[36mFiles with shared blocks\033[0m", fmt.Sprintf("%d", filesWithShared)) + "\n")
+	writeOut(prettyLine("\033[36mFile reuse ratio\033[0m", fmt.Sprintf("%.1f%%", fileSharedPercent)) + "\n")
+	writeOut(prettyLine("\033[36mAvg. file reuse ratio\033[0m", fmt.Sprintf("%.1f%%", avgFileReuse)) + "\n\n")
 
 	// If not full mode, stop here
 	if !full {
+		if export {
+			saveExport(exportBuf.String())
+		}
 		return nil
 	}
 
@@ -178,15 +194,19 @@ func (c *Command) Run(ctx *cli.Context) error {
 		return sharedList[i].Count > sharedList[j].Count
 	})
 
-	fmt.Println("\n\033[96mShared Blocks (most reused first):\033[0m")
+	writeOut("\n\033[96mShared Blocks (most reused first):\033[0m\n")
 	for i, sb := range sharedList {
-		fmt.Printf("\n\033[36m[%d] %s\033[0m\n", i+1, sb.Hash)
-		fmt.Printf("  Occurrences: %d\n", sb.Count)
-		fmt.Printf("  Branches:    %s\n", strings.Join(sb.Branches, ", "))
-		fmt.Printf("  Files:\n")
+		writeOut(fmt.Sprintf("\n\033[36m[%d] %s\033[0m\n", i+1, sb.Hash))
+		writeOut(fmt.Sprintf("  Occurrences: %d\n", sb.Count))
+		writeOut(fmt.Sprintf("  Branches:    %s\n", strings.Join(sb.Branches, ", ")))
+		writeOut("  Files:\n")
 		for _, f := range sb.Files {
-			fmt.Printf("    - %s\n", f)
+			writeOut(fmt.Sprintf("    - %s\n", f))
 		}
+	}
+
+	if export {
+		saveExport(exportBuf.String())
 	}
 
 	return nil
@@ -206,6 +226,12 @@ func prettyLine(label string, value string) string {
 func stripANSI(s string) string {
 	re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	return re.ReplaceAllString(s, "")
+}
+
+func saveExport(content string) {
+	file := ".bvcanalyze"
+	_ = os.WriteFile(filepath.Clean(file), []byte(strings.TrimSpace(content)+"\n"), 0644)
+	fmt.Printf("\n\033[90mExported analysis to %s\033[0m\n", file)
 }
 
 func init() {
