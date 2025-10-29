@@ -3,8 +3,8 @@ package cli
 // Command represents a cli command
 type Command interface {
 	Name() string
-	Description() string
-	DetailedDescription() string
+	Brief() string
+	Help() string
 	Usage() string
 	Run(ctx *Context) error
 	Aliases() []string
@@ -13,5 +13,5 @@ type Command interface {
 
 // Context represents a cli context
 type Context struct {
-	Args []string // Positional arguments
+	Args []string
 }

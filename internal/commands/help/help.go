@@ -18,10 +18,10 @@ func (c *Command) Name() string { return "help" }
 func (c *Command) Usage() string { return "help [command]" }
 
 // Short description
-func (c *Command) Description() string { return "Show help for commands" }
+func (c *Command) Brief() string { return "Show help for commands" }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return "Display detailed help information for a specific command, or list all commands if none is provided."
 }
 
@@ -50,7 +50,7 @@ func commandHelp(name string) error {
 	if usage := cmd.Usage(); usage != "" {
 		fmt.Printf("\033[90mUsage:\033[0m %s\n\n", usage)
 	}
-	fmt.Printf("%s\n\n", cmd.DetailedDescription())
+	fmt.Printf("%s\n\n", cmd.Help())
 
 	// Show aliases if available
 	if aliasesCmd, ok := cmd.(interface{ Aliases() []string }); ok {
@@ -80,7 +80,7 @@ func listAllCommands() error {
 		if usage == "" {
 			usage = "-"
 		}
-		desc := cmd.Description()
+		desc := cmd.Brief()
 		if desc == "" {
 			desc = "-"
 		}

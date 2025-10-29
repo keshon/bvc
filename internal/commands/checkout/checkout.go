@@ -20,10 +20,10 @@ func (c *Command) Name() string { return "checkout" }
 func (c *Command) Usage() string { return "checkout <branch-name>" }
 
 // Short description
-func (c *Command) Description() string { return "Switch to another branch" }
+func (c *Command) Brief() string { return "Switch to another branch" }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Switch to another branch.
 Restores the branch's fileset and updates HEAD reference.`
 }

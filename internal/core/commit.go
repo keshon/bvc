@@ -37,6 +37,7 @@ func LastCommitID(branch string) (string, error) {
 	return string(data), nil
 }
 
+// AllCommitIDs returns all commit IDs of the given branch
 func AllCommitIDs(branch string) ([]string, error) {
 	path := filepath.Join(config.BranchesDir, branch)
 	data, err := os.ReadFile(path)

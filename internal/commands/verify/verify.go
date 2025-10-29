@@ -21,10 +21,10 @@ type VerifyCommand struct{}
 
 func (c *VerifyCommand) Name() string  { return "verify" }
 func (c *VerifyCommand) Usage() string { return "verify [--repair|--auto]" }
-func (c *VerifyCommand) Description() string {
+func (c *VerifyCommand) Brief() string {
 	return "Verify repository integrity or attempt to repair missing/damaged blocks"
 }
-func (c *VerifyCommand) DetailedDescription() string {
+func (c *VerifyCommand) Help() string {
 	return `Verify repository blocks and file integrity.
 
 Usage:

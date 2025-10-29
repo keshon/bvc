@@ -17,12 +17,12 @@ func (c *Command) Name() string { return "merge" }
 func (c *Command) Usage() string { return "merge <branch-name>" }
 
 // Short description
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Merge another branch into the current branch"
 }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.`
 }

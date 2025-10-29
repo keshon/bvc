@@ -19,7 +19,7 @@ func main() {
 		fmt.Println("Usage: bvc <command> [args...]")
 		fmt.Println("Available commands:")
 		for _, cmd := range cli.AllCommands() {
-			fmt.Printf("  %s: %s\n", cmd.Name(), cmd.Description())
+			fmt.Printf("  %s: %s\n", cmd.Name(), cmd.Help())
 		}
 		os.Exit(0)
 	}

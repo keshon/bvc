@@ -23,10 +23,10 @@ func (c *Command) Name() string { return "reset" }
 func (c *Command) Usage() string { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
 
 // Description
-func (c *Command) Description() string { return "Reset current branch to a commit or HEAD" }
+func (c *Command) Brief() string { return "Reset current branch to a commit or HEAD" }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Reset the current branch.
 Modes:
   --soft  : move HEAD only

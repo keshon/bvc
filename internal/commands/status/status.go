@@ -24,12 +24,12 @@ func (c *Command) Name() string { return "status" }
 func (c *Command) Usage() string { return "status" }
 
 // Short description
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Show uncommitted changes"
 }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `List uncommitted changes in the current branch.
 WARNING: Switching branches with pending changes may cause data loss.`
 }

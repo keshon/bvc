@@ -1,7 +1,9 @@
 package cli
 
+// Command registry
 var registry = map[string]Command{}
 
+// RegisterCommand registers a command
 func RegisterCommand(cmd Command) {
 	names := append([]string{cmd.Name()}, cmd.Aliases()...)
 	for _, n := range names {
@@ -12,11 +14,13 @@ func RegisterCommand(cmd Command) {
 	}
 }
 
+// GetCommand returns a registered command
 func GetCommand(name string) (Command, bool) {
 	cmd, ok := registry[name]
 	return cmd, ok
 }
 
+// AllCommands returns all registered commands
 func AllCommands() []Command {
 	list := make([]Command, 0, len(registry))
 	seen := map[Command]bool{}

@@ -1,12 +1,15 @@
 package cli
 
+// Middleware is a function that wraps a command
 type Middleware func(Command) Command
 
+// WrappedCommand represents a command wrapped with a middleware
 type WrappedCommand struct {
 	Command
 	Wrap func(ctx *Context) error
 }
 
+// Run executes the wrapped command
 func (w *WrappedCommand) Run(ctx *Context) error {
 	if w.Wrap != nil {
 		return w.Wrap(ctx)

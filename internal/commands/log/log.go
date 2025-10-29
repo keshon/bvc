@@ -22,12 +22,12 @@ func (c *Command) Usage() string {
 }
 
 // Short description
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Show commit history (current branch by default)"
 }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return "List commits for the current branch or all branches if -a / --all is specified."
 }
 

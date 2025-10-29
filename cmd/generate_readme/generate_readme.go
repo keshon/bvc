@@ -29,7 +29,7 @@ func main() {
 
 	sections := ""
 	for _, cmd := range commands {
-		sections += fmt.Sprintf("### %s\n`%s`\n%s\n\n", cmd.Name(), cmd.Usage(), cmd.Description())
+		sections += fmt.Sprintf("### %s\n`%s`\n%s\n\n", cmd.Name(), cmd.Usage(), cmd.Help())
 	}
 
 	data := map[string]string{

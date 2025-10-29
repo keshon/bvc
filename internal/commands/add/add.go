@@ -15,10 +15,10 @@ type Command struct{}
 
 func (c *Command) Name() string  { return "add" }
 func (c *Command) Usage() string { return "add <file|dir|.>" }
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Stage files or directories for the next commit"
 }
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Stage changes for commit.
 Usage:
   add .              - stage new and modified files

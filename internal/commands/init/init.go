@@ -19,10 +19,10 @@ func (c *Command) Name() string { return "init" }
 func (c *Command) Usage() string { return "init" }
 
 // Short description
-func (c *Command) Description() string { return "Initialize a new repository" }
+func (c *Command) Brief() string { return "Initialize a new repository" }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return "Initialize a new repository in the current directory.\n" +
 		"If the directory is not empty, existing content will be marked as pending changes."
 }

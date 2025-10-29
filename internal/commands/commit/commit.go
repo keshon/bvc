@@ -20,10 +20,10 @@ type Command struct{}
 
 func (c *Command) Name() string  { return "commit" }
 func (c *Command) Usage() string { return `commit -m "<message>" [--allow-empty]` }
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Commit staged changes to the current branch"
 }
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Create a new commit with the staged changes.
 Supports -m / --message for commit message.
 Supports --allow-empty to commit even if no staged changes exist.`

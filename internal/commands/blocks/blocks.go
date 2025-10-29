@@ -22,12 +22,12 @@ func (c *Command) Usage() string {
 }
 
 // Short description
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Display repository blocks overview"
 }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Show repository blocks list with optional sort:
   - default: by block hash
   - branch: sort by branch name

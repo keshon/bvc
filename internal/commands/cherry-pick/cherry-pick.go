@@ -24,12 +24,12 @@ func (c *Command) Name() string { return "cherry-pick" }
 func (c *Command) Usage() string { return "cherry-pick <commit-id>" }
 
 // Short description
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "Apply selected commit to the current branch"
 }
 
 // Detailed description
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Apply a specific commit to the current branch.
 Use 'bvc log all' to find the commit ID you want to apply.`
 }

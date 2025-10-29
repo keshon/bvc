@@ -13,10 +13,10 @@ type Command struct{}
 
 func (c *Command) Name() string  { return "branch" }
 func (c *Command) Usage() string { return "branch [<branch-name>]" }
-func (c *Command) Description() string {
+func (c *Command) Brief() string {
 	return "List all branches or create a new one"
 }
-func (c *Command) DetailedDescription() string {
+func (c *Command) Help() string {
 	return `Usage:
   branch             - List all branches (current marked with '*')
   branch <name>      - Create a new branch from the current one`
