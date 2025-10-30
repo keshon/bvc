@@ -21,15 +21,6 @@ func (c *Command) Help() string {
 }
 
 func (c *Command) Run(ctx *cli.Context) error {
-	exists, err := core.RepoExists()
-	if err != nil {
-		return err
-	}
-
-	if exists {
-		return fmt.Errorf("repository already exists")
-	}
-
 	name, err := core.InitRepo()
 	if err != nil {
 		return err

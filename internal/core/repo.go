@@ -11,6 +11,12 @@ import (
 
 // InitRepo initializes the repository and returns its name and error
 func InitRepo() (string, error) {
+	if exists, err := repoExists(); err != nil {
+		return "", fmt.Errorf("failed to check if repo exists: %w", err)
+	} else if exists {
+		return "", errors.New("repository already exists")
+	}
+
 	// Ensure all necessary directories exist
 	dirs := []string{
 		config.RepoDir,
@@ -48,7 +54,7 @@ func InitRepo() (string, error) {
 	return repoName, nil
 }
 
-func RepoExists() (bool, error) {
+func repoExists() (bool, error) {
 	_, err := os.Stat(config.RepoDir)
 	if err == nil {
 		return true, nil

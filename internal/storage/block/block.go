@@ -6,9 +6,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 
 	"app/internal/config"
 	"app/internal/util"
+
+	"golang.org/x/exp/mmap"
 )
 
 const (
@@ -38,67 +42,101 @@ type BlockCheck struct {
 	Branches []string
 }
 
-// SplitFileIntoBlocks splits a file into content-defined blocks.
+// SplitFileIntoBlocks splits a file into content-defined blocks
+// using dynamic worker count and chunked memory mapping.
 func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
-	f, err := os.Open(path)
+	const chunkSize = 1 << 30 // 1 GiB per memory-mapped chunk
+
+	// get file size
+	fi, err := os.Stat(path)
 	if err != nil {
-		return nil, fmt.Errorf("open file %q: %w", path, err)
+		return nil, fmt.Errorf("stat file %q: %w", path, err)
 	}
-	defer f.Close()
+	fileSize := fi.Size()
 
-	var (
-		blocks []BlockRef
-		buf    = make([]byte, maxChunkSize)
-		chunk  = make([]byte, 0, maxChunkSize) // pre-allocate
-		offset int64
-		rh     uint32
-	)
+	var allBlocks []BlockRef
+	var offset int64
 
-	for {
-		n, err := f.Read(buf)
-		if n > 0 {
-			start := 0
-			for i := 0; i < n; i++ {
-				rh = (rh<<1 + uint32(buf[i])) & 0xFFFFFFFF
-				if shouldSplitBlock(i-start+1+len(chunk), rh) {
-					// append previous chunk + current slice
-					blockData := make([]byte, len(chunk)+(i-start+1))
-					copy(blockData, chunk)
-					copy(blockData[len(chunk):], buf[start:i+1])
-
-					blocks = append(blocks, hashBlock(blockData, offset))
-					offset += int64(len(blockData))
-
-					// reset for next block
-					chunk = chunk[:0]
-					start = i + 1
-					rh = 0
-				}
-			}
-			// append leftover bytes to chunk for next read
-			if start < n {
-				chunk = append(chunk, buf[start:n]...)
-			}
+	// process each chunk sequentially
+	for chunkStart := int64(0); chunkStart < fileSize; chunkStart += chunkSize {
+		chunkEnd := chunkStart + chunkSize
+		if chunkEnd > fileSize {
+			chunkEnd = fileSize
 		}
+		size := int(chunkEnd - chunkStart)
 
+		// mmap this chunk
+		reader, err := mmap.Open(path)
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
+			return nil, fmt.Errorf("open file %q: %w", path, err)
+		}
+
+		data := make([]byte, size)
+		if _, err := reader.ReadAt(data, chunkStart); err != nil {
+			reader.Close()
+			return nil, fmt.Errorf("read mmap file chunk %d-%d: %w", chunkStart, chunkEnd, err)
+		}
+		reader.Close()
+
+		// CDC logic
+		var rh uint32
+		start := 0
+		var blocks []BlockRef
+		var nextIndex int32
+
+		hashCh := make(chan struct {
+			data   []byte
+			offset int64
+		}, 128)
+
+		workers := util.WorkerCount()
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := 0; w < workers; w++ {
+			go func() {
+				defer wg.Done()
+				for item := range hashCh {
+					blockRef := hashBlock(item.data, item.offset)
+					idx := atomic.AddInt32(&nextIndex, 1) - 1
+
+					if int(idx) >= len(blocks) {
+						newBlocks := make([]BlockRef, idx+1)
+						copy(newBlocks, blocks)
+						blocks = newBlocks
+					}
+					blocks[idx] = blockRef
+				}
+			}()
+		}
+
+		for i := 0; i < size; i++ {
+			rh = (rh<<1 + uint32(data[i])) & 0xFFFFFFFF
+			if shouldSplitBlock(i-start+1, rh) {
+				hashCh <- struct {
+					data   []byte
+					offset int64
+				}{data[start : i+1], offset}
+				offset += int64(i - start + 1)
+				start = i + 1
+				rh = 0
 			}
-			return nil, fmt.Errorf("read file %q: %w", path, err)
 		}
 
-		if n == 0 {
-			break
+		if start < size {
+			hashCh <- struct {
+				data   []byte
+				offset int64
+			}{data[start:size], offset}
+			offset += int64(size - start)
 		}
+
+		close(hashCh)
+		wg.Wait()
+
+		allBlocks = append(allBlocks, blocks[:nextIndex]...)
 	}
 
-	// handle remaining data
-	if len(chunk) > 0 {
-		blocks = append(blocks, hashBlock(chunk, offset))
-	}
-
-	return blocks, nil
+	return allBlocks, nil
 }
 
 // StoreBlocks writes all blocks concurrently and safely.
