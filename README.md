@@ -17,10 +17,11 @@ Usage:
   add <path>         - stage a specific file or directory
 
 ### analyze
-`analyze [--full] [--export]`
+`analyze [--detail] [--export]`
 Analyze block reuse across all branches and commits.
-Use --full to print detailed shared block list.
-Use --export to save output to .bvcanalyze.
+	
+	Use --detail to print detailed shared block list.
+	Use --export to save output to .bvcanalyze.
 
 ### blocks
 `blocks [branch|name]`

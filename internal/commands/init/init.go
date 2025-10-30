@@ -2,8 +2,6 @@ package init
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"app/internal/cli"
 	"app/internal/core"
@@ -35,17 +33,10 @@ func (c *Command) Short() string { return "i" }
 
 // Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
-	// Initialize repository structure
-	if err := core.InitRepo(); err != nil {
-		return err
-	}
-
-	// Get current directory name
-	wd, err := os.Getwd()
+	repoName, err := core.InitRepo()
 	if err != nil {
 		return err
 	}
-	repoName := filepath.Base(wd)
 
 	fmt.Printf("Repository \033[90m%s\033[0m has been initialized\n", repoName)
 	return nil

@@ -75,11 +75,11 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 	var entries []file.Entry
 	if includeAll {
-		entries, _ = file.BuildAllEntries(toStage)
+		entries, _ = file.CreateAllEntries(toStage)
 	} else if updateOnly {
-		entries, _ = file.BuildChangedEntries(toStage)
+		entries, _ = file.CreateChangedEntries(toStage)
 	} else {
-		entries, _ = file.BuildEntries(toStage)
+		entries, _ = file.CreateEntries(toStage)
 	}
 
 	if len(entries) == 0 {

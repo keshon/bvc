@@ -8,21 +8,32 @@ import (
 	"app/internal/middleware"
 )
 
-// Command implements `branch` listing and creation (Git-style)
+// Command represents the 'branch' command
 type Command struct{}
 
-func (c *Command) Name() string  { return "branch" }
+// Canonical name
+func (c *Command) Name() string { return "branch" }
+
+// Usage string
 func (c *Command) Usage() string { return "branch [<branch-name>]" }
+
+// Short description
 func (c *Command) Brief() string {
 	return "List all branches or create a new one"
 }
+
+// Detailed description
 func (c *Command) Help() string {
 	return `Usage:
   branch             - List all branches (current marked with '*')
   branch <name>      - Create a new branch from the current one`
 }
+
+// Optional aliases
 func (c *Command) Aliases() []string { return []string{"br"} }
-func (c *Command) Short() string     { return "B" }
+
+// One-letter shortcut
+func (c *Command) Short() string { return "B" }
 
 // Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {

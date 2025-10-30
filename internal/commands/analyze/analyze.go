@@ -13,22 +13,35 @@ import (
 	"strings"
 )
 
+// Command displays repository block overview
 type Command struct{}
 
-func (c *Command) Name() string  { return "analyze" }
+// Canonical name
+func (c *Command) Name() string { return "analyze" }
+
+// Usage string
 func (c *Command) Usage() string { return "analyze [--detail] [--export]" }
+
+// Short description
 func (c *Command) Brief() string {
 	return "Analyze block reuse across the entire repository (all snapshots and branches)"
 }
+
+// Detailed description
 func (c *Command) Help() string {
 	return `Analyze block reuse across all branches and commits.
 	
 	Use --detail to print detailed shared block list.
 	Use --export to save output to .bvcanalyze.`
 }
-func (c *Command) Aliases() []string { return []string{"a"} }
-func (c *Command) Short() string     { return "a" }
 
+// Optional aliases
+func (c *Command) Aliases() []string { return []string{"a"} }
+
+// One-letter shortcut
+func (c *Command) Short() string { return "a" }
+
+// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	full := false
 	export := false

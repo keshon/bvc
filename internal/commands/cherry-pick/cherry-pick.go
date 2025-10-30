@@ -2,16 +2,13 @@ package cherry_pick
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"app/internal/cli"
-	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-	"app/internal/util"
 )
 
 // Command applies a specific commit to the current branch
@@ -51,17 +48,12 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 // pickCommit applies the target commit to the current branch
 func pickCommit(commitID string) error {
-	// Load target commit
-	targetPath := filepath.Join(config.CommitsDir, commitID+".json")
-	var target core.Commit
-	if err := util.ReadJSON(targetPath, &target); err != nil {
-		return fmt.Errorf("unknown commit: %s", commitID)
+	targetCommit, err := core.GetCommit(commitID)
+	if err != nil {
+		return err
 	}
-
-	// Load fileset of target commit
-	fsPath := filepath.Join(config.FilesetsDir, target.FilesetID+".json")
-	var fs snapshot.Fileset
-	if err := util.ReadJSON(fsPath, &fs); err != nil {
+	targetFileset, err := snapshot.LoadFileset(targetCommit.FilesetID)
+	if err != nil {
 		return err
 	}
 
@@ -84,21 +76,22 @@ func pickCommit(commitID string) error {
 		Branch:    currentBranch.Name,
 		Message:   fmt.Sprintf("Pick commit %s", commitID),
 		Timestamp: time.Now().Format(time.RFC3339),
-		FilesetID: target.FilesetID,
+		FilesetID: targetCommit.FilesetID,
 	}
 
-	newCommitPath := filepath.Join(config.CommitsDir, newCommit.ID+".json")
-	if err := util.WriteJSON(newCommitPath, newCommit); err != nil {
+	// Create commit
+	_, err = core.CreateCommit(&newCommit)
+	if err != nil {
 		return err
 	}
 
 	// Update last commit for the branch
-	if err := core.SetLastCommit(currentBranch.Name, newCommit.ID); err != nil {
+	if err := core.SetLastCommitID(currentBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 
 	// Restore files from picked commit
-	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := file.RestoreFiles(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

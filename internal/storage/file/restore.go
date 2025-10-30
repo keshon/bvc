@@ -19,7 +19,7 @@ func RestoreFiles(entries []Entry, label string) error {
 	bar := progress.NewProgress(len(entries), fmt.Sprintf("Restoring %s", label))
 	defer bar.Finish()
 
-	// Build valid map sequentially (no concurrency)
+	// Create valid map sequentially (no concurrency)
 	valid := make(map[string]bool, len(entries))
 	for _, e := range entries {
 		valid[filepath.Clean(e.Path)] = true

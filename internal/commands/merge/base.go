@@ -1,12 +1,10 @@
 package merge
 
 import (
-	"app/internal/config"
 	"app/internal/core"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
 
-	"app/internal/util"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -78,32 +76,14 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 
 }
 
-// LoadFilesetFromCommit retrieves the fileset for a commit.
-func loadFilesetFromCommit(commitID string) (snapshot.Fileset, error) {
-	var fs snapshot.Fileset
-	if commitID == "" {
-		return fs, nil
-	}
-	var c *core.Commit
-	c, err := core.GetCommit(commitID)
-	if err != nil {
-		return fs, err
-	}
-	fsPath := filepath.Join(config.FilesetsDir, c.FilesetID+".json")
-	if err := util.ReadJSON(fsPath, &fs); err != nil {
-		return fs, err
-	}
-	return fs, nil
-}
-
 // MergeFilesets performs three-way merge of filesets.
 // Returns merged fileset and list of conflicting paths.
-func mergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []string) {
+func mergeFilesets(base, ours, theirs *snapshot.Fileset) (snapshot.Fileset, []string) {
 	// returns merged fileset and list of conflict paths
 	conflicts := []string{}
 	mergedMap := map[string]file.Entry{}
 
-	// Build maps for quick lookup
+	// Create maps for quick lookup
 	baseMap := map[string]file.Entry{}
 	for _, f := range base.Files {
 		baseMap[filepath.Clean(f.Path)] = f
@@ -202,8 +182,8 @@ func mergeFilesets(base, ours, theirs snapshot.Fileset) (snapshot.Fileset, []str
 	return snapshot.Fileset{ID: filesetID, Files: mergedFiles}, conflicts
 }
 
-// PerformMerge executes a full merge operation between branches.
-func performMerge(currentBranch, targetBranch string) error {
+// merge executes a full merge operation between branches.
+func merge(currentBranch, targetBranch string) error {
 	// basic checks
 	if currentBranch == targetBranch {
 		return fmt.Errorf("cannot merge branch into itself")
@@ -229,15 +209,15 @@ func performMerge(currentBranch, targetBranch string) error {
 	}
 
 	// load filesets
-	baseFS, err := loadFilesetFromCommit(baseID)
+	baseFS, err := core.GetCommitFileset(baseID)
 	if err != nil {
 		return fmt.Errorf("failed to load base fileset: %v", err)
 	}
-	oursFS, err := loadFilesetFromCommit(currentCommitID)
+	oursFS, err := core.GetCommitFileset(currentCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load our fileset: %v", err)
 	}
-	theirsFS, err := loadFilesetFromCommit(targetCommitID)
+	theirsFS, err := core.GetCommitFileset(targetCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load their fileset: %v", err)
 	}
@@ -246,10 +226,7 @@ func performMerge(currentBranch, targetBranch string) error {
 	mergedFS, conflicts := mergeFilesets(baseFS, oursFS, theirsFS)
 
 	// save merged fileset
-	filesetPath := filepath.Join(config.FilesetsDir, mergedFS.ID+".json")
-	if err := util.WriteJSON(filesetPath, mergedFS); err != nil {
-		return fmt.Errorf("failed to save merged fileset: %v", err)
-	}
+	snapshot.SaveFileset(mergedFS)
 
 	// create merge commit with two parents
 	hash128 := xxh3.Hash128([]byte(
@@ -266,13 +243,14 @@ func performMerge(currentBranch, targetBranch string) error {
 		FilesetID: mergedFS.ID,
 	}
 
-	commitPath := filepath.Join(config.CommitsDir, commitID+".json")
-	if err := util.WriteJSON(commitPath, mergeCommit); err != nil {
-		return fmt.Errorf("failed to save merge commit: %v", err)
+	// create merge commit
+	_, err = core.CreateCommit(&mergeCommit)
+	if err != nil {
+		return fmt.Errorf("failed to create merge commit: %v", err)
 	}
 
 	// update current branch to point to new merge commit
-	if err := core.SetLastCommit(currentBranch, commitID); err != nil {
+	if err := core.SetLastCommitID(currentBranch, commitID); err != nil {
 		return fmt.Errorf("failed to update branch: %v", err)
 	}
 

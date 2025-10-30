@@ -2,15 +2,12 @@ package reset
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"app/internal/cli"
-	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-	"app/internal/util"
 )
 
 // Command implements Git-like reset
@@ -44,10 +41,9 @@ func (c *Command) Short() string { return "R" }
 // Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	var targetID string
-	mode := "mixed" // default
+	mode := "mixed"
 	var modeSet bool
 
-	// Parse arguments
 	for _, arg := range ctx.Args {
 		switch arg {
 		case "--soft":
@@ -94,11 +90,11 @@ func (c *Command) Run(ctx *cli.Context) error {
 		targetID = last
 	}
 
-	return resetToCommit(targetID, mode)
+	return reset(targetID, mode)
 }
 
-// resetToCommit performs the actual reset based on mode
-func resetToCommit(targetID, mode string) error {
+// reset performs the actual reset based on mode
+func reset(targetID, mode string) error {
 	// Load target commit
 	target, err := core.GetCommit(targetID)
 	if err != nil {
@@ -115,13 +111,13 @@ func resetToCommit(targetID, mode string) error {
 	switch mode {
 	case "soft":
 		// Move HEAD only
-		if err := core.SetLastCommit(branch.Name, targetID); err != nil {
+		if err := core.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 
 	case "mixed":
 		// Move HEAD and reset index, keep working directory
-		if err := core.SetLastCommit(branch.Name, targetID); err != nil {
+		if err := core.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
@@ -130,7 +126,7 @@ func resetToCommit(targetID, mode string) error {
 
 	case "hard":
 		// Move HEAD, reset index and working directory
-		if err := core.SetLastCommit(branch.Name, targetID); err != nil {
+		if err := core.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
@@ -150,9 +146,9 @@ func resetToCommit(targetID, mode string) error {
 
 // resetIndex resets the staging area to the specified fileset
 func resetIndex(filesetID string) error {
-	fsPath := filepath.Join(config.FilesetsDir, filesetID+".json")
-	var fs snapshot.Fileset
-	if err := util.ReadJSON(fsPath, &fs); err != nil {
+	// Load fileset
+	fs, err := snapshot.LoadFileset(filesetID)
+	if err != nil {
 		return err
 	}
 
@@ -170,9 +166,9 @@ func resetIndex(filesetID string) error {
 
 // resetWorkingDirectory restores files to the state of the commit
 func resetWorkingDirectory(filesetID string) error {
-	fsPath := filepath.Join(config.FilesetsDir, filesetID+".json")
-	var fs snapshot.Fileset
-	if err := util.ReadJSON(fsPath, &fs); err != nil {
+	// Load fileset
+	fs, err := snapshot.LoadFileset(filesetID)
+	if err != nil {
 		return err
 	}
 

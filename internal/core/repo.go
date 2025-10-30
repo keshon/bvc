@@ -7,11 +7,11 @@ import (
 )
 
 // InitRepo initializes the repository
-func InitRepo() error {
+func InitRepo() (string, error) {
 	for _, d := range []string{config.RepoDir, config.CommitsDir, config.FilesetsDir, config.BranchesDir, config.ObjectsDir} {
 		if _, err := os.Stat(d); os.IsNotExist(err) {
 			if err := os.MkdirAll(d, 0755); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
@@ -19,11 +19,17 @@ func InitRepo() error {
 	mainHead := filepath.Join(config.BranchesDir, config.DefaultBranch)
 	if _, err := os.Stat(mainHead); os.IsNotExist(err) {
 		if err := os.WriteFile(mainHead, []byte(""), 0644); err != nil {
-			return err
+			return "", err
 		}
 		if err := os.WriteFile(filepath.Join(config.RepoDir, config.HeadFile), []byte("ref: branches/"+config.DefaultBranch), 0644); err != nil {
-			return err
+			return "", err
 		}
 	}
-	return nil
+
+	repoDir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	repoName := filepath.Base(repoDir)
+	return repoName, nil
 }

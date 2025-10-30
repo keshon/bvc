@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	if err := core.InitRepo(); err != nil {
+	if _, err := core.InitRepo(); err != nil {
 		fmt.Printf("Failed to initialize Binary Version Control dirs: %v\n", err)
 		os.Exit(1)
 	}

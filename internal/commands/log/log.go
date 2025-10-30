@@ -37,7 +37,7 @@ func (c *Command) Aliases() []string { return []string{"lg"} }
 // One-letter shortcut
 func (c *Command) Short() string { return "l" }
 
-// Run executes the log command
+// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	showAll := false
 	for _, arg := range ctx.Args {
@@ -46,11 +46,11 @@ func (c *Command) Run(ctx *cli.Context) error {
 		}
 	}
 
-	return c.runLog(showAll)
+	return c.log(showAll)
 }
 
-// runLog gathers and prints commits in descending order
-func (c *Command) runLog(showAll bool) error {
+// log gathers and prints commits in descending order
+func (c *Command) log(showAll bool) error {
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (c *Command) runLog(showAll bool) error {
 	seen := make(map[string]bool)
 
 	for _, branch := range branchNames {
-		_ = core.GetBranchCommits(branch, func(cmt *core.Commit) bool {
+		_ = core.GetCommitsForBranch(branch, func(cmt *core.Commit) bool {
 			if seen[cmt.ID] {
 				return true
 			}

@@ -50,7 +50,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 	}
 
 	fmt.Printf("Merging branch '%s' into '%s'...\n", targetBranch, currentBranch.Name)
-	return performMerge(currentBranch.Name, targetBranch)
+	return merge(currentBranch.Name, targetBranch)
 }
 
 // Register command

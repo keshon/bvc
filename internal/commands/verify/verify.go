@@ -39,15 +39,15 @@ func (c *VerifyCommand) Short() string     { return "V" }
 func (c *VerifyCommand) Run(ctx *cli.Context) error {
 	for _, arg := range ctx.Args {
 		if arg == "--repair" || arg == "-R" {
-			return c.runRepair()
+			return c.repair()
 		}
 	}
 
-	return c.runScan()
+	return c.scan()
 }
 
-// runScan performs integrity verification only
-func (c *VerifyCommand) runScan() error {
+// rscanunScan performs integrity verification only
+func (c *VerifyCommand) scan() error {
 	out, errCh := repo.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
@@ -104,8 +104,8 @@ func (c *VerifyCommand) runScan() error {
 	return nil
 }
 
-// runRepair performs repair of missing/damaged blocks
-func (c *VerifyCommand) runRepair() error {
+// repair performs repair of missing/damaged blocks
+func (c *VerifyCommand) repair() error {
 	out, errCh := repo.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
@@ -153,7 +153,7 @@ func (c *VerifyCommand) runRepair() error {
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := file.BuildEntry(currFile)
+			entry, err := file.CreateEntry(currFile)
 			if err != nil {
 				continue
 			}

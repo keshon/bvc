@@ -52,7 +52,6 @@ func commandHelp(name string) error {
 	}
 	fmt.Printf("%s\n\n", cmd.Help())
 
-	// Show aliases if available
 	if aliasesCmd, ok := cmd.(interface{ Aliases() []string }); ok {
 		aliases := aliasesCmd.Aliases()
 		if len(aliases) > 0 {
@@ -92,7 +91,7 @@ func listAllCommands() error {
 	return nil
 }
 
-// Register command
+// Register the command
 func init() {
 	cli.RegisterCommand(&Command{})
 }

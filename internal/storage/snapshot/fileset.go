@@ -16,13 +16,13 @@ type Fileset struct {
 	Files []file.Entry `json:"files"`
 }
 
-// BuildFileset builds a fileset from the current working tree
-func BuildFileset() (Fileset, error) {
+// CreateCurrentFileset builds a fileset from the current working tree
+func CreateCurrentFileset() (Fileset, error) {
 	paths, err := file.ListAll()
 	if err != nil {
 		return Fileset{}, err
 	}
-	entries, err := file.BuildEntries(paths)
+	entries, err := file.CreateEntries(paths)
 	if err != nil {
 		return Fileset{}, err
 	}
@@ -59,15 +59,15 @@ func LoadFilesets() ([]Fileset, error) {
 	return filesets, nil
 }
 
-// BuildFilesetFromEntries builds a fileset from a list of file entries.
-func BuildFilesetFromEntries(entries []file.Entry) (Fileset, error) {
+// CreateFilesetFromEntries builds a fileset from a list of file entries.
+func CreateFilesetFromEntries(entries []file.Entry) (Fileset, error) {
 	if len(entries) == 0 {
 		return Fileset{}, fmt.Errorf("no files to commit")
 	}
 
 	// Store all blocks for the staged files
 	for _, e := range entries {
-		if err := e.Store(); err != nil {
+		if err := e.WriteToDisk(); err != nil {
 			return Fileset{}, fmt.Errorf("storing file %s: %w", e.Path, err)
 		}
 	}
@@ -81,7 +81,31 @@ func BuildFilesetFromEntries(entries []file.Entry) (Fileset, error) {
 	return fileset, nil
 }
 
-func (fs *Fileset) Store() error {
+// WriteAndSaveFileset stores a fileset to disk
+func (fs *Fileset) WriteAndSaveFileset() error {
+	if fs.ID == "" {
+		return fmt.Errorf("invalid fileset: missing ID")
+	}
+	if len(fs.Files) == 0 {
+		return fmt.Errorf("invalid fileset: no files")
+	}
+	if err := fs.writeFiles(); err != nil {
+		return err
+	}
+	return SaveFileset(*fs)
+}
+
+// saveFileset writes the given Fileset as JSON to the filesets directory.
+func SaveFileset(fs Fileset) error {
+	if fs.ID == "" {
+		return fmt.Errorf("invalid fileset: missing ID")
+	}
+	path := filepath.Join(config.FilesetsDir, fs.ID+".json")
+	return util.WriteJSON(path, fs)
+}
+
+// writeFiles stores a fileset to disk
+func (fs *Fileset) writeFiles() error {
 	if err := block.CleanupTmp(); err != nil {
 		fmt.Printf("Warning: cleanup failed: %v\n", err)
 	}

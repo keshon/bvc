@@ -45,19 +45,19 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 // runCheckout performs the actual branch switch using core and storage layers
 func runCheckout(branch string) error {
-	// Step 1: Ensure branch exists
+	// Ensure branch exists
 	b, err := core.GetBranch(branch)
 	if err != nil {
 		return err
 	}
 
-	// Step 2: Resolve its last commit
+	// Resolve its last commit
 	commitID, err := core.LastCommitID(b.Name)
 	if err != nil {
 		return err
 	}
 
-	// Step 3: Handle empty branch
+	// Handle empty branch
 	if commitID == "" {
 		if err := file.RestoreFiles(nil, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
 			return err
@@ -69,7 +69,7 @@ func runCheckout(branch string) error {
 		return nil
 	}
 
-	// Step 4: Load commit and fileset
+	// Load commit and fileset
 	commit, err := core.GetCommit(commitID)
 	if err != nil {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
@@ -80,16 +80,16 @@ func runCheckout(branch string) error {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
 
-	// Step 5: Restore files
+	// Restore files
 	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("branch '%s'", branch)); err != nil {
 		return fmt.Errorf("restore failed: %w", err)
 	}
 
-	// Step 6: Update HEAD and last commit
+	// Update HEAD and last commit
 	if _, err := core.SetHeadRef("branches/" + branch); err != nil {
 		return err
 	}
-	if err := core.SetLastCommit(branch, commitID); err != nil {
+	if err := core.SetLastCommitID(branch, commitID); err != nil {
 		return err
 	}
 

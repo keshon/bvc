@@ -7,11 +7,9 @@ import (
 	"sort"
 
 	"app/internal/cli"
-	"app/internal/config"
 	"app/internal/core"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
-	"app/internal/util"
 )
 
 // Command shows uncommitted changes (added, modified, deleted)
@@ -42,11 +40,11 @@ func (c *Command) Short() string { return "S" }
 
 // Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
-	return listPending()
+	return status()
 }
 
-// listPending calculates added, modified, and deleted files
-func listPending() error {
+// status calculates added, modified, and deleted files
+func status() error {
 	// Get current branch
 	currentBranch, err := core.CurrentBranch()
 	if err != nil {
@@ -54,14 +52,16 @@ func listPending() error {
 	}
 
 	// Load last commit's fileset
-	commitID, _ := core.LastCommitID(currentBranch.Name)
+	commitID, err := core.LastCommitID(currentBranch.Name)
+	if err != nil {
+		return err
+	}
+
 	var lastFileset snapshot.Fileset
 	if commitID != "" {
-		var commit core.Commit
-		commitPath := filepath.Join(config.CommitsDir, commitID+".json")
-		if err := util.ReadJSON(commitPath, &commit); err == nil {
-			fsPath := filepath.Join(config.FilesetsDir, commit.FilesetID+".json")
-			_ = util.ReadJSON(fsPath, &lastFileset)
+		fs, err := core.GetCommitFileset(commitID)
+		if err == nil {
+			lastFileset = *fs
 		}
 	}
 
@@ -70,8 +70,8 @@ func listPending() error {
 		lastFiles[filepath.Clean(f.Path)] = f
 	}
 
-	// Build current workspace snapshot
-	currFS, err := snapshot.BuildFileset()
+	// Create current snapshot
+	currFS, err := snapshot.CreateCurrentFileset()
 	if err != nil {
 		return err
 	}

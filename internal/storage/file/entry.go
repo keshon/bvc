@@ -32,7 +32,7 @@ func (e *Entry) Equal(other *Entry) bool {
 	return true
 }
 
-func BuildEntry(path string) (Entry, error) {
+func CreateEntry(path string) (Entry, error) {
 	blocks, err := block.SplitFileIntoBlocks(path)
 	if err != nil {
 		return Entry{}, err
@@ -40,11 +40,11 @@ func BuildEntry(path string) (Entry, error) {
 	return Entry{Path: path, Blocks: blocks}, nil
 }
 
-func (e *Entry) Store() error {
+func (e *Entry) WriteToDisk() error {
 	return block.StoreBlocks(e.Path, e.Blocks)
 }
 
-func BuildEntries(paths []string) ([]Entry, error) {
+func CreateEntries(paths []string) ([]Entry, error) {
 	bar := progress.NewProgress(len(paths), "Scanning files ")
 	defer bar.Finish()
 
@@ -59,7 +59,7 @@ func BuildEntries(paths []string) ([]Entry, error) {
 		go func() {
 			defer wg.Done()
 			for p := range jobs {
-				entry, err := BuildEntry(p)
+				entry, err := CreateEntry(p)
 				if err != nil {
 					errs <- err
 					continue
@@ -91,15 +91,15 @@ func BuildEntries(paths []string) ([]Entry, error) {
 	return entries, nil
 }
 
-// BuildAllEntries builds entries for all tracked + untracked files.
-func BuildAllEntries(paths []string) ([]Entry, error) {
+// CreateAllEntries builds entries for all tracked + untracked files.
+func CreateAllEntries(paths []string) ([]Entry, error) {
 	allFiles, err := ListAll()
 	if err != nil {
 		return nil, err
 	}
 
-	// Build entries for everything that currently exists in working directory
-	entries, err := BuildEntries(allFiles)
+	// Create entries for everything that currently exists in working directory
+	entries, err := CreateEntries(allFiles)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +116,8 @@ func BuildAllEntries(paths []string) ([]Entry, error) {
 	return append(entries, deleted...), nil
 }
 
-// BuildChangedEntries builds entries only for modified and deleted files.
-func BuildChangedEntries(paths []string) ([]Entry, error) {
+// CreateChangedEntries builds entries only for modified and deleted files.
+func CreateChangedEntries(paths []string) ([]Entry, error) {
 	tracked, err := GetIndexFiles()
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func BuildChangedEntries(paths []string) ([]Entry, error) {
 		}
 
 		// Compare block hashes to detect modification
-		current, err := BuildEntry(t.Path)
+		current, err := CreateEntry(t.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +143,7 @@ func BuildChangedEntries(paths []string) ([]Entry, error) {
 		}
 	}
 
-	modified, err := BuildEntries(toUpdate)
+	modified, err := CreateEntries(toUpdate)
 	if err != nil {
 		return nil, err
 	}
