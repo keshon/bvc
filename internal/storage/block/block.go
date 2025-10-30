@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 
 	"app/internal/config"
 	"app/internal/util"
@@ -42,12 +41,11 @@ type BlockCheck struct {
 	Branches []string
 }
 
-// SplitFileIntoBlocks splits a file into content-defined blocks
-// using dynamic worker count and chunked memory mapping.
+// SplitFileIntoBlocks splits a file into content-defined blocks.
 func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 	const chunkSize = 1 << 30 // 1 GiB per memory-mapped chunk
 
-	// get file size
+	// Get file size
 	fi, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat file %q: %w", path, err)
@@ -57,7 +55,7 @@ func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 	var allBlocks []BlockRef
 	var offset int64
 
-	// process each chunk sequentially
+	// Process each chunk sequentially
 	for chunkStart := int64(0); chunkStart < fileSize; chunkStart += chunkSize {
 		chunkEnd := chunkStart + chunkSize
 		if chunkEnd > fileSize {
@@ -81,13 +79,14 @@ func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 		// CDC logic
 		var rh uint32
 		start := 0
-		var blocks []BlockRef
-		var nextIndex int32
 
+		// channel for concurrent hashing
 		hashCh := make(chan struct {
 			data   []byte
 			offset int64
 		}, 128)
+
+		var mu sync.Mutex
 
 		workers := util.WorkerCount()
 		var wg sync.WaitGroup
@@ -97,14 +96,9 @@ func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 				defer wg.Done()
 				for item := range hashCh {
 					blockRef := hashBlock(item.data, item.offset)
-					idx := atomic.AddInt32(&nextIndex, 1) - 1
-
-					if int(idx) >= len(blocks) {
-						newBlocks := make([]BlockRef, idx+1)
-						copy(newBlocks, blocks)
-						blocks = newBlocks
-					}
-					blocks[idx] = blockRef
+					mu.Lock()
+					allBlocks = append(allBlocks, blockRef)
+					mu.Unlock()
 				}
 			}()
 		}
@@ -112,28 +106,30 @@ func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
 		for i := 0; i < size; i++ {
 			rh = (rh<<1 + uint32(data[i])) & 0xFFFFFFFF
 			if shouldSplitBlock(i-start+1, rh) {
+				blockSlice := data[start : i+1]
 				hashCh <- struct {
 					data   []byte
 					offset int64
-				}{data[start : i+1], offset}
+				}{blockSlice, offset}
+
 				offset += int64(i - start + 1)
 				start = i + 1
 				rh = 0
 			}
 		}
 
+		// Remaining bytes
 		if start < size {
+			blockSlice := data[start:size]
 			hashCh <- struct {
 				data   []byte
 				offset int64
-			}{data[start:size], offset}
+			}{blockSlice, offset}
 			offset += int64(size - start)
 		}
 
 		close(hashCh)
 		wg.Wait()
-
-		allBlocks = append(allBlocks, blocks[:nextIndex]...)
 	}
 
 	return allBlocks, nil
