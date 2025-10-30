@@ -35,7 +35,7 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 				return nil, err
 			}
 		} else {
-			last, err := core.LastCommitID(b.Name)
+			last, err := core.GetLastCommitID(b.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +93,7 @@ func CountBlocks(allHistory bool) (int, error) {
 				return 0, err
 			}
 		} else {
-			last, err := core.LastCommitID(b.Name)
+			last, err := core.GetLastCommitID(b.Name)
 			if err != nil {
 				return 0, err
 			}

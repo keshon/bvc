@@ -10,19 +10,13 @@ import (
 	"app/internal/storage/snapshot"
 )
 
-// Command implements Git-like reset
 type Command struct{}
 
-// Name
-func (c *Command) Name() string { return "reset" }
-
-// Usage
-func (c *Command) Usage() string { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
-
-// Description
-func (c *Command) Brief() string { return "Reset current branch to a commit or HEAD" }
-
-// Detailed description
+func (c *Command) Name() string      { return "reset" }
+func (c *Command) Short() string     { return "R" }
+func (c *Command) Aliases() []string { return []string{"drop"} }
+func (c *Command) Usage() string     { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
+func (c *Command) Brief() string     { return "Reset current branch to a commit or HEAD" }
 func (c *Command) Help() string {
 	return `Reset the current branch.
 Modes:
@@ -32,13 +26,6 @@ Modes:
 If <commit-id> is omitted, the last commit is used (mixed).`
 }
 
-// Aliases
-func (c *Command) Aliases() []string { return []string{"drop"} }
-
-// Shortcut
-func (c *Command) Short() string { return "R" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	var targetID string
 	mode := "mixed"
@@ -73,14 +60,14 @@ func (c *Command) Run(ctx *cli.Context) error {
 		}
 	}
 
-	branch, err := core.CurrentBranch()
+	branch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// If commit-id is not specified, use the last commit
 	if targetID == "" {
-		last, err := core.LastCommitID(branch.Name)
+		last, err := core.GetLastCommitID(branch.Name)
 		if err != nil {
 			return fmt.Errorf("cannot determine last commit: %v", err)
 		}
@@ -93,7 +80,6 @@ func (c *Command) Run(ctx *cli.Context) error {
 	return reset(targetID, mode)
 }
 
-// reset performs the actual reset based on mode
 func reset(targetID, mode string) error {
 	// Load target commit
 	target, err := core.GetCommit(targetID)
@@ -101,7 +87,7 @@ func reset(targetID, mode string) error {
 		return fmt.Errorf("unknown commit: %s", targetID)
 	}
 
-	branch, err := core.CurrentBranch()
+	branch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
@@ -147,7 +133,7 @@ func reset(targetID, mode string) error {
 // resetIndex resets the staging area to the specified fileset
 func resetIndex(filesetID string) error {
 	// Load fileset
-	fs, err := snapshot.LoadFileset(filesetID)
+	fs, err := snapshot.GetFileset(filesetID)
 	if err != nil {
 		return err
 	}
@@ -167,7 +153,7 @@ func resetIndex(filesetID string) error {
 // resetWorkingDirectory restores files to the state of the commit
 func resetWorkingDirectory(filesetID string) error {
 	// Load fileset
-	fs, err := snapshot.LoadFileset(filesetID)
+	fs, err := snapshot.GetFileset(filesetID)
 	if err != nil {
 		return err
 	}
@@ -180,9 +166,12 @@ func resetWorkingDirectory(filesetID string) error {
 	return nil
 }
 
-// Register command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+			middleware.WithBlockIntegrityCheck(),
+		),
 	)
 }

@@ -10,41 +10,27 @@ import (
 	"app/internal/storage/snapshot"
 )
 
-// Command switches to another branch
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "checkout" }
-
-// Usage string
-func (c *Command) Usage() string { return "checkout <branch-name>" }
-
-// Short description
-func (c *Command) Brief() string { return "Switch to another branch" }
-
-// Detailed description
+func (c *Command) Name() string      { return "checkout" }
+func (c *Command) Short() string     { return "C" }
+func (c *Command) Aliases() []string { return []string{"co"} }
+func (c *Command) Usage() string     { return "checkout <branch-name>" }
+func (c *Command) Brief() string     { return "Switch to another branch" }
 func (c *Command) Help() string {
 	return `Switch to another branch.
 Restores the branch's fileset and updates HEAD reference.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"co"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "C" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
 	branch := ctx.Args[0]
-	return runCheckout(branch)
+	return checkoutBranch(branch)
 }
 
-// runCheckout performs the actual branch switch using core and storage layers
-func runCheckout(branch string) error {
+func checkoutBranch(branch string) error {
 	// Ensure branch exists
 	b, err := core.GetBranch(branch)
 	if err != nil {
@@ -52,7 +38,7 @@ func runCheckout(branch string) error {
 	}
 
 	// Resolve its last commit
-	commitID, err := core.LastCommitID(b.Name)
+	commitID, err := core.GetLastCommitID(b.Name)
 	if err != nil {
 		return err
 	}
@@ -75,7 +61,7 @@ func runCheckout(branch string) error {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
 	}
 
-	fs, err := snapshot.LoadFileset(commit.FilesetID)
+	fs, err := snapshot.GetFileset(commit.FilesetID)
 	if err != nil {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
@@ -97,9 +83,12 @@ func runCheckout(branch string) error {
 	return nil
 }
 
-// Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+			middleware.WithBlockIntegrityCheck(),
+		),
 	)
 }

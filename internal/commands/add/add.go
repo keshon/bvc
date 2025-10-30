@@ -10,14 +10,13 @@ import (
 	"app/internal/storage/file"
 )
 
-// Command implements Git-like 'add'
 type Command struct{}
 
-func (c *Command) Name() string  { return "add" }
-func (c *Command) Usage() string { return "add <file|dir|.>" }
-func (c *Command) Brief() string {
-	return "Stage files or directories for the next commit"
-}
+func (c *Command) Name() string      { return "add" }
+func (c *Command) Short() string     { return "a" }
+func (c *Command) Aliases() []string { return nil }
+func (c *Command) Usage() string     { return "add <file|dir|.>" }
+func (c *Command) Brief() string     { return "Stage files or directories for the next commit" }
 func (c *Command) Help() string {
 	return `Stage changes for commit.
 Usage:
@@ -26,8 +25,6 @@ Usage:
   add -u or --update - stage modifications and deletions (no new files)
   add <path>         - stage a specific file or directory`
 }
-func (c *Command) Aliases() []string { return nil }
-func (c *Command) Short() string     { return "a" }
 
 func (c *Command) Run(ctx *cli.Context) error {
 	includeAll := false // -A or --all

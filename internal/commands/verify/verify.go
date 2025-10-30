@@ -9,6 +9,7 @@ import (
 
 	"app/internal/cli"
 	"app/internal/config"
+	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/storage/block"
 	"app/internal/storage/file"
@@ -16,15 +17,14 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// VerifyCommand combines scan + repair behavior
-type VerifyCommand struct{}
+type Command struct{}
 
-func (c *VerifyCommand) Name() string  { return "verify" }
-func (c *VerifyCommand) Usage() string { return "verify [--repair|--auto]" }
-func (c *VerifyCommand) Brief() string {
-	return "Verify repository integrity or attempt to repair missing/damaged blocks"
-}
-func (c *VerifyCommand) Help() string {
+func (c *Command) Name() string      { return "verify" }
+func (c *Command) Short() string     { return "V" }
+func (c *Command) Aliases() []string { return []string{"scan", "check"} }
+func (c *Command) Usage() string     { return "verify [--repair|--auto]" }
+func (c *Command) Brief() string     { return "Verify or repair repository integrity" }
+func (c *Command) Help() string {
 	return `Verify repository blocks and file integrity.
 
 Usage:
@@ -32,22 +32,18 @@ Usage:
   verify --repair  - Attempt to repair any missing or damaged blocks automatically.
 `
 }
-func (c *VerifyCommand) Aliases() []string { return []string{"scan", "check"} }
-func (c *VerifyCommand) Short() string     { return "V" }
 
-// Run executes the verify process
-func (c *VerifyCommand) Run(ctx *cli.Context) error {
+func (c *Command) Run(ctx *cli.Context) error {
 	for _, arg := range ctx.Args {
 		if arg == "--repair" || arg == "-R" {
-			return c.repair()
+			return repair()
 		}
 	}
 
-	return c.scan()
+	return scan()
 }
 
-// rscanunScan performs integrity verification only
-func (c *VerifyCommand) scan() error {
+func scan() error {
 	out, errCh := repo.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
@@ -104,8 +100,7 @@ func (c *VerifyCommand) scan() error {
 	return nil
 }
 
-// repair performs repair of missing/damaged blocks
-func (c *VerifyCommand) repair() error {
+func repair() error {
 	out, errCh := repo.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
@@ -201,7 +196,7 @@ func (c *VerifyCommand) repair() error {
 	fmt.Printf("Blocks repaired: \033[32m%d\033[0m / %d\n", repaired, len(toFix))
 
 	// Final verification pass
-	failed := c.verifyRepairedBlocks(toFix)
+	failed := verifyRepairedBlocks(toFix)
 
 	if len(fixedList) > 0 {
 		fmt.Println("\nRepaired blocks:")
@@ -231,13 +226,13 @@ func (c *VerifyCommand) repair() error {
 }
 
 // verifyRepairedBlocks re-checks integrity after repair
-func (c *VerifyCommand) verifyRepairedBlocks(toFix []block.BlockCheck) int {
+func verifyRepairedBlocks(toFix []block.BlockCheck) int {
 	fmt.Println("\nVerifying repaired blocks...")
 	failed := 0
 
 	for _, bc := range toFix {
 		path := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
-		ok, _ := c.verifyBlockHash(path, bc.Hash)
+		ok, _ := verifyBlockHash(path, bc.Hash)
 		if !ok {
 			failed++
 			files := append([]string{}, bc.Files...)
@@ -250,7 +245,7 @@ func (c *VerifyCommand) verifyRepairedBlocks(toFix []block.BlockCheck) int {
 }
 
 // verifyBlockHash checks block hash consistency
-func (c *VerifyCommand) verifyBlockHash(path, expected string) (bool, error) {
+func verifyBlockHash(path, expected string) (bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false, err
@@ -260,5 +255,10 @@ func (c *VerifyCommand) verifyBlockHash(path, expected string) (bool, error) {
 }
 
 func init() {
-	cli.RegisterCommand(&VerifyCommand{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }

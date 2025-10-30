@@ -6,39 +6,32 @@ import (
 	"app/internal/cli"
 	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/repo"
 )
 
-// Command represents the 'branch' command
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "branch" }
-
-// Usage string
-func (c *Command) Usage() string { return "branch [<branch-name>]" }
-
-// Short description
-func (c *Command) Brief() string {
-	return "List all branches or create a new one"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "branch" }
+func (c *Command) Short() string     { return "B" }
+func (c *Command) Aliases() []string { return []string{"br"} }
+func (c *Command) Usage() string     { return "branch [<branch-name>]" }
+func (c *Command) Brief() string     { return "List all branches or create a new one" }
 func (c *Command) Help() string {
 	return `Usage:
   branch             - List all branches (current marked with '*')
   branch <name>      - Create a new branch from the current one`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"br"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "B" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	// If there’s an argument — create new branch
 	if len(ctx.Args) > 0 {
+		fmt.Println("Checking repository integrity...")
+		if err := repo.VerifyBlocks(false); err != nil {
+			return fmt.Errorf(
+				"repository verification failed: %v\nPlease run `bvc repair` before continuing",
+				err,
+			)
+		}
 		name := ctx.Args[0]
 		branch, err := core.CreateBranch(name)
 		if err != nil {
@@ -49,7 +42,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 	}
 
 	// Otherwise — list branches
-	currentBranch, err := core.CurrentBranch()
+	GetCurrentBranch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
@@ -61,7 +54,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 	for _, branch := range allBranches {
 		prefix := "  "
-		if branch.Name == currentBranch.Name {
+		if branch.Name == GetCurrentBranch.Name {
 			prefix = "* "
 		}
 		fmt.Println(prefix + branch.Name)
@@ -70,9 +63,11 @@ func (c *Command) Run(ctx *cli.Context) error {
 	return nil
 }
 
-// Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
 	)
 }

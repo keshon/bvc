@@ -1,9 +1,11 @@
 package core
 
 import (
-	"app/internal/config"
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"app/internal/config"
 )
 
 type HeadRef string
@@ -13,20 +15,29 @@ func (h HeadRef) String() string {
 }
 
 // GetHeadRef returns the current HEAD ref.
+// Returns ref object and error
 func GetHeadRef() (HeadRef, error) {
 	data, err := os.ReadFile(filepath.Join(config.RepoDir, "HEAD"))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read HEAD: %w", err)
 	}
-	ref := string(data)
-	return HeadRef(ref[len("ref: "):]), nil
+
+	const prefix = "ref: "
+	if len(data) < len(prefix) || string(data[:len(prefix)]) != prefix {
+		return "", fmt.Errorf("invalid HEAD content: %q", string(data))
+	}
+
+	ref := string(data[len(prefix):])
+	return HeadRef(ref), nil
 }
 
 // SetHeadRef sets the HEAD ref to the given branch.
+// Returns ref object and error
 func SetHeadRef(branch string) (HeadRef, error) {
-	err := os.WriteFile(filepath.Join(config.RepoDir, "HEAD"), []byte("ref: "+branch), 0644)
-	if err != nil {
-		return "", err
+	path := filepath.Join(config.RepoDir, "HEAD")
+	if err := os.WriteFile(path, []byte("ref: "+branch), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write HEAD: %w", err)
 	}
-	return GetHeadRef()
+
+	return HeadRef(branch), nil
 }

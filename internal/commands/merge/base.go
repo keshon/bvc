@@ -13,7 +13,8 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// FindCommonAncestor walks commit history to find merge base.
+// findCommonAncestor walks commit history to find merge base.
+// Returns commit ID or error if no common ancestor found.
 func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 
 	if aCommitID == "" || bCommitID == "" {
@@ -76,7 +77,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 
 }
 
-// MergeFilesets performs three-way merge of filesets.
+// mergeFilesets performs three-way merge of filesets.
 // Returns merged fileset and list of conflicting paths.
 func mergeFilesets(base, ours, theirs *snapshot.Fileset) (snapshot.Fileset, []string) {
 	// returns merged fileset and list of conflict paths
@@ -183,15 +184,15 @@ func mergeFilesets(base, ours, theirs *snapshot.Fileset) (snapshot.Fileset, []st
 }
 
 // merge executes a full merge operation between branches.
-func merge(currentBranch, targetBranch string) error {
+func merge(GetCurrentBranch, targetBranch string) error {
 	// basic checks
-	if currentBranch == targetBranch {
+	if GetCurrentBranch == targetBranch {
 		return fmt.Errorf("cannot merge branch into itself")
 	}
 
 	// get commits
-	currentCommitID, _ := core.LastCommitID(currentBranch)
-	targetCommitID, err := core.LastCommitID(targetBranch)
+	currentCommitID, _ := core.GetLastCommitID(GetCurrentBranch)
+	targetCommitID, err := core.GetLastCommitID(targetBranch)
 	if err != nil {
 		return err
 	}
@@ -205,7 +206,7 @@ func merge(currentBranch, targetBranch string) error {
 		return err
 	}
 	if baseID == "" {
-		return fmt.Errorf("no common ancestor found between '%s' and '%s'", currentBranch, targetBranch)
+		return fmt.Errorf("no common ancestor found between '%s' and '%s'", GetCurrentBranch, targetBranch)
 	}
 
 	// load filesets
@@ -237,8 +238,8 @@ func merge(currentBranch, targetBranch string) error {
 	mergeCommit := core.Commit{
 		ID:        commitID,
 		Parents:   []string{currentCommitID, targetCommitID},
-		Branch:    currentBranch,
-		Message:   fmt.Sprintf("Merge branch '%s' into '%s'", targetBranch, currentBranch),
+		Branch:    GetCurrentBranch,
+		Message:   fmt.Sprintf("Merge branch '%s' into '%s'", targetBranch, GetCurrentBranch),
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: mergedFS.ID,
 	}
@@ -250,7 +251,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// update current branch to point to new merge commit
-	if err := core.SetLastCommitID(currentBranch, commitID); err != nil {
+	if err := core.SetLastCommitID(GetCurrentBranch, commitID); err != nil {
 		return fmt.Errorf("failed to update branch: %v", err)
 	}
 
@@ -267,7 +268,7 @@ func merge(currentBranch, targetBranch string) error {
 		}
 		fmt.Println("\nResolve conflicts manually and commit the result.")
 	} else {
-		fmt.Printf("\nMerge completed successfully: '%s' merged into '%s'\n", targetBranch, currentBranch)
+		fmt.Printf("\nMerge completed successfully: '%s' merged into '%s'\n", targetBranch, GetCurrentBranch)
 	}
 
 	return nil

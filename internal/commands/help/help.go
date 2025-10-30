@@ -6,32 +6,20 @@ import (
 	"strings"
 
 	"app/internal/cli"
+	"app/internal/middleware"
 )
 
-// Command shows help information for commands
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "help" }
-
-// Usage string
-func (c *Command) Usage() string { return "help [command]" }
-
-// Short description
-func (c *Command) Brief() string { return "Show help for commands" }
-
-// Detailed description
+func (c *Command) Name() string      { return "help" }
+func (c *Command) Short() string     { return "H" }
+func (c *Command) Aliases() []string { return []string{"h", "?"} }
+func (c *Command) Usage() string     { return "help [command]" }
+func (c *Command) Brief() string     { return "Show help for commands" }
 func (c *Command) Help() string {
 	return "Display detailed help information for a specific command, or list all commands if none is provided."
 }
 
-// Aliases
-func (c *Command) Aliases() []string { return []string{"h", "?"} }
-
-// Shortcut
-func (c *Command) Short() string { return "H" }
-
-// Run executes the help command
 func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) > 0 {
 		return commandHelp(strings.ToLower(ctx.Args[0]))
@@ -39,7 +27,6 @@ func (c *Command) Run(ctx *cli.Context) error {
 	return listAllCommands()
 }
 
-// commandHelp shows detailed help for a single command
 func commandHelp(name string) error {
 	cmd, ok := cli.GetCommand(name)
 	if !ok {
@@ -62,7 +49,6 @@ func commandHelp(name string) error {
 	return nil
 }
 
-// listAllCommands lists all registered commands
 func listAllCommands() error {
 	commands := cli.AllCommands()
 	sort.Slice(commands, func(i, j int) bool {
@@ -91,7 +77,11 @@ func listAllCommands() error {
 	return nil
 }
 
-// Register the command
 func init() {
-	cli.RegisterCommand(&Command{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }

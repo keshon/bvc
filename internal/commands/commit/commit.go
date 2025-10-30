@@ -12,34 +12,19 @@ import (
 	"app/internal/storage/snapshot"
 )
 
-// Command implements Git-like commit behavior
 type Command struct{}
 
-// Name
-func (c *Command) Name() string { return "commit" }
-
-// Usage
-func (c *Command) Usage() string { return `commit -m "<message>" [--allow-empty]` }
-
-// Short description
-func (c *Command) Brief() string {
-	return "Commit staged changes to the current branch"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "commit" }
+func (c *Command) Short() string     { return "c" }
+func (c *Command) Aliases() []string { return []string{"ci"} }
+func (c *Command) Usage() string     { return `commit -m "<message>" [--allow-empty]` }
+func (c *Command) Brief() string     { return "Commit staged changes to the current branch" }
 func (c *Command) Help() string {
 	return `Create a new commit with the staged changes.
 Supports -m / --message for commit message.
 Supports --allow-empty to commit even if no staged changes exist.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"ci"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "c" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	var messages []string
 	var allowEmpty bool
@@ -73,11 +58,10 @@ func (c *Command) Run(ctx *cli.Context) error {
 	}
 
 	message := strings.Join(messages, "\n\n")
-	return c.commit(message, allowEmpty)
+	return commitChanges(message, allowEmpty)
 }
 
-// commit actualizes a new commit
-func (c *Command) commit(message string, allowEmpty bool) error {
+func commitChanges(message string, allowEmpty bool) error {
 	// Get staged files
 	stagedFileentries, err := file.GetIndexFiles()
 	if err != nil {
@@ -89,7 +73,7 @@ func (c *Command) commit(message string, allowEmpty bool) error {
 	}
 
 	// Create fileset from staged files (empty fileset allowed with --allow-empty)
-	fileset, err := snapshot.CreateFilesetFromEntries(stagedFileentries)
+	fileset, err := snapshot.CreateFileset(stagedFileentries)
 	if err != nil {
 		return err
 	}
@@ -100,9 +84,9 @@ func (c *Command) commit(message string, allowEmpty bool) error {
 		}
 	}
 
-	branch, _ := core.CurrentBranch()
+	branch, _ := core.GetCurrentBranch()
 	parent := ""
-	if last, err := core.LastCommitID(branch.Name); err == nil {
+	if last, err := core.GetLastCommitID(branch.Name); err == nil {
 		parent = last
 	}
 
@@ -138,9 +122,12 @@ func (c *Command) commit(message string, allowEmpty bool) error {
 	return nil
 }
 
-// Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+			middleware.WithBlockIntegrityCheck(),
+		),
 	)
 }

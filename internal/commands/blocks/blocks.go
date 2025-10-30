@@ -6,27 +6,18 @@ import (
 	"strings"
 
 	"app/internal/cli"
+	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/util"
 )
 
-// Command displays repository block overview
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "blocks" }
-
-// Usage string
-func (c *Command) Usage() string {
-	return "blocks [branch|name]"
-}
-
-// Short description
-func (c *Command) Brief() string {
-	return "Display repository blocks overview"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "blocks" }
+func (c *Command) Short() string     { return "B" }
+func (c *Command) Aliases() []string { return []string{"block"} }
+func (c *Command) Usage() string     { return "blocks [branch|name]" }
+func (c *Command) Brief() string     { return "Display repository blocks overview" }
 func (c *Command) Help() string {
 	return `Show repository blocks list with optional sort:
   - default: by block hash
@@ -36,13 +27,6 @@ func (c *Command) Help() string {
 Useful for identifying shared blocks between branches and associated files.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"block"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "B" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	sortMode := "block"
 
@@ -50,18 +34,15 @@ func (c *Command) Run(ctx *cli.Context) error {
 		sortMode = strings.ToLower(ctx.Args[0])
 	}
 
-	return c.overviewBlocks(sortMode)
+	return blocksOverview(sortMode)
 }
 
-// overviewBlocks collects blocks and prints the table
-func (c *Command) overviewBlocks(sortMode string) error {
-	// Collect all blocks from repo
+func blocksOverview(sortMode string) error {
 	blocksMap, err := repo.ListAllBlocks(false)
 	if err != nil {
 		return err
 	}
 
-	// Prepare rows
 	type Row struct {
 		Hash     string
 		Files    []string
@@ -77,7 +58,6 @@ func (c *Command) overviewBlocks(sortMode string) error {
 		})
 	}
 
-	// Sorting logic
 	switch sortMode {
 	case "branch":
 		sort.Slice(rows, func(i, j int) bool {
@@ -105,24 +85,22 @@ func (c *Command) overviewBlocks(sortMode string) error {
 		})
 	}
 
-	// Print table header
 	fmt.Printf("Blocks overview (sorted by %s)\n", sortMode)
 	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
 	fmt.Printf("\033[90m%-32s %-32s %-32s\033[0m\n", "Block", "Name", "Branch")
 	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
 
-	// Print rows
 	for _, r := range rows {
-		name := truncateMid(strings.Join(r.Files, ","), 32)
-		branch := truncateMid(strings.Join(r.Branches, ","), 32)
+		name := truncateStringInMid(strings.Join(r.Files, ","), 32)
+		branch := truncateStringInMid(strings.Join(r.Branches, ","), 32)
 		fmt.Printf("\033[90m%-32s\033[0m %-32s %-32s\n", r.Hash, name, branch)
 	}
 
 	return nil
 }
 
-// truncateMid shortens long strings with "..." in the middle
-func truncateMid(s string, width int) string {
+// truncateStringInMid shortens long strings with "..." in the middle
+func truncateStringInMid(s string, width int) string {
 	if len(s) <= width {
 		return s
 	}
@@ -133,7 +111,11 @@ func truncateMid(s string, width int) string {
 	return s[:half] + "..." + s[len(s)-half:]
 }
 
-// Register the command
 func init() {
-	cli.RegisterCommand(&Command{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }

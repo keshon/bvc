@@ -32,8 +32,8 @@ func CreateCurrentFileset() (Fileset, error) {
 	}, nil
 }
 
-// LoadFileset retrieves a fileset by ID from disk
-func LoadFileset(id string) (Fileset, error) {
+// GetFileset retrieves a fileset by ID from disk
+func GetFileset(id string) (Fileset, error) {
 	path := filepath.Join(config.FilesetsDir, id+".json")
 	var fs Fileset
 	if err := util.ReadJSON(path, &fs); err != nil {
@@ -42,8 +42,8 @@ func LoadFileset(id string) (Fileset, error) {
 	return fs, nil
 }
 
-// LoadFilesets retrieves all filesets from disk
-func LoadFilesets() ([]Fileset, error) {
+// GetFilesets retrieves all filesets from disk
+func GetFilesets() ([]Fileset, error) {
 	files, err := filepath.Glob(filepath.Join(config.FilesetsDir, "*.json"))
 	if err != nil {
 		return nil, err
@@ -59,8 +59,8 @@ func LoadFilesets() ([]Fileset, error) {
 	return filesets, nil
 }
 
-// CreateFilesetFromEntries builds a fileset from a list of file entries.
-func CreateFilesetFromEntries(entries []file.Entry) (Fileset, error) {
+// CreateFileset builds a fileset from a list of file entries.
+func CreateFileset(entries []file.Entry) (Fileset, error) {
 	if len(entries) == 0 {
 		return Fileset{}, fmt.Errorf("no files to commit")
 	}

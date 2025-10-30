@@ -13,21 +13,13 @@ import (
 	"strings"
 )
 
-// Command displays repository block overview
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "analyze" }
-
-// Usage string
-func (c *Command) Usage() string { return "analyze [--detail] [--export]" }
-
-// Short description
-func (c *Command) Brief() string {
-	return "Analyze block reuse across the entire repository (all snapshots and branches)"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "analyze" }
+func (c *Command) Short() string     { return "a" }
+func (c *Command) Aliases() []string { return []string{"a"} }
+func (c *Command) Usage() string     { return "analyze [--detail] [--export]" }
+func (c *Command) Brief() string     { return "Analyze block reuse across the entire repository" }
 func (c *Command) Help() string {
 	return `Analyze block reuse across all branches and commits.
 	
@@ -35,13 +27,6 @@ func (c *Command) Help() string {
 	Use --export to save output to .bvcanalyze.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"a"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "a" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	full := false
 	export := false
@@ -78,7 +63,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 	fileBlocks := map[string][]string{}
 
 	for _, br := range branches {
-		commitID, err := core.LastCommitID(br.Name)
+		commitID, err := core.GetLastCommitID(br.Name)
 		if err != nil || commitID == "" {
 			continue
 		}
@@ -88,7 +73,7 @@ func (c *Command) Run(ctx *cli.Context) error {
 			continue
 		}
 
-		fs, err := snapshot.LoadFileset(commit.FilesetID)
+		fs, err := snapshot.GetFileset(commit.FilesetID)
 		if err != nil {
 			continue
 		}
@@ -208,6 +193,9 @@ func (c *Command) Run(ctx *cli.Context) error {
 	})
 
 	writeOut("\n\033[96mShared Blocks (most reused first):\033[0m\n")
+	if len(sharedList) == 0 {
+		writeOut("  None\n")
+	}
 	for i, sb := range sharedList {
 		writeOut(fmt.Sprintf("\n\033[36m[%d] %s\033[0m\n", i+1, sb.Hash))
 		writeOut(fmt.Sprintf("  Occurrences: %d\n", sb.Count))

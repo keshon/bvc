@@ -8,51 +8,36 @@ import (
 
 	"app/internal/cli"
 	"app/internal/core"
+	"app/internal/middleware"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
 )
 
-// Command shows uncommitted changes (added, modified, deleted)
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "status" }
-
-// Usage string
-func (c *Command) Usage() string { return "status" }
-
-// Short description
-func (c *Command) Brief() string {
-	return "Show uncommitted changes"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "status" }
+func (c *Command) Short() string     { return "S" }
+func (c *Command) Aliases() []string { return []string{"st"} }
+func (c *Command) Usage() string     { return "status" }
+func (c *Command) Brief() string     { return "Show uncommitted changes" }
 func (c *Command) Help() string {
 	return `List uncommitted changes in the current branch.
 WARNING: Switching branches with pending changes may cause data loss.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"st"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "S" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	return status()
 }
 
-// status calculates added, modified, and deleted files
 func status() error {
 	// Get current branch
-	currentBranch, err := core.CurrentBranch()
+	GetCurrentBranch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// Load last commit's fileset
-	commitID, err := core.LastCommitID(currentBranch.Name)
+	commitID, err := core.GetLastCommitID(GetCurrentBranch.Name)
 	if err != nil {
 		return err
 	}
@@ -158,7 +143,11 @@ func printPathWithGrayColor(prefix, path string) {
 	fmt.Printf("%s \033[90m%s\033[0m%s\n", prefix, dir, base)
 }
 
-// Register the command
 func init() {
-	cli.RegisterCommand(&Command{})
+	cli.RegisterCommand(
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }

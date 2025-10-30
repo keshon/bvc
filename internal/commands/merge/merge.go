@@ -7,55 +7,45 @@ import (
 	"fmt"
 )
 
-// Command merges another branch into the current branch
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "merge" }
-
-// Usage string
-func (c *Command) Usage() string { return "merge <branch-name>" }
-
-// Short description
+func (c *Command) Name() string      { return "merge" }
+func (c *Command) Short() string     { return "M" }
+func (c *Command) Aliases() []string { return []string{"mg"} }
+func (c *Command) Usage() string     { return "merge <branch-name>" }
 func (c *Command) Brief() string {
 	return "Merge another branch into the current branch"
 }
-
-// Detailed description
 func (c *Command) Help() string {
 	return `Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"mg"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "M" }
-
-// Run executes the merge
 func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
 
-	currentBranch, err := core.CurrentBranch()
+	GetCurrentBranch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	targetBranch := ctx.Args[0]
-	if currentBranch.Name == targetBranch {
+	if GetCurrentBranch.Name == targetBranch {
 		return fmt.Errorf("cannot merge branch into itself")
 	}
 
-	fmt.Printf("Merging branch '%s' into '%s'...\n", targetBranch, currentBranch.Name)
-	return merge(currentBranch.Name, targetBranch)
+	fmt.Printf("Merging branch '%s' into '%s'...\n", targetBranch, GetCurrentBranch.Name)
+	return merge(GetCurrentBranch.Name, targetBranch)
 }
 
-// Register command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+			middleware.WithBlockIntegrityCheck(),
+		),
 	)
 }

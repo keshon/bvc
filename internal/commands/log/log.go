@@ -13,31 +13,15 @@ import (
 
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "log" }
-
-// Usage string
-func (c *Command) Usage() string {
-	return "log [-a|--all]"
-}
-
-// Short description
-func (c *Command) Brief() string {
-	return "Show commit history (current branch by default)"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "log" }
+func (c *Command) Short() string     { return "l" }
+func (c *Command) Aliases() []string { return []string{"lg"} }
+func (c *Command) Usage() string     { return "log [-a|--all]" }
+func (c *Command) Brief() string     { return "Show commit history (current branch by default)" }
 func (c *Command) Help() string {
 	return "List commits for the current branch or all branches if -a / --all is specified."
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"lg"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "l" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	showAll := false
 	for _, arg := range ctx.Args {
@@ -49,9 +33,8 @@ func (c *Command) Run(ctx *cli.Context) error {
 	return c.log(showAll)
 }
 
-// log gathers and prints commits in descending order
 func (c *Command) log(showAll bool) error {
-	currentBranch, err := core.CurrentBranch()
+	currentBranch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
@@ -60,13 +43,11 @@ func (c *Command) log(showAll bool) error {
 	if showAll {
 		allBranches, err := core.GetBranches()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get branches: %w", err)
 		}
-
-		for _, branch := range allBranches {
-			branchNames = append(branchNames, branch.Name)
+		for _, b := range allBranches {
+			branchNames = append(branchNames, b.Name)
 		}
-
 	} else {
 		branchNames = []string{currentBranch.Name}
 	}
@@ -75,14 +56,17 @@ func (c *Command) log(showAll bool) error {
 	seen := make(map[string]bool)
 
 	for _, branch := range branchNames {
-		_ = core.GetCommitsForBranch(branch, func(cmt *core.Commit) bool {
-			if seen[cmt.ID] {
-				return true
+		branchCommits, err := core.GetCommitsForBranch(branch)
+		if err != nil {
+			return fmt.Errorf("failed to get commits for branch %q: %w", branch, err)
+		}
+
+		for _, cmt := range branchCommits {
+			if !seen[cmt.ID] {
+				seen[cmt.ID] = true
+				commits = append(commits, cmt)
 			}
-			seen[cmt.ID] = true
-			commits = append(commits, cmt)
-			return true
-		})
+		}
 	}
 
 	if len(commits) == 0 {
@@ -107,7 +91,6 @@ func (c *Command) log(showAll bool) error {
 		}
 		fmt.Printf("\033[90mDate:\033[0m   %s\n\n", t.Format("Mon Jan 2 15:04:05 2006"))
 
-		// Print message with Git-style indentation
 		lines := strings.Split(cmt.Message, "\n")
 		for _, line := range lines {
 			if strings.TrimSpace(line) == "" {
@@ -128,7 +111,6 @@ func (c *Command) log(showAll bool) error {
 	return nil
 }
 
-// Register the command
 func init() {
 	cli.RegisterCommand(
 		cli.ApplyMiddlewares(

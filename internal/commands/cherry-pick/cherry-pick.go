@@ -11,33 +11,18 @@ import (
 	"app/internal/storage/snapshot"
 )
 
-// Command applies a specific commit to the current branch
 type Command struct{}
 
-// Canonical name
-func (c *Command) Name() string { return "cherry-pick" }
-
-// Usage string
-func (c *Command) Usage() string { return "cherry-pick <commit-id>" }
-
-// Short description
-func (c *Command) Brief() string {
-	return "Apply selected commit to the current branch"
-}
-
-// Detailed description
+func (c *Command) Name() string      { return "cherry-pick" }
+func (c *Command) Short() string     { return "C" }
+func (c *Command) Aliases() []string { return []string{"cp"} }
+func (c *Command) Usage() string     { return "cherry-pick <commit-id>" }
+func (c *Command) Brief() string     { return "Apply selected commit to the current branch" }
 func (c *Command) Help() string {
 	return `Apply a specific commit to the current branch.
 Use 'bvc log all' to find the commit ID you want to apply.`
 }
 
-// Optional aliases
-func (c *Command) Aliases() []string { return []string{"cp"} }
-
-// One-letter shortcut
-func (c *Command) Short() string { return "C" }
-
-// Run executes the command
 func (c *Command) Run(ctx *cli.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("commit ID required")
@@ -52,19 +37,19 @@ func pickCommit(commitID string) error {
 	if err != nil {
 		return err
 	}
-	targetFileset, err := snapshot.LoadFileset(targetCommit.FilesetID)
+	targetFileset, err := snapshot.GetFileset(targetCommit.FilesetID)
 	if err != nil {
 		return err
 	}
 
 	// Get current branch
-	currentBranch, err := core.CurrentBranch()
+	GetCurrentBranch, err := core.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// Get parent commit
-	parent, err := core.LastCommitID(currentBranch.Name)
+	parent, err := core.GetLastCommitID(GetCurrentBranch.Name)
 	if err != nil {
 		return err
 	}
@@ -73,7 +58,7 @@ func pickCommit(commitID string) error {
 	newCommit := core.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
-		Branch:    currentBranch.Name,
+		Branch:    GetCurrentBranch.Name,
 		Message:   fmt.Sprintf("Pick commit %s", commitID),
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: targetCommit.FilesetID,
@@ -86,7 +71,7 @@ func pickCommit(commitID string) error {
 	}
 
 	// Update last commit for the branch
-	if err := core.SetLastCommitID(currentBranch.Name, newCommit.ID); err != nil {
+	if err := core.SetLastCommitID(GetCurrentBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 
@@ -95,13 +80,16 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
-	fmt.Printf("Picked commit %s into branch '%s' as %s\n", commitID, currentBranch.Name, newCommit.ID)
+	fmt.Printf("Picked commit %s into branch '%s' as %s\n", commitID, GetCurrentBranch.Name, newCommit.ID)
 	return nil
 }
 
-// Register the command
 func init() {
 	cli.RegisterCommand(
-		cli.ApplyMiddlewares(&Command{}, middleware.WithBlockIntegrityCheck()),
+		cli.ApplyMiddlewares(
+			&Command{},
+			middleware.WithDebugArgsPrint(),
+			middleware.WithBlockIntegrityCheck(),
+		),
 	)
 }

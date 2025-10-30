@@ -6,15 +6,9 @@ import (
 
 	"app/internal/cli"
 	_ "app/internal/commands"
-	"app/internal/core"
 )
 
 func main() {
-	if _, err := core.InitRepo(); err != nil {
-		fmt.Printf("Failed to initialize Binary Version Control dirs: %v\n", err)
-		os.Exit(1)
-	}
-
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: bvc <command> [args...]")
 		fmt.Println("Available commands:")
