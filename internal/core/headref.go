@@ -4,26 +4,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"app/internal/config"
 )
 
 type HeadRef string
 
-func (h HeadRef) String() string {
-	return string(h)
-}
+func (h HeadRef) String() string { return string(h) }
 
-// GetHeadRef returns the current HEAD ref.
-// Returns ref object and error
-func GetHeadRef() (HeadRef, error) {
-	data, err := os.ReadFile(filepath.Join(config.RepoDir, "HEAD"))
+// GetHeadRef reads HEAD for this repository.
+func (r *Repository) GetHeadRef() (HeadRef, error) {
+	data, err := os.ReadFile(r.HeadFile)
 	if err != nil {
-		return "", fmt.Errorf("failed to read HEAD: %w", err)
+		return "", fmt.Errorf("failed to read HEAD %q: %w", r.HeadFile, err)
 	}
 
 	const prefix = "ref: "
 	if len(data) < len(prefix) || string(data[:len(prefix)]) != prefix {
+		// Allow detached HEAD as raw value (optional). For now we require ref: ...
 		return "", fmt.Errorf("invalid HEAD content: %q", string(data))
 	}
 
@@ -31,13 +27,17 @@ func GetHeadRef() (HeadRef, error) {
 	return HeadRef(ref), nil
 }
 
-// SetHeadRef sets the HEAD ref to the given branch.
-// Returns ref object and error
-func SetHeadRef(branch string) (HeadRef, error) {
-	path := filepath.Join(config.RepoDir, "HEAD")
-	if err := os.WriteFile(path, []byte("ref: "+branch), 0o644); err != nil {
-		return "", fmt.Errorf("failed to write HEAD: %w", err)
+// SetHeadRef sets HEAD to the given branch reference (e.g. "branches/main").
+// Accepts either "branches/<name>" or just "<name>" (interpreted as branch name).
+func (r *Repository) SetHeadRef(branch string) (HeadRef, error) {
+	// normalize: if branch doesn't contain '/', treat as branch name
+	refVal := branch
+	if filepath.Base(branch) == branch { // no slash present
+		refVal = "branches/" + branch
 	}
-
-	return HeadRef(branch), nil
+	content := "ref: " + refVal
+	if err := os.WriteFile(r.HeadFile, []byte(content), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write HEAD %q: %w", r.HeadFile, err)
+	}
+	return HeadRef(refVal), nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
@@ -31,14 +32,20 @@ func (c *Command) Run(ctx *cli.Context) error {
 }
 
 func checkoutBranch(branch string) error {
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// Ensure branch exists
-	b, err := core.GetBranch(branch)
+	b, err := r.GetBranch(branch)
 	if err != nil {
 		return err
 	}
 
 	// Resolve its last commit
-	commitID, err := core.GetLastCommitID(b.Name)
+	commitID, err := r.GetLastCommitID(b.Name)
 	if err != nil {
 		return err
 	}
@@ -48,7 +55,7 @@ func checkoutBranch(branch string) error {
 		if err := file.RestoreFiles(nil, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
 			return err
 		}
-		if _, err := core.SetHeadRef("branches/" + branch); err != nil {
+		if _, err := r.SetHeadRef("branches/" + branch); err != nil {
 			return err
 		}
 		fmt.Println("Branch is empty, switched to", branch)
@@ -56,7 +63,7 @@ func checkoutBranch(branch string) error {
 	}
 
 	// Load commit and fileset
-	commit, err := core.GetCommit(commitID)
+	commit, err := r.GetCommit(commitID)
 	if err != nil {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
 	}
@@ -72,10 +79,10 @@ func checkoutBranch(branch string) error {
 	}
 
 	// Update HEAD and last commit
-	if _, err := core.SetHeadRef("branches/" + branch); err != nil {
+	if _, err := r.SetHeadRef("branches/" + branch); err != nil {
 		return err
 	}
-	if err := core.SetLastCommitID(branch, commitID); err != nil {
+	if err := r.SetLastCommitID(branch, commitID); err != nil {
 		return err
 	}
 

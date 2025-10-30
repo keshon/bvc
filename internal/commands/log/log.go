@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 )
@@ -34,14 +35,20 @@ func (c *Command) Run(ctx *cli.Context) error {
 }
 
 func (c *Command) log(showAll bool) error {
-	currentBranch, err := core.GetCurrentBranch()
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	currentBranch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	var branchNames []string
 	if showAll {
-		allBranches, err := core.GetBranches()
+		allBranches, err := r.ListBranches()
 		if err != nil {
 			return fmt.Errorf("failed to get branches: %w", err)
 		}
@@ -56,7 +63,7 @@ func (c *Command) log(showAll bool) error {
 	seen := make(map[string]bool)
 
 	for _, branch := range branchNames {
-		branchCommits, err := core.GetCommitsForBranch(branch)
+		branchCommits, err := r.GetCommitsForBranch(branch)
 		if err != nil {
 			return fmt.Errorf("failed to get commits for branch %q: %w", branch, err)
 		}

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"app/internal/config"
 	"errors"
 	"fmt"
 	"os"
@@ -9,94 +8,82 @@ import (
 	"sort"
 )
 
+// Branch represents a branch name.
 type Branch struct {
 	Name string
 }
 
-// GetCurrentBranch gets the current branch object and an error
-func GetCurrentBranch() (Branch, error) {
-	ref, err := GetHeadRef()
+// GetCurrentBranch returns the current branch.
+func (r *Repository) GetCurrentBranch() (Branch, error) {
+	ref, err := r.GetHeadRef()
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to get HEAD ref: %w", err)
 	}
-
 	name := filepath.Base(ref.String())
 	if name == "" {
 		return Branch{}, fmt.Errorf("HEAD ref is empty or invalid")
 	}
-
 	return Branch{Name: name}, nil
 }
 
-// GetBranch gets a branch
-// Returns a branch object and an error
-func GetBranch(name string) (Branch, error) {
-	// check if branch exists
-	exist, err := branchExists(name)
+// GetBranch returns a Branch if it exists.
+func (r *Repository) GetBranch(name string) (Branch, error) {
+	exists, err := r.BranchExists(name)
 	if err != nil {
-		return Branch{}, fmt.Errorf("failed to check if branch exists: %w", err)
+		return Branch{}, fmt.Errorf("failed to check branch existence: %w", err)
 	}
-	if !exist {
-		return Branch{}, fmt.Errorf("branch '%s' does not exist", name)
+	if !exists {
+		return Branch{}, fmt.Errorf("branch %q does not exist", name)
 	}
 	return Branch{Name: name}, nil
 }
 
-// GetBranches gets all branches
-// Returns a slice of branch objects and an error
-func GetBranches() ([]Branch, error) {
-	dirEntries, err := os.ReadDir(config.BranchesDir)
+// ListBranches returns all branches sorted by name.
+func (r *Repository) ListBranches() ([]Branch, error) {
+	dirEntries, err := os.ReadDir(r.BranchesDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read branches directory: %w", err)
+		return nil, fmt.Errorf("failed to read branches directory %q: %w", r.BranchesDir, err)
 	}
-
 	branches := make([]Branch, 0, len(dirEntries))
-	for _, entry := range dirEntries {
-		branches = append(branches, Branch{Name: entry.Name()})
+	for _, e := range dirEntries {
+		branches = append(branches, Branch{Name: e.Name()})
 	}
-
-	sort.Slice(branches, func(i, j int) bool {
-		return branches[i].Name < branches[j].Name
-	})
-
+	sort.Slice(branches, func(i, j int) bool { return branches[i].Name < branches[j].Name })
 	return branches, nil
 }
 
-// CreateBranch creates a new branch and sets last commit of parent branch
-// Returns a branch object and an error
-func CreateBranch(name string) (Branch, error) {
-	branch, err := GetCurrentBranch()
+// CreateBranch creates a new branch pointing at the current HEAD commit.
+func (r *Repository) CreateBranch(name string) (Branch, error) {
+	curr, err := r.GetCurrentBranch()
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to get current branch: %w", err)
 	}
-
-	currCommit, err := GetLastCommitID(branch.Name)
+	lastID, err := r.GetLastCommitID(curr.Name)
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to get last commit ID: %w", err)
 	}
 
-	path := filepath.Join(config.BranchesDir, name)
+	path := filepath.Join(r.BranchesDir, name)
 	if _, err := os.Stat(path); err == nil {
-		return Branch{}, fmt.Errorf("branch '%s' already exists: %w", name, os.ErrExist)
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return Branch{}, fmt.Errorf("failed to check branch existence: %w", err)
+		return Branch{}, fmt.Errorf("branch %q already exists: %w", name, os.ErrExist)
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return Branch{}, fmt.Errorf("failed to check branch file %q: %w", path, err)
 	}
 
-	if err := os.WriteFile(path, []byte(currCommit), 0o644); err != nil {
-		return Branch{}, fmt.Errorf("could not save new branch: %w", err)
+	if err := os.WriteFile(path, []byte(lastID), 0o644); err != nil {
+		return Branch{}, fmt.Errorf("failed to write branch file %q: %w", path, err)
 	}
-
 	return Branch{Name: name}, nil
 }
 
-// branchExists checks if a branch exists
-func branchExists(name string) (bool, error) {
-	_, err := os.Stat(filepath.Join(config.BranchesDir, name))
+// BranchExists checks for branch existence (fast).
+func (r *Repository) BranchExists(name string) (bool, error) {
+	_, err := os.Stat(filepath.Join(r.BranchesDir, name))
 	if err == nil {
 		return true, nil
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
-	return false, fmt.Errorf("failed to stat branch: %w", err)
+	return false, fmt.Errorf("failed to stat branch file: %w", err)
 }

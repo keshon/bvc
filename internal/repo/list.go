@@ -20,7 +20,13 @@ type BlockInfo struct {
 // ListAllBlocks returns a map[hash] of BlockInfo for all blocks in all branches.
 // If allHistory is true, collects blocks from all commits in all branches; otherwise only latest commits.
 func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
-	branches, err := core.GetBranches()
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	branches, err := r.ListBranches()
 	if err != nil {
 		return nil, err
 	}
@@ -30,12 +36,12 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 	for _, b := range branches {
 		var commitIDs []string
 		if allHistory {
-			commitIDs, err = core.AllCommitIDs(b.Name)
+			commitIDs, err = r.AllCommitIDs(b.Name)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			last, err := core.GetLastCommitID(b.Name)
+			last, err := r.GetLastCommitID(b.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -79,7 +85,13 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 // CountBlocks returns the total number of blocks in all branches.
 // If allHistory is true, counts blocks from all commits; otherwise only latest commits.
 func CountBlocks(allHistory bool) (int, error) {
-	branches, err := core.GetBranches()
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	branches, err := r.ListBranches()
 	if err != nil {
 		return 0, err
 	}
@@ -88,12 +100,12 @@ func CountBlocks(allHistory bool) (int, error) {
 	for _, b := range branches {
 		var commitIDs []string
 		if allHistory {
-			commitIDs, err = core.AllCommitIDs(b.Name)
+			commitIDs, err = r.AllCommitIDs(b.Name)
 			if err != nil {
 				return 0, err
 			}
 		} else {
-			last, err := core.GetLastCommitID(b.Name)
+			last, err := r.GetLastCommitID(b.Name)
 			if err != nil {
 				return 0, err
 			}

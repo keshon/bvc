@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
@@ -33,7 +34,13 @@ func (c *Command) Run(ctx *cli.Context) error {
 
 // pickCommit applies the target commit to the current branch
 func pickCommit(commitID string) error {
-	targetCommit, err := core.GetCommit(commitID)
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	targetCommit, err := r.GetCommit(commitID)
 	if err != nil {
 		return err
 	}
@@ -43,13 +50,13 @@ func pickCommit(commitID string) error {
 	}
 
 	// Get current branch
-	GetCurrentBranch, err := core.GetCurrentBranch()
+	GetCurrentBranch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// Get parent commit
-	parent, err := core.GetLastCommitID(GetCurrentBranch.Name)
+	parent, err := r.GetLastCommitID(GetCurrentBranch.Name)
 	if err != nil {
 		return err
 	}
@@ -65,13 +72,13 @@ func pickCommit(commitID string) error {
 	}
 
 	// Create commit
-	_, err = core.CreateCommit(&newCommit)
+	_, err = r.CreateCommit(&newCommit)
 	if err != nil {
 		return err
 	}
 
 	// Update last commit for the branch
-	if err := core.SetLastCommitID(GetCurrentBranch.Name, newCommit.ID); err != nil {
+	if err := r.SetLastCommitID(GetCurrentBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 

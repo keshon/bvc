@@ -2,6 +2,7 @@ package merge
 
 import (
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"fmt"
@@ -26,7 +27,13 @@ func (c *Command) Run(ctx *cli.Context) error {
 		return fmt.Errorf("branch name required")
 	}
 
-	GetCurrentBranch, err := core.GetCurrentBranch()
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	GetCurrentBranch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
@@ -62,6 +63,12 @@ func (c *Command) Run(ctx *cli.Context) error {
 }
 
 func commitChanges(message string, allowEmpty bool) error {
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// Get staged files
 	stagedFileentries, err := file.GetIndexFiles()
 	if err != nil {
@@ -84,9 +91,9 @@ func commitChanges(message string, allowEmpty bool) error {
 		}
 	}
 
-	branch, _ := core.GetCurrentBranch()
+	branch, _ := r.GetCurrentBranch()
 	parent := ""
-	if last, err := core.GetLastCommitID(branch.Name); err == nil {
+	if last, err := r.GetLastCommitID(branch.Name); err == nil {
 		parent = last
 	}
 
@@ -103,11 +110,11 @@ func commitChanges(message string, allowEmpty bool) error {
 		cmt.Parents = append(cmt.Parents, parent)
 	}
 
-	_, err = core.CreateCommit(&cmt)
+	_, err = r.CreateCommit(&cmt)
 	if err != nil {
 		return err
 	}
-	if err := core.SetLastCommitID(branch.Name, commitID); err != nil {
+	if err := r.SetLastCommitID(branch.Name, commitID); err != nil {
 		return err
 	}
 

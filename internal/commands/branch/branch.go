@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/repo"
@@ -16,6 +17,7 @@ func (c *Command) Short() string     { return "B" }
 func (c *Command) Aliases() []string { return []string{"br"} }
 func (c *Command) Usage() string     { return "branch [<branch-name>]" }
 func (c *Command) Brief() string     { return "List all branches or create a new one" }
+
 func (c *Command) Help() string {
 	return `Usage:
   branch             - List all branches (current marked with '*')
@@ -23,41 +25,49 @@ func (c *Command) Help() string {
 }
 
 func (c *Command) Run(ctx *cli.Context) error {
-	// If there’s an argument — create new branch
+	// Ensure repository is valid
+	fmt.Println("Checking repository integrity...")
+	if err := repo.VerifyBlocks(false); err != nil {
+		return fmt.Errorf(
+			"repository verification failed: %v\nPlease run `bvc repair` before continuing",
+			err,
+		)
+	}
+
+	// Open the current repository (using .bvc)
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	// Case 1: Create new branch
 	if len(ctx.Args) > 0 {
-		fmt.Println("Checking repository integrity...")
-		if err := repo.VerifyBlocks(false); err != nil {
-			return fmt.Errorf(
-				"repository verification failed: %v\nPlease run `bvc repair` before continuing",
-				err,
-			)
-		}
 		name := ctx.Args[0]
-		branch, err := core.CreateBranch(name)
+		newBranch, err := r.CreateBranch(name)
 		if err != nil {
-			return fmt.Errorf("failed to create branch '%s': %w", name, err)
+			return fmt.Errorf("failed to create branch %q: %w", name, err)
 		}
-		fmt.Printf("Branch '%s' created successfully.\n", branch.Name)
+		fmt.Printf("Branch '%s' created successfully.\n", newBranch.Name)
 		return nil
 	}
 
-	// Otherwise — list branches
-	GetCurrentBranch, err := core.GetCurrentBranch()
+	// Case 2: List branches
+	current, err := r.GetCurrentBranch()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to determine current branch: %w", err)
 	}
 
-	allBranches, err := core.GetBranches()
+	all, err := r.ListBranches()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list branches: %w", err)
 	}
 
-	for _, branch := range allBranches {
+	for _, br := range all {
 		prefix := "  "
-		if branch.Name == GetCurrentBranch.Name {
+		if br.Name == current.Name {
 			prefix = "* "
 		}
-		fmt.Println(prefix + branch.Name)
+		fmt.Println(prefix + br.Name)
 	}
 
 	return nil

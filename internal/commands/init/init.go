@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 )
@@ -21,12 +22,17 @@ func (c *Command) Help() string {
 }
 
 func (c *Command) Run(ctx *cli.Context) error {
-	name, err := core.InitRepo()
+	repo, created, err := core.InitAt(config.RepoDir)
 	if err != nil {
 		return err
 	}
+	rootDir := repo.Root()
 
-	fmt.Printf("Repository \033[90m%s\033[0m has been initialized\n", name)
+	if created {
+		fmt.Printf("Repository %q has been initialized\n", rootDir)
+	} else {
+		fmt.Printf("Repository %q already initialized\n", rootDir)
+	}
 	return nil
 }
 

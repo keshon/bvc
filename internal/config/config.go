@@ -4,13 +4,13 @@ const IsDev = false
 
 const (
 	RepoDir     = ".bvc"
-	CommitsDir  = RepoDir + "/commits"
-	FilesetsDir = RepoDir + "/filesets"
-	BranchesDir = RepoDir + "/branches"
-	ObjectsDir  = RepoDir + "/objects"
+	CommitsDir  = "commits"
+	FilesetsDir = "filesets"
+	BranchesDir = "branches"
+	ObjectsDir  = "objects"
+	HeadFile    = "HEAD"
 )
 
 const (
 	DefaultBranch = "main"
-	HeadFile      = "HEAD"
 )

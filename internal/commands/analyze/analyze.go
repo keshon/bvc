@@ -2,9 +2,9 @@ package analyze
 
 import (
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage/snapshot"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,9 +48,15 @@ func (c *Command) Run(ctx *cli.Context) error {
 		}
 	}
 
-	branches, err := core.GetBranches()
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	branches, err := r.ListBranches()
+	if err != nil {
+		return fmt.Errorf("failed to list branches: %w", err)
 	}
 	if len(branches) == 0 {
 		writeOut("No branches found.\n")
@@ -63,17 +69,12 @@ func (c *Command) Run(ctx *cli.Context) error {
 	fileBlocks := map[string][]string{}
 
 	for _, br := range branches {
-		commitID, err := core.GetLastCommitID(br.Name)
-		if err != nil || commitID == "" {
+		lastCommit, err := r.GetLastCommitForBranch(br.Name)
+		if err != nil || lastCommit == nil || lastCommit.ID == "" {
 			continue
 		}
 
-		commit, err := core.GetCommit(commitID)
-		if err != nil {
-			continue
-		}
-
-		fs, err := snapshot.GetFileset(commit.FilesetID)
+		fs, err := r.GetCommitFileset(lastCommit.FilesetID)
 		if err != nil {
 			continue
 		}

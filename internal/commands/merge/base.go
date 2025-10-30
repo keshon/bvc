@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
@@ -16,11 +17,15 @@ import (
 // findCommonAncestor walks commit history to find merge base.
 // Returns commit ID or error if no common ancestor found.
 func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
-
 	if aCommitID == "" || bCommitID == "" {
 		return "", nil
 	}
 
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repository: %w", err)
+	}
 	seen := map[string]bool{}
 	// walk a's ancestors (including a)
 	var stack []string
@@ -34,7 +39,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 		seen[commitID] = true
 
 		var c *core.Commit
-		c, err := core.GetCommit(commitID)
+		c, err := r.GetCommit(commitID)
 		if err != nil {
 			continue
 		}
@@ -61,7 +66,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 		}
 
 		var c *core.Commit
-		c, err := core.GetCommit(commitID)
+		c, err := r.GetCommit(commitID)
 		if err != nil {
 			continue
 		}
@@ -184,15 +189,21 @@ func mergeFilesets(base, ours, theirs *snapshot.Fileset) (snapshot.Fileset, []st
 }
 
 // merge executes a full merge operation between branches.
-func merge(GetCurrentBranch, targetBranch string) error {
+func merge(currentBranch, targetBranch string) error {
 	// basic checks
-	if GetCurrentBranch == targetBranch {
+	if currentBranch == targetBranch {
 		return fmt.Errorf("cannot merge branch into itself")
 	}
 
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// get commits
-	currentCommitID, _ := core.GetLastCommitID(GetCurrentBranch)
-	targetCommitID, err := core.GetLastCommitID(targetBranch)
+	currentCommitID, _ := r.GetLastCommitID(currentBranch)
+	targetCommitID, err := r.GetLastCommitID(targetBranch)
 	if err != nil {
 		return err
 	}
@@ -206,19 +217,19 @@ func merge(GetCurrentBranch, targetBranch string) error {
 		return err
 	}
 	if baseID == "" {
-		return fmt.Errorf("no common ancestor found between '%s' and '%s'", GetCurrentBranch, targetBranch)
+		return fmt.Errorf("no common ancestor found between '%s' and '%s'", currentBranch, targetBranch)
 	}
 
 	// load filesets
-	baseFS, err := core.GetCommitFileset(baseID)
+	baseFS, err := r.GetCommitFileset(baseID)
 	if err != nil {
 		return fmt.Errorf("failed to load base fileset: %v", err)
 	}
-	oursFS, err := core.GetCommitFileset(currentCommitID)
+	oursFS, err := r.GetCommitFileset(currentCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load our fileset: %v", err)
 	}
-	theirsFS, err := core.GetCommitFileset(targetCommitID)
+	theirsFS, err := r.GetCommitFileset(targetCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load their fileset: %v", err)
 	}
@@ -238,20 +249,20 @@ func merge(GetCurrentBranch, targetBranch string) error {
 	mergeCommit := core.Commit{
 		ID:        commitID,
 		Parents:   []string{currentCommitID, targetCommitID},
-		Branch:    GetCurrentBranch,
-		Message:   fmt.Sprintf("Merge branch '%s' into '%s'", targetBranch, GetCurrentBranch),
+		Branch:    currentBranch,
+		Message:   fmt.Sprintf("Merge branch '%s' into '%s'", targetBranch, currentBranch),
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: mergedFS.ID,
 	}
 
 	// create merge commit
-	_, err = core.CreateCommit(&mergeCommit)
+	_, err = r.CreateCommit(&mergeCommit)
 	if err != nil {
 		return fmt.Errorf("failed to create merge commit: %v", err)
 	}
 
 	// update current branch to point to new merge commit
-	if err := core.SetLastCommitID(GetCurrentBranch, commitID); err != nil {
+	if err := r.SetLastCommitID(currentBranch, commitID); err != nil {
 		return fmt.Errorf("failed to update branch: %v", err)
 	}
 
@@ -268,7 +279,7 @@ func merge(GetCurrentBranch, targetBranch string) error {
 		}
 		fmt.Println("\nResolve conflicts manually and commit the result.")
 	} else {
-		fmt.Printf("\nMerge completed successfully: '%s' merged into '%s'\n", targetBranch, GetCurrentBranch)
+		fmt.Printf("\nMerge completed successfully: '%s' merged into '%s'\n", targetBranch, currentBranch)
 	}
 
 	return nil

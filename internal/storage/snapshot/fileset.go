@@ -20,11 +20,11 @@ type Fileset struct {
 func CreateCurrentFileset() (Fileset, error) {
 	paths, err := file.ListAll()
 	if err != nil {
-		return Fileset{}, err
+		return Fileset{}, fmt.Errorf("failed to list files: %w", err)
 	}
 	entries, err := file.CreateEntries(paths)
 	if err != nil {
-		return Fileset{}, err
+		return Fileset{}, fmt.Errorf("failed to create entries: %w", err)
 	}
 	return Fileset{
 		ID:    HashFileset(entries),
@@ -37,7 +37,7 @@ func GetFileset(id string) (Fileset, error) {
 	path := filepath.Join(config.FilesetsDir, id+".json")
 	var fs Fileset
 	if err := util.ReadJSON(path, &fs); err != nil {
-		return Fileset{}, err
+		return Fileset{}, fmt.Errorf("failed to read fileset: %w", err)
 	}
 	return fs, nil
 }
@@ -46,7 +46,7 @@ func GetFileset(id string) (Fileset, error) {
 func GetFilesets() ([]Fileset, error) {
 	files, err := filepath.Glob(filepath.Join(config.FilesetsDir, "*.json"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list filesets: %w", err)
 	}
 	var filesets []Fileset
 	for _, f := range files {
@@ -90,7 +90,7 @@ func (fs *Fileset) WriteAndSaveFileset() error {
 		return fmt.Errorf("invalid fileset: no files")
 	}
 	if err := fs.writeFiles(); err != nil {
-		return err
+		return fmt.Errorf("failed to store files: %w", err)
 	}
 	return SaveFileset(*fs)
 }
@@ -115,7 +115,7 @@ func (fs *Fileset) writeFiles() error {
 
 	return util.Parallel(fs.Files, util.WorkerCount(), func(f file.Entry) error {
 		if err := block.StoreBlocks(f.Path, f.Blocks); err != nil {
-			return err
+			return fmt.Errorf("error storing file %s: %w", f.Path, err)
 		}
 		bar.Increment()
 		return nil

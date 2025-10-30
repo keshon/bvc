@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
@@ -30,21 +31,27 @@ func (c *Command) Run(ctx *cli.Context) error {
 }
 
 func status() error {
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// Get current branch
-	GetCurrentBranch, err := core.GetCurrentBranch()
+	currentBranch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// Load last commit's fileset
-	commitID, err := core.GetLastCommitID(GetCurrentBranch.Name)
+	commitID, err := r.GetLastCommitID(currentBranch.Name)
 	if err != nil {
 		return err
 	}
 
 	var lastFileset snapshot.Fileset
 	if commitID != "" {
-		fs, err := core.GetCommitFileset(commitID)
+		fs, err := r.GetCommitFileset(commitID)
 		if err == nil {
 			lastFileset = *fs
 		}

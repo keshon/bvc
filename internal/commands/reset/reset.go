@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"app/internal/cli"
+	"app/internal/config"
 	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/storage/file"
@@ -60,14 +61,20 @@ func (c *Command) Run(ctx *cli.Context) error {
 		}
 	}
 
-	branch, err := core.GetCurrentBranch()
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	branch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// If commit-id is not specified, use the last commit
 	if targetID == "" {
-		last, err := core.GetLastCommitID(branch.Name)
+		last, err := r.GetLastCommitID(branch.Name)
 		if err != nil {
 			return fmt.Errorf("cannot determine last commit: %v", err)
 		}
@@ -81,13 +88,19 @@ func (c *Command) Run(ctx *cli.Context) error {
 }
 
 func reset(targetID, mode string) error {
+	// Open the repository context
+	r, err := core.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// Load target commit
-	target, err := core.GetCommit(targetID)
+	target, err := r.GetCommit(targetID)
 	if err != nil {
 		return fmt.Errorf("unknown commit: %s", targetID)
 	}
 
-	branch, err := core.GetCurrentBranch()
+	branch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
@@ -97,13 +110,13 @@ func reset(targetID, mode string) error {
 	switch mode {
 	case "soft":
 		// Move HEAD only
-		if err := core.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := r.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 
 	case "mixed":
 		// Move HEAD and reset index, keep working directory
-		if err := core.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := r.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
@@ -112,7 +125,7 @@ func reset(targetID, mode string) error {
 
 	case "hard":
 		// Move HEAD, reset index and working directory
-		if err := core.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := r.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
