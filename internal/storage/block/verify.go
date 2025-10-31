@@ -1,7 +1,6 @@
 package block
 
 import (
-	"app/internal/config"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,8 +9,9 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-func VerifyBlock(hash string) (BlockStatus, error) {
-	path := filepath.Join(config.ObjectsDir, hash+".bin")
+// VerifyBlock checks a single block for integrity.
+func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
+	path := filepath.Join(bm.Root, hash+".bin")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -25,7 +25,8 @@ func VerifyBlock(hash string) (BlockStatus, error) {
 	return Damaged, nil
 }
 
-func VerifyBlocks(hashes map[string]struct{}, workers int) <-chan BlockCheck {
+// Verify checks a set of block hashes concurrently.
+func (bm *BlockManager) Verify(hashes map[string]struct{}, workers int) <-chan BlockCheck {
 	out := make(chan BlockCheck, 128)
 	go func() {
 		defer close(out)
@@ -44,7 +45,7 @@ func VerifyBlocks(hashes map[string]struct{}, workers int) <-chan BlockCheck {
 			go func() {
 				defer wg.Done()
 				for h := range tasks {
-					status, _ := VerifyBlock(h)
+					status, _ := bm.VerifyBlock(h)
 					out <- BlockCheck{Hash: h, Status: status}
 				}
 			}()

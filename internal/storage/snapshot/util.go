@@ -10,6 +10,7 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
+// HashFileset generates a stable hash for a given fileset’s contents.
 func HashFileset(entries []file.Entry) string {
 	paths := make([]string, 0, len(entries))
 	index := make(map[string]file.Entry, len(entries))
@@ -20,7 +21,7 @@ func HashFileset(entries []file.Entry) string {
 	}
 	sort.Strings(paths)
 
-	data := []byte{}
+	data := make([]byte, 0, len(paths)*64)
 	for _, p := range paths {
 		for _, b := range index[p].Blocks {
 			data = append(data, []byte(b.Hash+"\n")...)

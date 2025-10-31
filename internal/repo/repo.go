@@ -1,4 +1,4 @@
-package core
+package repo
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"app/internal/config"
+	"app/internal/storage"
 )
 
 // Repository represents an initialized repository at a given path.
@@ -18,12 +19,14 @@ type Repository struct {
 	BranchesDir string
 	ObjectsDir  string
 	HeadFile    string
+
+	Storage *storage.Manager
 }
 
 // NewRepository constructs a Repository pointing at path.
 // It does NOT check the filesystem.
-func NewRepository(path string) *Repository {
-	return &Repository{
+func NewRepository(path string) (*Repository, error) {
+	r := &Repository{
 		Path:        path,
 		CommitsDir:  filepath.Join(path, config.CommitsDir),
 		FilesetsDir: filepath.Join(path, config.FilesetsDir),
@@ -31,6 +34,12 @@ func NewRepository(path string) *Repository {
 		ObjectsDir:  filepath.Join(path, config.ObjectsDir),
 		HeadFile:    filepath.Join(path, config.HeadFile),
 	}
+	var err error
+	r.Storage, err = storage.InitAt(path)
+	if err != nil {
+
+	}
+	return r, nil
 }
 
 // InitAt initializes a repository at the provided path.
@@ -38,7 +47,10 @@ func NewRepository(path string) *Repository {
 // - created=true when the repo did not exist and was created by this call.
 // - created=false when the repo already existed (idempotent).
 func InitAt(path string) (*Repository, bool, error) {
-	r := NewRepository(path)
+	r, err := NewRepository(path)
+	if err != nil {
+		return nil, false, err
+	}
 	// If the repo already exists and has HEAD -> not created.
 	if fi, err := os.Stat(r.Path); err == nil && fi.IsDir() {
 		if _, err := os.Stat(r.HeadFile); err == nil {
@@ -83,7 +95,10 @@ func InitAt(path string) (*Repository, bool, error) {
 
 // OpenAt opens an existing repository (validates HEAD exists).
 func OpenAt(path string) (*Repository, error) {
-	r := NewRepository(path)
+	r, err := NewRepository(path)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := os.Stat(r.Path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("repository not found at %q", r.Path)

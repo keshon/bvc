@@ -1,14 +1,14 @@
 package block
 
 import (
-	"app/internal/config"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// CleanupTmp removes orphaned temp files.
-func CleanupTmp() error {
-	entries, err := os.ReadDir(config.ObjectsDir)
+// CleanupTemp removes orphaned temp files from the block storage directory.
+func (bm *BlockManager) CleanupTemp() error {
+	entries, err := os.ReadDir(bm.Root)
 	if err != nil {
 		return err
 	}
@@ -18,8 +18,8 @@ func CleanupTmp() error {
 			continue
 		}
 		name := e.Name()
-		if len(name) > 4 && name[:4] == "tmp-" {
-			p := filepath.Join(config.ObjectsDir, name)
+		if strings.HasPrefix(name, "tmp-") || strings.HasPrefix(name, ".tmp-") {
+			p := filepath.Join(bm.Root, name)
 			if fi, err := os.Stat(p); err != nil || fi.Size() == 0 {
 				_ = os.Remove(p)
 			}

@@ -1,7 +1,9 @@
-package repo
+package repotools
 
 import (
 	"app/internal/progress"
+	"app/internal/storage"
+	"os"
 
 	"app/internal/storage/block"
 
@@ -44,18 +46,29 @@ func VerifyBlocksStream(allHistory bool) (<-chan block.BlockCheck, <-chan error)
 		defer close(out)
 		defer close(errCh)
 
+		// Open the repo and access its storage manager
+		mgr, err := storage.NewManager(".bvc"), error(nil)
+		if _, statErr := os.Stat(".bvc"); os.IsNotExist(statErr) {
+			errCh <- fmt.Errorf("repository not initialized (missing .bvc)")
+			return
+		}
+
+		// Collect all referenced blocks
 		blocks, err := ListAllBlocks(allHistory)
 		if err != nil {
 			errCh <- err
 			return
 		}
 
-		hashes := map[string]struct{}{}
+		// Prepare hash set
+		hashes := make(map[string]struct{}, len(blocks))
 		for h := range blocks {
 			hashes[h] = struct{}{}
 		}
 
-		verifyOut := block.VerifyBlocks(hashes, 8)
+		// Use the block subsystem under the manager
+		verifyOut := mgr.Blocks.Verify(hashes, util.WorkerCount())
+
 		for bc := range verifyOut {
 			ref := blocks[bc.Hash]
 			bc.Files = util.SortedKeys(ref.Files)

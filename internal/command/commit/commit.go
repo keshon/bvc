@@ -3,10 +3,8 @@ package commit
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
+	"app/internal/repo"
 	"fmt"
 	"strings"
 	"time"
@@ -63,13 +61,13 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func commitChanges(message string, allowEmpty bool) error {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// Get staged files
-	stagedFileentries, err := file.GetIndexFiles()
+	stagedFileentries, err := r.Storage.Files.GetIndexFiles()
 	if err != nil {
 		return err
 	}
@@ -79,13 +77,13 @@ func commitChanges(message string, allowEmpty bool) error {
 	}
 
 	// Create fileset from staged files (empty fileset allowed with --allow-empty)
-	fileset, err := snapshot.CreateFileset(stagedFileentries)
+	fileset, err := r.Storage.Snapshots.Create(stagedFileentries)
 	if err != nil {
 		return err
 	}
 
 	if len(fileset.Files) > 0 {
-		if err := fileset.WriteAndSaveFileset(); err != nil {
+		if err := r.Storage.Snapshots.WriteAndSave(&fileset); err != nil {
 			return err
 		}
 	}
@@ -97,7 +95,7 @@ func commitChanges(message string, allowEmpty bool) error {
 	}
 
 	commitID := fmt.Sprintf("%x", time.Now().UnixNano())
-	cmt := core.Commit{
+	cmt := repo.Commit{
 		ID:        commitID,
 		Parents:   []string{},
 		Branch:    branch.Name,
@@ -119,7 +117,7 @@ func commitChanges(message string, allowEmpty bool) error {
 
 	// Clear staged changes after commit
 	if len(stagedFileentries) > 0 {
-		if err := file.ClearIndex(); err != nil {
+		if err := r.Storage.Files.ClearIndex(); err != nil {
 			return err
 		}
 	}

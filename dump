@@ -1,831 +1,220 @@
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\block\block.go --- 
-package block
+--- Contents of file: D:\Projects\dev\keshon\bvc\internal\repo\list.go --- 
+package repo
 
 import (
-	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
-	"sync"
 
 	"app/internal/config"
+	"app/internal/repo"
+	"app/internal/storage/snapshot"
 	"app/internal/util"
-
-	"golang.org/x/exp/mmap"
 )
 
-const (
-	minChunkSize = 2 * 1024 * 1024 // 2 MiB
-	maxChunkSize = 8 * 1024 * 1024 // 8 MiB
-	rollMod      = 4096
-)
-
-type BlockRef struct {
-	Hash   string `json:"hash"`
-	Size   int64  `json:"size"`
-	Offset int64  `json:"offset"`
+// BlockInfo holds metadata about a block in the repository
+type BlockInfo struct {
+	Size     int64
+	Files    map[string]struct{}
+	Branches map[string]struct{}
 }
 
-type BlockStatus int
-
-const (
-	OK BlockStatus = iota
-	Missing
-	Damaged
-)
-
-type BlockCheck struct {
-	Hash     string
-	Status   BlockStatus
-	Files    []string
-	Branches []string
-}
-
-// SplitFileIntoBlocks splits a file into content-defined blocks.
-func SplitFileIntoBlocks(path string) ([]BlockRef, error) {
-	const chunkSize = 1 << 30 // 1 GiB per memory-mapped chunk
-
-	// Get file size
-	fi, err := os.Stat(path)
+// ListAllBlocks returns a map[hash] of BlockInfo for all blocks in all branches.
+// If allHistory is true, collects blocks from all commits in all branches; otherwise only latest commits.
+func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
+	// Open the repository context
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
-		return nil, fmt.Errorf("stat file %q: %w", path, err)
+		return nil, fmt.Errorf("failed to open repository: %w", err)
 	}
-	fileSize := fi.Size()
 
-	var allBlocks []BlockRef
-	var offset int64
+	branches, err := r.ListBranches()
+	if err != nil {
+		return nil, err
+	}
 
-	// Process each chunk sequentially
-	for chunkStart := int64(0); chunkStart < fileSize; chunkStart += chunkSize {
-		chunkEnd := chunkStart + chunkSize
-		if chunkEnd > fileSize {
-			chunkEnd = fileSize
-		}
-		size := int(chunkEnd - chunkStart)
+	blocks := make(map[string]*BlockInfo)
 
-		// mmap this chunk
-		reader, err := mmap.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("open file %q: %w", path, err)
-		}
-
-		data := make([]byte, size)
-		if _, err := reader.ReadAt(data, chunkStart); err != nil {
-			reader.Close()
-			return nil, fmt.Errorf("read mmap file chunk %d-%d: %w", chunkStart, chunkEnd, err)
-		}
-		reader.Close()
-
-		// CDC logic
-		var rh uint32
-		start := 0
-
-		// channel for concurrent hashing
-		hashCh := make(chan struct {
-			data   []byte
-			offset int64
-		}, 128)
-
-		var mu sync.Mutex
-
-		workers := util.WorkerCount()
-		var wg sync.WaitGroup
-		wg.Add(workers)
-		for w := 0; w < workers; w++ {
-			go func() {
-				defer wg.Done()
-				for item := range hashCh {
-					blockRef := hashBlock(item.data, item.offset)
-					mu.Lock()
-					allBlocks = append(allBlocks, blockRef)
-					mu.Unlock()
-				}
-			}()
-		}
-
-		for i := 0; i < size; i++ {
-			rh = (rh<<1 + uint32(data[i])) & 0xFFFFFFFF
-			if shouldSplitBlock(i-start+1, rh) {
-				blockSlice := data[start : i+1]
-				hashCh <- struct {
-					data   []byte
-					offset int64
-				}{blockSlice, offset}
-
-				offset += int64(i - start + 1)
-				start = i + 1
-				rh = 0
+	for _, b := range branches {
+		var commitIDs []string
+		if allHistory {
+			commitIDs, err = r.AllCommitIDs(b.Name)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			last, err := r.GetLastCommitID(b.Name)
+			if err != nil {
+				return nil, err
+			}
+			if last != "" {
+				commitIDs = []string{last}
 			}
 		}
 
-		// Remaining bytes
-		if start < size {
-			blockSlice := data[start:size]
-			hashCh <- struct {
-				data   []byte
-				offset int64
-			}{blockSlice, offset}
-			offset += int64(size - start)
+		for _, commitID := range commitIDs {
+			var commit core.Commit
+			if err := util.ReadJSON(filepath.Join(config.CommitsDir, commitID+".json"), &commit); err != nil {
+				continue
+			}
+
+			var fs snapshot.Fileset
+			if err := util.ReadJSON(filepath.Join(config.FilesetsDir, commit.FilesetID+".json"), &fs); err != nil {
+				continue
+			}
+
+			for _, f := range fs.Files {
+				for _, blk := range f.Blocks {
+					info, ok := blocks[blk.Hash]
+					if !ok {
+						info = &BlockInfo{
+							Size:     blk.Size,
+							Files:    map[string]struct{}{},
+							Branches: map[string]struct{}{},
+						}
+						blocks[blk.Hash] = info
+					}
+					info.Files[f.Path] = struct{}{}
+					info.Branches[b.Name] = struct{}{}
+				}
+			}
+		}
+	}
+
+	return blocks, nil
+}
+
+// CountBlocks returns the total number of blocks in all branches.
+// If allHistory is true, counts blocks from all commits; otherwise only latest commits.
+func CountBlocks(allHistory bool) (int, error) {
+	// Open the repository context
+	r, err := repo.OpenAt(config.RepoDir)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	branches, err := r.ListBranches()
+	if err != nil {
+		return 0, err
+	}
+	hashes := map[string]struct{}{}
+
+	for _, b := range branches {
+		var commitIDs []string
+		if allHistory {
+			commitIDs, err = r.AllCommitIDs(b.Name)
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			last, err := r.GetLastCommitID(b.Name)
+			if err != nil {
+				return 0, err
+			}
+			if last != "" {
+				commitIDs = []string{last}
+			}
 		}
 
-		close(hashCh)
-		wg.Wait()
+		for _, commitID := range commitIDs {
+			var commit core.Commit
+			if err := util.ReadJSON(fmt.Sprintf("%s/%s.json", config.CommitsDir, commitID), &commit); err != nil {
+				continue
+			}
+			var fs snapshot.Fileset
+			if err := util.ReadJSON(fmt.Sprintf("%s/%s.json", config.FilesetsDir, commit.FilesetID), &fs); err != nil {
+				continue
+			}
+			for _, e := range fs.Files {
+				for _, b := range e.Blocks {
+					hashes[b.Hash] = struct{}{}
+				}
+			}
+		}
 	}
 
-	return allBlocks, nil
-}
-
-// StoreBlocks writes all blocks concurrently and safely.
-func StoreBlocks(filePath string, blocks []BlockRef) error {
-	workers := util.WorkerCount()
-	return util.Parallel(blocks, workers, func(b BlockRef) error {
-		return writeBlockAtomic(filePath, b)
-	})
-}
-
-// writeBlockAtomic writes a single block atomically to storage.
-func writeBlockAtomic(filePath string, block BlockRef) error {
-	dst := filepath.Join(config.ObjectsDir, block.Hash+".bin")
-
-	// Fast path — block already exists
-	if fi, err := os.Stat(dst); err == nil && fi.Size() == block.Size {
-		return nil
-	}
-
-	// Ensure target directory exists
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return fmt.Errorf("ensure dir for %q: %w", dst, err)
-	}
-
-	src, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("open source file %q: %w", filePath, err)
-	}
-	defer src.Close()
-
-	tmp, err := os.CreateTemp(filepath.Dir(dst), ".tmp-*")
-	if err != nil {
-		return fmt.Errorf("create temp file in %q: %w", filepath.Dir(dst), err)
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-
-	// Stream copy the block
-	if _, err := src.Seek(block.Offset, io.SeekStart); err != nil {
-		tmp.Close()
-		return fmt.Errorf("seek to offset %d in %q: %w", block.Offset, filePath, err)
-	}
-	if _, err := io.CopyN(tmp, src, block.Size); err != nil && !errors.Is(err, io.EOF) {
-		tmp.Close()
-		return fmt.Errorf("copy block %q: %w", block.Hash, err)
-	}
-
-	// Flush & close before rename
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return fmt.Errorf("sync temp file %q: %w", tmpPath, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close temp file %q: %w", tmpPath, err)
-	}
-
-	// Atomic rename
-	if err := os.Rename(tmpPath, dst); err != nil {
-		return fmt.Errorf("rename temp file %q to %q: %w", tmpPath, dst, err)
-	}
-
-	// TODO: optional: verify block integrity here
-
-	return nil
-}
-
-// ReadBlock retrieves a block from storage.
-func ReadBlock(hash string) ([]byte, error) {
-	path := filepath.Join(config.ObjectsDir, hash+".bin")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read block %q: %w", hash, err)
-	}
-	return data, nil
+	return len(hashes), nil
 }
  
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\block\cleanup.go --- 
-package block
+--- Contents of file: D:\Projects\dev\keshon\bvc\internal\repo\verify.go --- 
+package repo
 
 import (
-	"app/internal/config"
+	"app/internal/progress"
+	"app/internal/storage"
 	"os"
-	"path/filepath"
+
+	"app/internal/storage/block"
+
+	"app/internal/util"
+	"fmt"
 )
 
-// CleanupTmp removes orphaned temp files.
-func CleanupTmp() error {
-	entries, err := os.ReadDir(config.ObjectsDir)
+// VerifyBlocks checks all blocks in repository and shows a progress bar.
+// Returns error if any block is missing/damaged.
+func VerifyBlocks(allHistory bool) error {
+	out, errCh := VerifyBlocksStream(allHistory)
+
+	totalBlocks, err := CountBlocks(allHistory)
 	if err != nil {
 		return err
 	}
 
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
+	bar := progress.NewProgress(totalBlocks, "Checking blocks")
+	defer bar.Finish()
+
+	for bc := range out {
+		bar.Increment()
+		if bc.Status != block.OK {
+			return fmt.Errorf("block %s is missing or damaged", bc.Hash)
 		}
-		name := e.Name()
-		if len(name) > 4 && name[:4] == "tmp-" {
-			p := filepath.Join(config.ObjectsDir, name)
-			if fi, err := os.Stat(p); err != nil || fi.Size() == 0 {
-				_ = os.Remove(p)
-			}
-		}
+	}
+
+	if err := <-errCh; err != nil {
+		return err
 	}
 	return nil
 }
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\block\util.go --- 
-package block
 
-import (
-	"fmt"
+// VerifyBlocksStream streams block verification results.
+func VerifyBlocksStream(allHistory bool) (<-chan block.BlockCheck, <-chan error) {
+	out := make(chan block.BlockCheck, 128)
+	errCh := make(chan error, 1)
 
-	"github.com/zeebo/xxh3"
-)
-
-func shouldSplitBlock(size int, rh uint32) bool {
-	return (size >= minChunkSize && rh%rollMod == 0) || size >= maxChunkSize
-}
-
-func hashBlock(data []byte, offset int64) BlockRef {
-	hash := xxh3.Hash128(data).Bytes()
-	return BlockRef{
-		Hash:   fmt.Sprintf("%x", hash),
-		Size:   int64(len(data)),
-		Offset: offset,
-	}
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\block\verify.go --- 
-package block
-
-import (
-	"app/internal/config"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sync"
-
-	"github.com/zeebo/xxh3"
-)
-
-func VerifyBlock(hash string) (BlockStatus, error) {
-	path := filepath.Join(config.ObjectsDir, hash+".bin")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return Missing, nil
-		}
-		return Damaged, err
-	}
-	if fmt.Sprintf("%x", xxh3.Hash128(data).Bytes()) == hash {
-		return OK, nil
-	}
-	return Damaged, nil
-}
-
-func VerifyBlocks(hashes map[string]struct{}, workers int) <-chan BlockCheck {
-	out := make(chan BlockCheck, 128)
 	go func() {
 		defer close(out)
-		if workers <= 0 {
-			workers = 4
+		defer close(errCh)
+
+		// Open the repo and access its storage manager
+		mgr, err := storage.NewManager(".bvc"), error(nil)
+		if _, statErr := os.Stat(".bvc"); os.IsNotExist(statErr) {
+			errCh <- fmt.Errorf("repository not initialized (missing .bvc)")
+			return
 		}
-		tasks := make(chan string, len(hashes))
-		for h := range hashes {
-			tasks <- h
+
+		// Collect all referenced blocks
+		blocks, err := ListAllBlocks(allHistory)
+		if err != nil {
+			errCh <- err
+			return
 		}
-		close(tasks)
 
-		var wg sync.WaitGroup
-		for i := 0; i < workers; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for h := range tasks {
-					status, _ := VerifyBlock(h)
-					out <- BlockCheck{Hash: h, Status: status}
-				}
-			}()
+		// Prepare hash set
+		hashes := make(map[string]struct{}, len(blocks))
+		for h := range blocks {
+			hashes[h] = struct{}{}
 		}
-		wg.Wait()
-	}()
-	return out
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\file\entry.go --- 
-package file
 
-import (
-	"app/internal/progress"
-	"app/internal/storage/block"
-	"app/internal/util"
-	"os"
-	"path/filepath"
-	"sync"
-)
+		// Use the block subsystem under the manager
+		verifyOut := mgr.Blocks.Verify(hashes, util.WorkerCount())
 
-type Entry struct {
-	Path   string
-	Blocks []block.BlockRef
-}
-
-func (e *Entry) Equal(other *Entry) bool {
-	if e == nil && other == nil {
-		return true
-	}
-	if e == nil || other == nil {
-		return false
-	}
-	if len(e.Blocks) != len(other.Blocks) {
-		return false
-	}
-	for i := range e.Blocks {
-		if e.Blocks[i].Hash != other.Blocks[i].Hash || e.Blocks[i].Size != other.Blocks[i].Size {
-			return false
+		for bc := range verifyOut {
+			ref := blocks[bc.Hash]
+			bc.Files = util.SortedKeys(ref.Files)
+			bc.Branches = util.SortedKeys(ref.Branches)
+			out <- bc
 		}
-	}
-	return true
-}
-
-func CreateEntry(path string) (Entry, error) {
-	blocks, err := block.SplitFileIntoBlocks(path)
-	if err != nil {
-		return Entry{}, err
-	}
-	return Entry{Path: path, Blocks: blocks}, nil
-}
-
-func (e *Entry) WriteToDisk() error {
-	return block.StoreBlocks(e.Path, e.Blocks)
-}
-
-func CreateEntries(paths []string) ([]Entry, error) {
-	bar := progress.NewProgress(len(paths), "Scanning files ")
-	defer bar.Finish()
-
-	jobs := make(chan string, len(paths))
-	results := make(chan Entry, len(paths))
-	errs := make(chan error, len(paths))
-	workers := util.WorkerCount()
-
-	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for p := range jobs {
-				entry, err := CreateEntry(p)
-				if err != nil {
-					errs <- err
-					continue
-				}
-				results <- entry
-				bar.Increment()
-			}
-		}()
-	}
-
-	for _, p := range paths {
-		jobs <- p
-	}
-	close(jobs)
-
-	go func() {
-		wg.Wait()
-		close(results)
-		close(errs)
 	}()
 
-	var entries []Entry
-	for entry := range results {
-		entries = append(entries, entry)
-	}
-	if len(errs) > 0 {
-		return entries, <-errs
-	}
-	return entries, nil
-}
-
-// CreateAllEntries builds entries for all tracked + untracked files.
-func CreateAllEntries(paths []string) ([]Entry, error) {
-	allFiles, err := ListAll()
-	if err != nil {
-		return nil, err
-	}
-
-	// Create entries for everything that currently exists in working directory
-	entries, err := CreateEntries(allFiles)
-	if err != nil {
-		return nil, err
-	}
-
-	// Also handle deleted files (tracked but no longer exist)
-	tracked, _ := GetIndexFiles()
-	var deleted []Entry
-	for _, t := range tracked {
-		if !fileExists(t.Path) {
-			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
-		}
-	}
-
-	return append(entries, deleted...), nil
-}
-
-// CreateChangedEntries builds entries only for modified and deleted files.
-func CreateChangedEntries(paths []string) ([]Entry, error) {
-	tracked, err := GetIndexFiles()
-	if err != nil {
-		return nil, err
-	}
-
-	var toUpdate []string
-	var deleted []Entry
-
-	for _, t := range tracked {
-		if !fileExists(t.Path) {
-			// tracked file deleted in working tree
-			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
-			continue
-		}
-
-		// Compare block hashes to detect modification
-		current, err := CreateEntry(t.Path)
-		if err != nil {
-			return nil, err
-		}
-		if !t.Equal(&current) {
-			toUpdate = append(toUpdate, t.Path)
-		}
-	}
-
-	modified, err := CreateEntries(toUpdate)
-	if err != nil {
-		return nil, err
-	}
-
-	return append(modified, deleted...), nil
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(filepath.Clean(path))
-	return err == nil
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\file\restore.go --- 
-package file
-
-import (
-	"app/internal/config"
-	"app/internal/progress"
-	"app/internal/storage/block"
-	"app/internal/util"
-	"bufio"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-)
-
-// RestoreFiles rebuilds all files from their entries in a snapshot.
-func RestoreFiles(entries []Entry, label string) error {
-	exe := filepath.Base(os.Args[0])
-	bar := progress.NewProgress(len(entries), fmt.Sprintf("Restoring %s", label))
-	defer bar.Finish()
-
-	// Create valid map sequentially (no concurrency)
-	valid := make(map[string]bool, len(entries))
-	for _, e := range entries {
-		valid[filepath.Clean(e.Path)] = true
-	}
-
-	// Restore files in parallel
-	err := util.Parallel(entries, util.WorkerCount()*2, func(e Entry) error {
-		if filepath.Base(e.Path) == exe {
-			// Skip restoring executable
-			bar.Increment()
-			return nil
-		}
-
-		if err := restoreFile(e); err != nil {
-			fmt.Printf("\nWarning: %v\n", err)
-		}
-
-		bar.Increment()
-		return nil
-	})
-
-	// Remove untracked files
-	pruneUntrackedFiles(valid, exe)
-
-	return err
-}
-
-func restoreFile(e Entry) error {
-	if err := os.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
-		return err
-	}
-
-	tmp, err := os.CreateTemp(filepath.Dir(e.Path), "tmp-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
-
-	writer := bufio.NewWriterSize(tmp, 4*1024*1024)
-	for _, b := range e.Blocks {
-		data, err := block.ReadBlock(b.Hash)
-		if err != nil {
-			return fmt.Errorf("missing block %s for %s", b.Hash, e.Path)
-		}
-		if _, err := writer.Write(data); err != nil {
-			return err
-		}
-	}
-	writer.Flush()
-	tmp.Sync()
-	tmp.Close()
-
-	return os.Rename(tmp.Name(), e.Path)
-}
-
-func pruneUntrackedFiles(valid map[string]bool, exe string) {
-	var dirs []string
-	filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
-		if err != nil || d == nil {
-			return nil
-		}
-		if d.IsDir() {
-			if path == "." || path == config.RepoDir || strings.HasPrefix(path, config.RepoDir+string(os.PathSeparator)) {
-				return filepath.SkipDir
-			}
-			dirs = append(dirs, path)
-			return nil
-		}
-		if !valid[filepath.Clean(path)] && filepath.Base(path) != exe {
-			_ = os.Remove(path)
-		}
-		return nil
-	})
-
-	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
-	for _, d := range dirs {
-		if entries, _ := os.ReadDir(d); len(entries) == 0 {
-			_ = os.Remove(d)
-		}
-	}
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\file\scan.go --- 
-package file
-
-import (
-	"app/internal/config"
-	"os"
-	"path/filepath"
-)
-
-// ListAll returns all user files to be included in a snapshot.
-func ListAll() ([]string, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
-
-	var paths []string
-	err = filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() && path == config.RepoDir {
-			return filepath.SkipDir
-		}
-		if d.IsDir() {
-			return nil
-		}
-		abs, _ := filepath.Abs(path)
-		if abs == exe {
-			return nil
-		}
-		paths = append(paths, path)
-		return nil
-	})
-	return paths, err
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\file\staging.go --- 
-package file
-
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-
-	"app/internal/config"
-)
-
-var indexFile = filepath.Join(config.RepoDir, "index.json")
-
-// Stage Files writes files to the index (staging area)
-func StageFiles(entries []Entry) error {
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(indexFile), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(indexFile, data, 0644)
-}
-
-// ClearIndex clears the staging area
-func ClearIndex() error {
-	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
-		return nil
-	}
-	return os.Remove(indexFile)
-}
-
-// GetIndexFiles reads the staging area
-func GetIndexFiles() ([]Entry, error) {
-	if _, err := os.Stat(indexFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(indexFile)
-	if err != nil {
-		return nil, err
-	}
-	var entries []Entry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil, err
-	}
-	return entries, nil
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\snapshot\fileset.go --- 
-package snapshot
-
-import (
-	"fmt"
-	"path/filepath"
-
-	"app/internal/config"
-	"app/internal/progress"
-	"app/internal/storage/block"
-	"app/internal/storage/file"
-	"app/internal/util"
-)
-
-type Fileset struct {
-	ID    string       `json:"id"`
-	Files []file.Entry `json:"files"`
-}
-
-// CreateCurrentFileset builds a fileset from the current working tree
-func CreateCurrentFileset() (Fileset, error) {
-	paths, err := file.ListAll()
-	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to list files: %w", err)
-	}
-	entries, err := file.CreateEntries(paths)
-	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to create entries: %w", err)
-	}
-	return Fileset{
-		ID:    HashFileset(entries),
-		Files: entries,
-	}, nil
-}
-
-// GetFileset retrieves a fileset by ID from disk
-func GetFileset(id string) (Fileset, error) {
-	path := filepath.Join(config.FilesetsDir, id+".json")
-	var fs Fileset
-	if err := util.ReadJSON(path, &fs); err != nil {
-		return Fileset{}, fmt.Errorf("failed to read fileset: %w", err)
-	}
-	return fs, nil
-}
-
-// GetFilesets retrieves all filesets from disk
-func GetFilesets() ([]Fileset, error) {
-	files, err := filepath.Glob(filepath.Join(config.FilesetsDir, "*.json"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to list filesets: %w", err)
-	}
-	var filesets []Fileset
-	for _, f := range files {
-		var fs Fileset
-		if err := util.ReadJSON(f, &fs); err != nil {
-			return nil, err
-		}
-		filesets = append(filesets, fs)
-	}
-	return filesets, nil
-}
-
-// CreateFileset builds a fileset from a list of file entries.
-func CreateFileset(entries []file.Entry) (Fileset, error) {
-	if len(entries) == 0 {
-		return Fileset{}, fmt.Errorf("no files to commit")
-	}
-
-	// Store all blocks for the staged files
-	for _, e := range entries {
-		if err := e.WriteToDisk(); err != nil {
-			return Fileset{}, fmt.Errorf("storing file %s: %w", e.Path, err)
-		}
-	}
-
-	// Compute a fileset hash
-	fileset := Fileset{
-		Files: entries,
-		ID:    HashFileset(entries),
-	}
-
-	return fileset, nil
-}
-
-// WriteAndSaveFileset stores a fileset to disk
-func (fs *Fileset) WriteAndSaveFileset() error {
-	if fs.ID == "" {
-		return fmt.Errorf("invalid fileset: missing ID")
-	}
-	if len(fs.Files) == 0 {
-		return fmt.Errorf("invalid fileset: no files")
-	}
-	if err := fs.writeFiles(); err != nil {
-		return fmt.Errorf("failed to store files: %w", err)
-	}
-	return SaveFileset(*fs)
-}
-
-// saveFileset writes the given Fileset as JSON to the filesets directory.
-func SaveFileset(fs Fileset) error {
-	if fs.ID == "" {
-		return fmt.Errorf("invalid fileset: missing ID")
-	}
-	path := filepath.Join(config.FilesetsDir, fs.ID+".json")
-	return util.WriteJSON(path, fs)
-}
-
-// writeFiles stores a fileset to disk
-func (fs *Fileset) writeFiles() error {
-	if err := block.CleanupTmp(); err != nil {
-		fmt.Printf("Warning: cleanup failed: %v\n", err)
-	}
-
-	bar := progress.NewProgress(len(fs.Files), "Storing files ")
-	defer bar.Finish()
-
-	return util.Parallel(fs.Files, util.WorkerCount(), func(f file.Entry) error {
-		if err := block.StoreBlocks(f.Path, f.Blocks); err != nil {
-			return fmt.Errorf("error storing file %s: %w", f.Path, err)
-		}
-		bar.Increment()
-		return nil
-	})
-}
- 
---- Contents of file: D:\Projects\dev\keshon\bvc\internal\storage\snapshot\util.go --- 
-package snapshot
-
-import (
-	"fmt"
-	"path/filepath"
-	"sort"
-
-	"app/internal/storage/file"
-
-	"github.com/zeebo/xxh3"
-)
-
-func HashFileset(entries []file.Entry) string {
-	paths := make([]string, 0, len(entries))
-	index := make(map[string]file.Entry, len(entries))
-	for _, f := range entries {
-		clean := filepath.Clean(f.Path)
-		paths = append(paths, clean)
-		index[clean] = f
-	}
-	sort.Strings(paths)
-
-	data := []byte{}
-	for _, p := range paths {
-		for _, b := range index[p].Blocks {
-			data = append(data, []byte(b.Hash+"\n")...)
-		}
-	}
-
-	return fmt.Sprintf("%x", xxh3.Hash128(data).Bytes())
+	return out, errCh
 }
  

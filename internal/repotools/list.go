@@ -1,11 +1,11 @@
-package repo
+package repotools
 
 import (
 	"fmt"
 	"path/filepath"
 
 	"app/internal/config"
-	"app/internal/core"
+	"app/internal/repo"
 	"app/internal/storage/snapshot"
 	"app/internal/util"
 )
@@ -21,7 +21,7 @@ type BlockInfo struct {
 // If allHistory is true, collects blocks from all commits in all branches; otherwise only latest commits.
 func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -51,7 +51,7 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 		}
 
 		for _, commitID := range commitIDs {
-			var commit core.Commit
+			var commit repo.Commit
 			if err := util.ReadJSON(filepath.Join(config.CommitsDir, commitID+".json"), &commit); err != nil {
 				continue
 			}
@@ -86,7 +86,7 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 // If allHistory is true, counts blocks from all commits; otherwise only latest commits.
 func CountBlocks(allHistory bool) (int, error) {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return 0, fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -115,7 +115,7 @@ func CountBlocks(allHistory bool) (int, error) {
 		}
 
 		for _, commitID := range commitIDs {
-			var commit core.Commit
+			var commit repo.Commit
 			if err := util.ReadJSON(fmt.Sprintf("%s/%s.json", config.CommitsDir, commitID), &commit); err != nil {
 				continue
 			}

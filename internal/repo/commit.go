@@ -1,4 +1,4 @@
-package core
+package repo
 
 import (
 	"errors"
@@ -128,7 +128,8 @@ func (r *Repository) GetCommitFileset(commitID string) (*snapshot.Fileset, error
 	if err != nil {
 		return nil, err
 	}
-	fs, err := snapshot.GetFileset(commit.FilesetID)
+	//fs, err := snapshot.GetFileset(commit.FilesetID)
+	fs, err := r.Storage.Snapshots.Load(commit.FilesetID)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("fileset %q not found for commit %q: %w", commit.FilesetID, commitID, err)

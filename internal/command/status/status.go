@@ -3,8 +3,8 @@ package status
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
 	"fmt"
@@ -31,7 +31,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func status() error {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -62,7 +62,7 @@ func status() error {
 	}
 
 	// Create current snapshot
-	currFS, err := snapshot.CreateCurrentFileset()
+	currFS, err := r.Storage.Snapshots.CreateCurrent()
 	if err != nil {
 		return err
 	}

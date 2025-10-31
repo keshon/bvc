@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 )
 
-// ListAll returns all user files to be included in a snapshot.
-func ListAll() ([]string, error) {
+// ListAll returns all user files in the working directory (excluding .bvc).
+func (fm *FileManager) ListAll() ([]string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err

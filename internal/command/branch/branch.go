@@ -3,7 +3,6 @@ package branch
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
 	"app/internal/repo"
 	"fmt"
@@ -18,31 +17,23 @@ func (c *Command) Usage() string     { return "branch [<branch-name>]" }
 func (c *Command) Brief() string     { return "List all branches or create a new one" }
 
 func (c *Command) Help() string {
-	return `Usage:
-  branch             - List all branches (current marked with '*')
-  branch <name>      - Create a new branch from the current one`
+	return `List all branches or create a new one.
+Usage:
+  branch        - list all branches (current marked with '*')
+  branch <name> - create a new branch from the current one`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	// Ensure repository is valid
-	fmt.Println("Checking repository integrity...")
-	if err := repo.VerifyBlocks(false); err != nil {
-		return fmt.Errorf(
-			"repository verification failed: %v\nPlease run `bvc repair` before continuing",
-			err,
-		)
-	}
-
-	// Open the current repository (using .bvc)
-	r, err := core.OpenAt(config.RepoDir)
+	// open the repository context
+	repo, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Case 1: Create new branch
+	// case 1: create new branch
 	if len(ctx.Args) > 0 {
 		name := ctx.Args[0]
-		newBranch, err := r.CreateBranch(name)
+		newBranch, err := repo.CreateBranch(name)
 		if err != nil {
 			return fmt.Errorf("failed to create branch %q: %w", name, err)
 		}
@@ -50,13 +41,15 @@ func (c *Command) Run(ctx *command.Context) error {
 		return nil
 	}
 
-	// Case 2: List branches
-	current, err := r.GetCurrentBranch()
+	// case 2: list branches
+	current, err := repo.GetCurrentBranch()
 	if err != nil {
 		return fmt.Errorf("failed to determine current branch: %w", err)
 	}
 
-	all, err := r.ListBranches()
+	// list all branches
+	fmt.Println("Branches:")
+	all, err := repo.ListBranches()
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
@@ -77,6 +70,7 @@ func init() {
 		command.ApplyMiddlewares(
 			&Command{},
 			middleware.WithDebugArgsPrint(),
+			middleware.WithBlockIntegrityCheck(),
 		),
 	)
 }

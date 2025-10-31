@@ -2,7 +2,7 @@ package merge
 
 import (
 	"app/internal/config"
-	"app/internal/core"
+	"app/internal/repo"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
 
@@ -22,7 +22,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 	}
 
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -38,7 +38,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 		}
 		seen[commitID] = true
 
-		var c *core.Commit
+		var c *repo.Commit
 		c, err := r.GetCommit(commitID)
 		if err != nil {
 			continue
@@ -65,7 +65,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 			return commitID, nil
 		}
 
-		var c *core.Commit
+		var c *repo.Commit
 		c, err := r.GetCommit(commitID)
 		if err != nil {
 			continue
@@ -196,7 +196,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -238,7 +238,7 @@ func merge(currentBranch, targetBranch string) error {
 	mergedFS, conflicts := mergeFilesets(baseFS, oursFS, theirsFS)
 
 	// save merged fileset
-	snapshot.SaveFileset(mergedFS)
+	r.Storage.Snapshots.Save(mergedFS)
 
 	// create merge commit with two parents
 	hash128 := xxh3.Hash128([]byte(
@@ -246,7 +246,7 @@ func merge(currentBranch, targetBranch string) error {
 	)).Bytes()
 	commitID := fmt.Sprintf("%x", hash128[:8])
 
-	mergeCommit := core.Commit{
+	mergeCommit := repo.Commit{
 		ID:        commitID,
 		Parents:   []string{currentCommitID, targetCommitID},
 		Branch:    currentBranch,
@@ -267,7 +267,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// apply merged fileset to working directory
-	if err := file.RestoreFiles(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
+	if err := r.Storage.Files.Restore(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
 		return fmt.Errorf("failed to apply merged fileset: %v", err)
 	}
 

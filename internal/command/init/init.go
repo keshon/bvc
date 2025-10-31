@@ -3,8 +3,8 @@ package init
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"fmt"
 )
 
@@ -21,7 +21,7 @@ func (c *Command) Help() string {
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	repo, created, err := core.InitAt(config.RepoDir)
+	repo, created, err := repo.InitAt(config.RepoDir)
 	if err != nil {
 		return err
 	}

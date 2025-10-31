@@ -3,10 +3,8 @@ package checkout
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
+	"app/internal/repo"
 	"fmt"
 )
 
@@ -32,7 +30,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func checkoutBranch(branch string) error {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -51,7 +49,7 @@ func checkoutBranch(branch string) error {
 
 	// Handle empty branch
 	if commitID == "" {
-		if err := file.RestoreFiles(nil, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
+		if err := r.Storage.Files.Restore(nil, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
 			return err
 		}
 		if _, err := r.SetHeadRef("branches/" + branch); err != nil {
@@ -67,13 +65,14 @@ func checkoutBranch(branch string) error {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
 	}
 
-	fs, err := snapshot.GetFileset(commit.FilesetID)
+	fs, err := r.Storage.Snapshots.Load(commit.FilesetID)
+
 	if err != nil {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
 
 	// Restore files
-	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("branch '%s'", branch)); err != nil {
+	if err := r.Storage.Files.Restore(fs.Files, fmt.Sprintf("branch '%s'", branch)); err != nil {
 		return fmt.Errorf("restore failed: %w", err)
 	}
 

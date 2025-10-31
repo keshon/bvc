@@ -3,7 +3,7 @@ package blocks
 import (
 	"app/internal/command"
 	"app/internal/middleware"
-	"app/internal/repo"
+	"app/internal/repotools"
 	"app/internal/util"
 	"fmt"
 	"sort"
@@ -18,26 +18,28 @@ func (c *Command) Aliases() []string { return []string{"block"} }
 func (c *Command) Usage() string     { return "blocks [branch|name]" }
 func (c *Command) Brief() string     { return "Display repository blocks overview" }
 func (c *Command) Help() string {
-	return `Show repository blocks list with optional sort:
-  - default: by block hash
-  - branch: sort by branch name
-  - name: sort by file name
+	return `Show repository blocks list with optional sort mode.
+Usage:
+  blocks 		- show all blocks
+  blocks branch - sort by branch name
+  blocks name 	- sort by file name
 
 Useful for identifying shared blocks between branches and associated files.`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	sortMode := "block"
+	sortMode := "block" // default
 
 	if len(ctx.Args) > 0 {
 		sortMode = strings.ToLower(ctx.Args[0])
 	}
 
-	return blocksOverview(sortMode)
+	return runBlocksOverview(sortMode)
 }
 
-func blocksOverview(sortMode string) error {
-	blocksMap, err := repo.ListAllBlocks(false)
+func runBlocksOverview(sortMode string) error {
+	// list all blocks
+	blocksMap, err := repotools.ListAllBlocks(false)
 	if err != nil {
 		return err
 	}
@@ -48,6 +50,7 @@ func blocksOverview(sortMode string) error {
 		Branches []string
 	}
 
+	// prepare rows
 	rows := make([]Row, 0, len(blocksMap))
 	for hash, info := range blocksMap {
 		rows = append(rows, Row{
@@ -57,6 +60,7 @@ func blocksOverview(sortMode string) error {
 		})
 	}
 
+	// sort rows
 	switch sortMode {
 	case "branch":
 		sort.Slice(rows, func(i, j int) bool {
@@ -84,6 +88,7 @@ func blocksOverview(sortMode string) error {
 		})
 	}
 
+	// print rows
 	fmt.Printf("Blocks overview (sorted by %s)\n", sortMode)
 	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
 	fmt.Printf("\033[90m%-32s %-32s %-32s\033[0m\n", "Block", "Name", "Branch")

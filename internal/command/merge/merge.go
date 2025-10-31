@@ -3,8 +3,8 @@ package merge
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"fmt"
 )
 
@@ -28,7 +28,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

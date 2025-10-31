@@ -10,10 +10,10 @@ import (
 	"app/internal/command"
 	"app/internal/config"
 	"app/internal/middleware"
-
 	"app/internal/repo"
+	"app/internal/repotools"
+
 	"app/internal/storage/block"
-	"app/internal/storage/file"
 
 	"github.com/zeebo/xxh3"
 )
@@ -45,7 +45,7 @@ func (c *Command) Run(ctx *command.Context) error {
 }
 
 func scan() error {
-	out, errCh := repo.VerifyBlocksStream(true)
+	out, errCh := repotools.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
 
@@ -102,7 +102,13 @@ func scan() error {
 }
 
 func repair() error {
-	out, errCh := repo.VerifyBlocksStream(true)
+	// Open the repository context
+	r, err := repo.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	out, errCh := repotools.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
 
@@ -149,7 +155,7 @@ func repair() error {
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := file.CreateEntry(currFile)
+			entry, err := r.Storage.Files.CreateEntry(currFile)
 			if err != nil {
 				continue
 			}
@@ -158,10 +164,10 @@ func repair() error {
 				if b.Hash != bc.Hash {
 					continue
 				}
-				if err := block.StoreBlocks(entry.Path, []block.BlockRef{b}); err != nil {
+				if err := r.Storage.Blocks.Write(entry.Path, []block.BlockRef{b}); err != nil {
 					continue
 				}
-				status, _ := block.VerifyBlock(b.Hash)
+				status, _ := r.Storage.Blocks.VerifyBlock(b.Hash)
 				if status == block.OK {
 					fixed = true
 					repaired++

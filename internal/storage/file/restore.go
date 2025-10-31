@@ -1,9 +1,7 @@
 package file
 
 import (
-	"app/internal/config"
 	"app/internal/progress"
-	"app/internal/storage/block"
 	"app/internal/util"
 	"bufio"
 	"fmt"
@@ -13,13 +11,17 @@ import (
 	"strings"
 )
 
-// RestoreFiles rebuilds all files from their entries in a snapshot.
-func RestoreFiles(entries []Entry, label string) error {
+// Restore rebuilds files from entries (e.g., from a snapshot).
+func (fm *FileManager) Restore(entries []Entry, label string) error {
+	if fm.Blocks == nil {
+		return fmt.Errorf("no BlockManager attached")
+	}
+
 	exe := filepath.Base(os.Args[0])
 	bar := progress.NewProgress(len(entries), fmt.Sprintf("Restoring %s", label))
 	defer bar.Finish()
 
-	// Create valid map sequentially (no concurrency)
+	// Build valid file map for pruning
 	valid := make(map[string]bool, len(entries))
 	for _, e := range entries {
 		valid[filepath.Clean(e.Path)] = true
@@ -28,26 +30,22 @@ func RestoreFiles(entries []Entry, label string) error {
 	// Restore files in parallel
 	err := util.Parallel(entries, util.WorkerCount()*2, func(e Entry) error {
 		if filepath.Base(e.Path) == exe {
-			// Skip restoring executable
 			bar.Increment()
 			return nil
 		}
-
-		if err := restoreFile(e); err != nil {
+		if err := fm.restoreFile(e); err != nil {
 			fmt.Printf("\nWarning: %v\n", err)
 		}
-
 		bar.Increment()
 		return nil
 	})
 
-	// Remove untracked files
-	pruneUntrackedFiles(valid, exe)
-
+	// Remove files not in snapshot
+	fm.pruneUntrackedFiles(valid, exe)
 	return err
 }
 
-func restoreFile(e Entry) error {
+func (fm *FileManager) restoreFile(e Entry) error {
 	if err := os.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
 		return err
 	}
@@ -61,7 +59,7 @@ func restoreFile(e Entry) error {
 
 	writer := bufio.NewWriterSize(tmp, 4*1024*1024)
 	for _, b := range e.Blocks {
-		data, err := block.ReadBlock(b.Hash)
+		data, err := fm.Blocks.Read(b.Hash)
 		if err != nil {
 			return fmt.Errorf("missing block %s for %s", b.Hash, e.Path)
 		}
@@ -76,14 +74,14 @@ func restoreFile(e Entry) error {
 	return os.Rename(tmp.Name(), e.Path)
 }
 
-func pruneUntrackedFiles(valid map[string]bool, exe string) {
+func (fm *FileManager) pruneUntrackedFiles(valid map[string]bool, exe string) {
 	var dirs []string
 	filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil
 		}
 		if d.IsDir() {
-			if path == "." || path == config.RepoDir || strings.HasPrefix(path, config.RepoDir+string(os.PathSeparator)) {
+			if strings.HasPrefix(path, fm.Root) {
 				return filepath.SkipDir
 			}
 			dirs = append(dirs, path)

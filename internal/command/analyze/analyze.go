@@ -3,8 +3,8 @@ package analyze
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,14 +22,14 @@ func (c *Command) Usage() string     { return "analyze [--detail] [--export]" }
 func (c *Command) Brief() string     { return "Analyze block reuse across the entire repository" }
 func (c *Command) Help() string {
 	return `Analyze block reuse across all branches and commits.
-	
-	Use --detail to print detailed shared block list.
-	Use --export to save output to .bvcanalyze.`
+Usage:
+  analyze --detail - print detailed shared block list
+  analyze --export - save output to ${config.RepoDir}-analyze`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	full := false
-	export := false
+	full := false   // --detail
+	export := false // --export
 
 	for _, arg := range ctx.Args {
 		switch arg {
@@ -48,13 +48,14 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
-	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	// open the repository context
+	repo, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	branches, err := r.ListBranches()
+	// list all branches
+	branches, err := repo.ListBranches()
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
@@ -63,37 +64,38 @@ func (c *Command) Run(ctx *command.Context) error {
 		return nil
 	}
 
-	blockFiles := map[string]map[string]struct{}{}
-	blockBranches := map[string]map[string]struct{}{}
-	blockCounts := map[string]int{}
-	fileBlocks := map[string][]string{}
+	blockFiles := map[string]map[string]struct{}{}    // hash -> path -> struct{}
+	blockBranches := map[string]map[string]struct{}{} // hash -> branch -> struct{}
+	blockCounts := map[string]int{}                   // hash -> count
+	fileBlocks := map[string][]string{}               // path -> hashes
 
-	for _, br := range branches {
-		lastCommit, err := r.GetLastCommitForBranch(br.Name)
+	// iterate over all branches
+	for _, branch := range branches {
+		lastCommit, err := repo.GetLastCommitForBranch(branch.Name)
 		if err != nil || lastCommit == nil || lastCommit.ID == "" {
 			continue
 		}
 
-		fs, err := r.GetCommitFileset(lastCommit.FilesetID)
+		fileset, err := repo.GetCommitFileset(lastCommit.FilesetID)
 		if err != nil {
 			continue
 		}
 
-		for _, f := range fs.Files {
-			for _, blk := range f.Blocks {
-				blockCounts[blk.Hash]++
+		for _, file := range fileset.Files {
+			for _, block := range file.Blocks {
+				blockCounts[block.Hash]++
 
-				if _, ok := blockFiles[blk.Hash]; !ok {
-					blockFiles[blk.Hash] = map[string]struct{}{}
+				if _, ok := blockFiles[block.Hash]; !ok {
+					blockFiles[block.Hash] = map[string]struct{}{}
 				}
-				blockFiles[blk.Hash][f.Path] = struct{}{}
+				blockFiles[block.Hash][file.Path] = struct{}{}
 
-				if _, ok := blockBranches[blk.Hash]; !ok {
-					blockBranches[blk.Hash] = map[string]struct{}{}
+				if _, ok := blockBranches[block.Hash]; !ok {
+					blockBranches[block.Hash] = map[string]struct{}{}
 				}
-				blockBranches[blk.Hash][br.Name] = struct{}{}
+				blockBranches[block.Hash][branch.Name] = struct{}{}
 
-				fileBlocks[f.Path] = append(fileBlocks[f.Path], blk.Hash)
+				fileBlocks[file.Path] = append(fileBlocks[file.Path], block.Hash)
 			}
 		}
 	}
@@ -106,7 +108,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
-	// --- file-level reuse overview ---
+	// file-level reuse overview
 	totalFiles := len(fileBlocks)
 	filesWithShared := 0
 	totalFileReuseRatio := 0.0
@@ -136,7 +138,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		avgFileReuse = totalFileReuseRatio / float64(totalFiles) * 100
 	}
 
-	// --- Summary output ---
+	// summary output
 	writeOut("\033[96mSummary\033[0m\n\n")
 	writeOut(prettyLine("\033[36mTotal branches\033[0m", fmt.Sprintf("%d", len(branches))) + "\n\n")
 	writeOut(prettyLine("\033[36mTotal blocks\033[0m", fmt.Sprintf("%d", totalBlocks)) + "\n")
@@ -148,7 +150,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	writeOut(prettyLine("\033[36mFile reuse ratio\033[0m", fmt.Sprintf("%.1f%%", fileSharedPercent)) + "\n")
 	writeOut(prettyLine("\033[36mAvg. file reuse ratio\033[0m", fmt.Sprintf("%.1f%%", avgFileReuse)) + "\n\n")
 
-	// If not full mode, stop here
+	// if not full mode, stop here
 	if !full {
 		if export {
 			saveExport(exportBuf.String())
@@ -156,7 +158,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return nil
 	}
 
-	// --- Detailed shared block list ---
+	// detailed shared block list
 	type SharedBlock struct {
 		Hash     string
 		Files    []string
@@ -164,6 +166,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		Count    int
 	}
 
+	// sort shared blocks
 	var sharedList []SharedBlock
 	for hash, count := range blockCounts {
 		if count <= 1 {
@@ -193,6 +196,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return sharedList[i].Count > sharedList[j].Count
 	})
 
+	// write shared block list
 	writeOut("\n\033[96mShared Blocks (most reused first):\033[0m\n")
 	if len(sharedList) == 0 {
 		writeOut("  None\n")
@@ -214,14 +218,9 @@ func (c *Command) Run(ctx *command.Context) error {
 	return nil
 }
 
-// --- helpers ---
-
 func prettyLine(label string, value string) string {
 	const width = 45
-	dots := width - len(stripANSI(label))
-	if dots < 2 {
-		dots = 2
-	}
+	dots := max(width-len(stripANSI(label)), 2)
 	return fmt.Sprintf("%s\033[90m%s\033[0m %s", label, strings.Repeat(".", dots), value)
 }
 
@@ -231,9 +230,9 @@ func stripANSI(s string) string {
 }
 
 func saveExport(content string) {
-	file := ".bvcanalyze"
-	_ = os.WriteFile(filepath.Clean(file), []byte(strings.TrimSpace(content)+"\n"), 0644)
-	fmt.Printf("\n\033[90mExported analysis to %s\033[0m\n", file)
+	filename := config.RepoDir + "-analyze"
+	_ = os.WriteFile(filepath.Clean(filename), []byte(strings.TrimSpace(content)+"\n"), 0644)
+	fmt.Printf("\n\033[90mExported analysis to %s\033[0m\n", filename)
 }
 
 func init() {

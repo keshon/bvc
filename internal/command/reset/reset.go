@@ -3,10 +3,8 @@ package reset
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
+	"app/internal/repo"
 	"fmt"
 )
 
@@ -61,7 +59,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -88,7 +86,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func reset(targetID, mode string) error {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -144,17 +142,23 @@ func reset(targetID, mode string) error {
 
 // resetIndex resets the staging area to the specified fileset
 func resetIndex(filesetID string) error {
+	// Open the repository context
+	r, err := repo.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// Load fileset
-	fs, err := snapshot.GetFileset(filesetID)
+	fs, err := r.Storage.Snapshots.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
 	// Clear current staging and stage all files from the fileset
-	if err := file.ClearIndex(); err != nil {
+	if err := r.Storage.Files.ClearIndex(); err != nil {
 		return err
 	}
-	if err := file.StageFiles(fs.Files); err != nil {
+	if err := r.Storage.Files.StageFiles(fs.Files); err != nil {
 		return err
 	}
 
@@ -164,13 +168,19 @@ func resetIndex(filesetID string) error {
 
 // resetWorkingDirectory restores files to the state of the commit
 func resetWorkingDirectory(filesetID string) error {
+	// Open the repository context
+	r, err := repo.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	// Load fileset
-	fs, err := snapshot.GetFileset(filesetID)
+	fs, err := r.Storage.Snapshots.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	if err := file.RestoreFiles(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
+	if err := r.Storage.Files.Restore(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
 		return err
 	}
 

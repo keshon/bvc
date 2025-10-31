@@ -3,10 +3,8 @@ package cherry_pick
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
-	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
+	"app/internal/repo"
 	"fmt"
 	"time"
 )
@@ -34,7 +32,7 @@ func (c *Command) Run(ctx *command.Context) error {
 // pickCommit applies the target commit to the current branch
 func pickCommit(commitID string) error {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -43,7 +41,8 @@ func pickCommit(commitID string) error {
 	if err != nil {
 		return err
 	}
-	targetFileset, err := snapshot.GetFileset(targetCommit.FilesetID)
+
+	targetFileset, err := r.Storage.Snapshots.Load(targetCommit.FilesetID)
 	if err != nil {
 		return err
 	}
@@ -61,7 +60,7 @@ func pickCommit(commitID string) error {
 	}
 
 	// Create new commit on current branch referencing the picked commit
-	newCommit := core.Commit{
+	newCommit := repo.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
 		Branch:    GetCurrentBranch.Name,
@@ -82,7 +81,7 @@ func pickCommit(commitID string) error {
 	}
 
 	// Restore files from picked commit
-	if err := file.RestoreFiles(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := r.Storage.Files.Restore(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

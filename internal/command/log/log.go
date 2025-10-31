@@ -3,8 +3,8 @@ package log
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/core"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"fmt"
 	"sort"
 	"strings"
@@ -35,7 +35,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func (c *Command) log(showAll bool) error {
 	// Open the repository context
-	r, err := core.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -58,7 +58,7 @@ func (c *Command) log(showAll bool) error {
 		branchNames = []string{currentBranch.Name}
 	}
 
-	var commits []*core.Commit
+	var commits []*repo.Commit
 	seen := make(map[string]bool)
 
 	for _, branch := range branchNames {

@@ -2,7 +2,9 @@ package add
 
 import (
 	"app/internal/command"
+	"app/internal/config"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"app/internal/storage/file"
 	"fmt"
 	"path/filepath"
@@ -45,10 +47,16 @@ func (c *Command) Run(ctx *command.Context) error {
 		args = []string{"."}
 	}
 
+	// open the repository context
+	repo, err := repo.OpenAt(config.RepoDir)
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+
 	var toStage []string
 	for _, arg := range args {
 		if arg == "." {
-			all, err := file.ListAll()
+			all, err := repo.Storage.Files.ListAll()
 			if err != nil {
 				return err
 			}
@@ -69,20 +77,24 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("no matching files to add")
 	}
 
+	// create staged entries
 	var entries []file.Entry
 	if includeAll {
-		entries, _ = file.CreateAllEntries(toStage)
+		entries, err = repo.Storage.Files.CreateAllEntries()
 	} else if updateOnly {
-		entries, _ = file.CreateChangedEntries(toStage)
+		entries, err = repo.Storage.Files.CreateChangedEntries()
 	} else {
-		entries, _ = file.CreateEntries(toStage)
+		entries, err = repo.Storage.Files.CreateEntries(toStage)
+	}
+	if err != nil {
+		return err
 	}
 
 	if len(entries) == 0 {
 		return fmt.Errorf("no changes to stage")
 	}
 
-	if err := file.StageFiles(entries); err != nil {
+	if err := repo.Storage.Files.StageFiles(entries); err != nil {
 		return err
 	}
 
@@ -90,7 +102,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	return nil
 }
 
-// filterNonFlags removes CLI flags like -A or --all from args
+// filterNonFlags removes CLI flags starting with "-" or "--"
 func filterNonFlags(args []string) []string {
 	var res []string
 	for _, a := range args {
