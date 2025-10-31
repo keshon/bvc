@@ -1,17 +1,17 @@
 package middleware
 
 import (
-	"app/internal/cli"
+	"app/internal/command"
 	"app/internal/config"
 	"fmt"
 )
 
 // WithBlockIntegrityCheck is a middleware that checks the integrity of the repository blocks
-func WithDebugArgsPrint() cli.Middleware {
-	return func(cmd cli.Command) cli.Command {
-		return &cli.WrappedCommand{
+func WithDebugArgsPrint() command.Middleware {
+	return func(cmd command.Command) command.Command {
+		return &command.WrappedCommand{
 			Command: cmd,
-			Wrap: func(ctx *cli.Context) error {
+			Wrap: func(ctx *command.Context) error {
 				if config.IsDev {
 					fmt.Printf("Args: %+v\n", ctx.Args)
 				}

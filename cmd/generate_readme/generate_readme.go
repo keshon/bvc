@@ -1,8 +1,7 @@
 package main
 
 import (
-	"app/internal/cli"
-	_ "app/internal/commands"
+	"app/internal/command"
 	"fmt"
 	"os"
 	"sort"
@@ -22,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	commands := cli.AllCommands()
+	commands := command.AllCommands()
 	sort.Slice(commands, func(i, j int) bool {
 		return commands[i].Name() < commands[j].Name()
 	})
