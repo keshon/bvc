@@ -22,6 +22,7 @@ func (c *Command) Usage() string     { return "analyze [--detail] [--export]" }
 func (c *Command) Brief() string     { return "Analyze block reuse across the entire repository" }
 func (c *Command) Help() string {
 	return `Analyze block reuse across all branches and commits.
+
 Usage:
   analyze --detail - print detailed shared block list
   analyze --export - save output to ${config.RepoDir}-analyze`

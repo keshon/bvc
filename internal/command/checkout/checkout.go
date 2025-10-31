@@ -17,6 +17,10 @@ func (c *Command) Usage() string     { return "checkout <branch-name>" }
 func (c *Command) Brief() string     { return "Switch to another branch" }
 func (c *Command) Help() string {
 	return `Switch to another branch.
+
+Usage:
+  checkout <branch-name> - switch to another branch
+
 Restores the branch's fileset and updates HEAD reference.`
 }
 

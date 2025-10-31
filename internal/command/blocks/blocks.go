@@ -19,8 +19,9 @@ func (c *Command) Usage() string     { return "blocks [branch|name]" }
 func (c *Command) Brief() string     { return "Display repository blocks overview" }
 func (c *Command) Help() string {
 	return `Show repository blocks list with optional sort mode.
+
 Usage:
-  blocks 		- show all blocks
+  blocks        - show all blocks
   blocks branch - sort by branch name
   blocks name 	- sort by file name
 

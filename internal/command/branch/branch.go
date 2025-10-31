@@ -18,6 +18,7 @@ func (c *Command) Brief() string     { return "List all branches or create a new
 
 func (c *Command) Help() string {
 	return `List all branches or create a new one.
+
 Usage:
   branch        - list all branches (current marked with '*')
   branch <name> - create a new branch from the current one`

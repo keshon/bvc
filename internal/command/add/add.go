@@ -20,6 +20,7 @@ func (c *Command) Usage() string     { return "add <file|dir|.>" }
 func (c *Command) Brief() string     { return "Stage files or directories for the next commit" }
 func (c *Command) Help() string {
 	return `Stage changes for commit.
+
 Usage:
   add .              - stage new and modified files
   add -A or --all    - stage all changes, including deletions
