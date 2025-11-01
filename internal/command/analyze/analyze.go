@@ -159,8 +159,8 @@ func (c *Command) Run(ctx *command.Context) error {
 		return nil
 	}
 
-	// detailed shared block list
-	type SharedBlock struct {
+	// struct represents a row in output list
+	type Row struct {
 		Hash     string
 		Files    []string
 		Branches []string
@@ -168,7 +168,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// sort shared blocks
-	var sharedList []SharedBlock
+	var sharedList []Row
 	for hash, count := range blockCounts {
 		if count <= 1 {
 			continue
@@ -185,7 +185,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 		sort.Strings(branches)
 
-		sharedList = append(sharedList, SharedBlock{
+		sharedList = append(sharedList, Row{
 			Hash:     hash,
 			Files:    files,
 			Branches: branches,

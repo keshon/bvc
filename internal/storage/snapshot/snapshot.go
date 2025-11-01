@@ -70,12 +70,12 @@ func (sm *SnapshotManager) Save(fs Fileset) error {
 	return util.WriteJSON(path, fs)
 }
 
-// Load retrieves a Fileset by ID from disk.
-func (sm *SnapshotManager) Load(id string) (Fileset, error) {
-	path := filepath.Join(sm.Root, id+".json")
+// Load retrieves a Fileset by its ID from disk.
+func (sm *SnapshotManager) Load(filesetID string) (Fileset, error) {
+	path := filepath.Join(sm.Root, filesetID+".json")
 	var fs Fileset
 	if err := util.ReadJSON(path, &fs); err != nil {
-		return Fileset{}, fmt.Errorf("failed to read fileset %q: %w", id, err)
+		return Fileset{}, fmt.Errorf("failed to read fileset %q: %w", filesetID, err)
 	}
 	return fs, nil
 }

@@ -19,51 +19,47 @@ func (c *Command) Help() string {
 	return `Switch to another branch.
 
 Usage:
-  checkout <branch-name> - switch to another branch
-
-Restores the branch's fileset and updates HEAD reference.`
+  checkout <branch-name>`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
-	branch := ctx.Args[0]
-	return checkoutBranch(branch)
-}
+	branchName := ctx.Args[0]
 
-func checkoutBranch(branch string) error {
-	// Open the repository context
+	// open the repository context
 	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Ensure branch exists
-	b, err := r.GetBranch(branch)
+	// ensure branch exists
+	targetBranch, err := r.GetBranch(branchName)
 	if err != nil {
 		return err
 	}
 
-	// Resolve its last commit
-	commitID, err := r.GetLastCommitID(b.Name)
+	// resolve its last commit
+	commitID, err := r.GetLastCommitID(targetBranch.Name)
 	if err != nil {
 		return err
 	}
 
-	// Handle empty branch
+	// case 1: handle empty branch
 	if commitID == "" {
-		if err := r.Storage.Files.Restore(nil, fmt.Sprintf("empty branch '%s'", branch)); err != nil {
+		if err := r.Storage.Files.Restore(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
 			return err
 		}
-		if _, err := r.SetHeadRef("branches/" + branch); err != nil {
+		if _, err := r.SetHeadRef(branchName); err != nil {
 			return err
 		}
-		fmt.Println("Branch is empty, switched to", branch)
+		fmt.Println("Branch is empty, switched to", branchName)
 		return nil
 	}
 
-	// Load commit and fileset
+	// case 2: handle non-empty branch
+	// load commit and fileset
 	commit, err := r.GetCommit(commitID)
 	if err != nil {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
@@ -75,20 +71,20 @@ func checkoutBranch(branch string) error {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
 
-	// Restore files
-	if err := r.Storage.Files.Restore(fs.Files, fmt.Sprintf("branch '%s'", branch)); err != nil {
+	// restore files
+	if err := r.Storage.Files.Restore(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
 		return fmt.Errorf("restore failed: %w", err)
 	}
 
-	// Update HEAD and last commit
-	if _, err := r.SetHeadRef("branches/" + branch); err != nil {
+	// update HEAD and last commit
+	if _, err := r.SetHeadRef(branchName); err != nil {
 		return err
 	}
-	if err := r.SetLastCommitID(branch, commitID); err != nil {
+	if err := r.SetLastCommitID(branchName, commitID); err != nil {
 		return err
 	}
 
-	fmt.Println("Switched to branch", branch)
+	fmt.Println("Switched to branch", branchName)
 	return nil
 }
 

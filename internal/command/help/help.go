@@ -16,29 +16,34 @@ func (c *Command) Aliases() []string { return []string{"h", "?"} }
 func (c *Command) Usage() string     { return "help [command]" }
 func (c *Command) Brief() string     { return "Show help for commands" }
 func (c *Command) Help() string {
-	return "Display detailed help information for a specific command, or list all commands if none is provided."
+	return `Display detailed help information for a specific command, or list all commands
+
+Usage:
+  help - list all commands
+  help [command] - show help for a specific command`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
 	if len(ctx.Args) > 0 {
-		return commandHelp(strings.ToLower(ctx.Args[0]))
+		return runCommandHelp(strings.ToLower(ctx.Args[0]))
 	}
-	return listAllCommands()
+	return runListAllCommands()
 }
 
-func commandHelp(name string) error {
-	cmd, ok := command.GetCommand(name)
+// runCommandHelp displays help for a specific command
+func runCommandHelp(name string) error {
+	command, ok := command.GetCommand(name)
 	if !ok {
 		fmt.Printf("Unknown command: %s\n", name)
 		return nil
 	}
 
-	if usage := cmd.Usage(); usage != "" {
+	if usage := command.Usage(); usage != "" {
 		fmt.Printf("\033[90mUsage:\033[0m %s\n\n", usage)
 	}
-	fmt.Printf("%s\n\n", cmd.Help())
+	fmt.Printf("%s\n\n", command.Help())
 
-	if aliasesCmd, ok := cmd.(interface{ Aliases() []string }); ok {
+	if aliasesCmd, ok := command.(interface{ Aliases() []string }); ok {
 		aliases := aliasesCmd.Aliases()
 		if len(aliases) > 0 {
 			fmt.Printf("Aliases: %s\n", strings.Join(aliases, ", "))
@@ -48,7 +53,8 @@ func commandHelp(name string) error {
 	return nil
 }
 
-func listAllCommands() error {
+// runListAllCommands lists all available commands
+func runListAllCommands() error {
 	commands := command.AllCommands()
 	sort.Slice(commands, func(i, j int) bool {
 		return commands[i].Name() < commands[j].Name()

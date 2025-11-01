@@ -43,24 +43,24 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// case 2: list branches
-	current, err := repo.GetCurrentBranch()
+	currentBranch, err := repo.GetCurrentBranch()
 	if err != nil {
 		return fmt.Errorf("failed to determine current branch: %w", err)
 	}
 
 	// list all branches
 	fmt.Println("Branches:")
-	all, err := repo.ListBranches()
+	allBranches, err := repo.ListBranches()
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
 
-	for _, br := range all {
+	for _, branch := range allBranches {
 		prefix := "  "
-		if br.Name == current.Name {
+		if branch.Name == currentBranch.Name {
 			prefix = "* "
 		}
-		fmt.Println(prefix + br.Name)
+		fmt.Println(prefix + branch.Name)
 	}
 
 	return nil

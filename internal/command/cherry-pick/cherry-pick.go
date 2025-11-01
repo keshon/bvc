@@ -18,7 +18,9 @@ func (c *Command) Usage() string     { return "cherry-pick <commit-id>" }
 func (c *Command) Brief() string     { return "Apply selected commit to the current branch" }
 func (c *Command) Help() string {
 	return `Apply a specific commit to the current branch.
-Use 'bvc log all' to find the commit ID you want to apply.`
+
+Usage:
+  cherry-pick <commit-id>`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
@@ -26,17 +28,14 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("commit ID required")
 	}
 	commitID := ctx.Args[0]
-	return pickCommit(commitID)
-}
 
-// pickCommit applies the target commit to the current branch
-func pickCommit(commitID string) error {
-	// Open the repository context
+	// open the repository context
 	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
+	// get commit and fileset
 	targetCommit, err := r.GetCommit(commitID)
 	if err != nil {
 		return err
@@ -47,45 +46,45 @@ func pickCommit(commitID string) error {
 		return err
 	}
 
-	// Get current branch
-	GetCurrentBranch, err := r.GetCurrentBranch()
+	// get current branch
+	targetBranch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
-	// Get parent commit
-	parent, err := r.GetLastCommitID(GetCurrentBranch.Name)
+	// get parent commit
+	parent, err := r.GetLastCommitID(targetBranch.Name)
 	if err != nil {
 		return err
 	}
 
-	// Create new commit on current branch referencing the picked commit
+	// create new commit on current branch referencing the picked commit
 	newCommit := repo.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
-		Branch:    GetCurrentBranch.Name,
+		Branch:    targetBranch.Name,
 		Message:   fmt.Sprintf("Pick commit %s", commitID),
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: targetCommit.FilesetID,
 	}
 
-	// Create commit
+	// create commit
 	_, err = r.CreateCommit(&newCommit)
 	if err != nil {
 		return err
 	}
 
-	// Update last commit for the branch
-	if err := r.SetLastCommitID(GetCurrentBranch.Name, newCommit.ID); err != nil {
+	// update last commit for the branch
+	if err := r.SetLastCommitID(targetBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 
-	// Restore files from picked commit
+	// restore files from picked commit
 	if err := r.Storage.Files.Restore(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 
-	fmt.Printf("Picked commit %s into branch '%s' as %s\n", commitID, GetCurrentBranch.Name, newCommit.ID)
+	fmt.Printf("Picked commit %s into branch '%s' as %s\n", commitID, targetBranch.Name, newCommit.ID)
 	return nil
 }
 

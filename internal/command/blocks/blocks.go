@@ -35,16 +35,13 @@ func (c *Command) Run(ctx *command.Context) error {
 		sortMode = strings.ToLower(ctx.Args[0])
 	}
 
-	return runBlocksOverview(sortMode)
-}
-
-func runBlocksOverview(sortMode string) error {
 	// list all blocks
 	blocksMap, err := repotools.ListAllBlocks(false)
 	if err != nil {
 		return err
 	}
 
+	// struct represents a row in output list
 	type Row struct {
 		Hash     string
 		Files    []string

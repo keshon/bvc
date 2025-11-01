@@ -19,13 +19,17 @@ func (c *Command) Usage() string     { return `commit -m "<message>" [--allow-em
 func (c *Command) Brief() string     { return "Commit staged changes to the current branch" }
 func (c *Command) Help() string {
 	return `Create a new commit with the staged changes.
-Supports -m / --message for commit message.
-Supports --allow-empty to commit even if no staged changes exist.`
+
+Usage:
+  commit -m "<message>"               - commit with a given message
+  commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)
+  
+ `
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	var messages []string
-	var allowEmpty bool
+	var messages []string // commit messages
+	var allowEmpty bool   // --allow-empty
 
 	for i := 0; i < len(ctx.Args); i++ {
 		arg := ctx.Args[i]
@@ -56,17 +60,14 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	message := strings.Join(messages, "\n\n")
-	return commitChanges(message, allowEmpty)
-}
 
-func commitChanges(message string, allowEmpty bool) error {
-	// Open the repository context
+	// open the repository context
 	r, err := repo.OpenAt(config.RepoDir)
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Get staged files
+	// get staged files
 	stagedFileentries, err := r.Storage.Files.GetIndexFiles()
 	if err != nil {
 		return err
@@ -76,7 +77,7 @@ func commitChanges(message string, allowEmpty bool) error {
 		return fmt.Errorf("no staged changes to commit")
 	}
 
-	// Create fileset from staged files (empty fileset allowed with --allow-empty)
+	// create fileset from staged files (or empty fileset if --allow-empty)
 	fileset, err := r.Storage.Snapshots.Create(stagedFileentries)
 	if err != nil {
 		return err
@@ -88,41 +89,42 @@ func commitChanges(message string, allowEmpty bool) error {
 		}
 	}
 
-	branch, _ := r.GetCurrentBranch()
+	// create commit
+	currentBranch, _ := r.GetCurrentBranch()
 	parent := ""
-	if last, err := r.GetLastCommitID(branch.Name); err == nil {
+	if last, err := r.GetLastCommitID(currentBranch.Name); err == nil {
 		parent = last
 	}
 
-	commitID := fmt.Sprintf("%x", time.Now().UnixNano())
-	cmt := repo.Commit{
-		ID:        commitID,
+	newCommitID := fmt.Sprintf("%x", time.Now().UnixNano())
+	newCommit := repo.Commit{
+		ID:        newCommitID,
 		Parents:   []string{},
-		Branch:    branch.Name,
+		Branch:    currentBranch.Name,
 		Message:   message,
 		Timestamp: time.Now().Format(time.RFC3339),
 		FilesetID: fileset.ID,
 	}
 	if parent != "" {
-		cmt.Parents = append(cmt.Parents, parent)
+		newCommit.Parents = append(newCommit.Parents, parent)
 	}
 
-	_, err = r.CreateCommit(&cmt)
+	_, err = r.CreateCommit(&newCommit)
 	if err != nil {
 		return err
 	}
-	if err := r.SetLastCommitID(branch.Name, commitID); err != nil {
+	if err := r.SetLastCommitID(currentBranch.Name, newCommitID); err != nil {
 		return err
 	}
 
-	// Clear staged changes after commit
+	// clear staged changes after commit
 	if len(stagedFileentries) > 0 {
 		if err := r.Storage.Files.ClearIndex(); err != nil {
 			return err
 		}
 	}
 
-	fmt.Println("Committed:", commitID)
+	fmt.Println("Committed:", newCommitID)
 	return nil
 }
 
