@@ -11,7 +11,7 @@ import (
 )
 
 // WriteJSON writes a JSON file atomically to prevent corruption.
-func WriteJSON(path string, v any) error {
+var WriteJSON = func(path string, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func WriteJSON(path string, v any) error {
 }
 
 // ReadJSON reads a JSON file and unmarshals it into v
-func ReadJSON(path string, v any) error {
+var ReadJSON = func(path string, v any) error {
 	data, err := fsio.ReadFile(path)
 	if err != nil {
 		return err

@@ -141,3 +141,64 @@ func TestHashFilesetDeterminism(t *testing.T) {
 		t.Errorf("HashFileset should be deterministic regardless of entry order: %s vs %s", hash1, hash2)
 	}
 }
+
+// --- Test SnapshotManager Errors --- //
+func TestSnapshotManager_Errors(t *testing.T) {
+	dir := makeTempDir(t)
+	sm := &snapshot.SnapshotManager{
+		Root:   dir,
+		Files:  nil, // purposely nil
+		Blocks: nil,
+	}
+
+	// 1. Create with no entries
+	_, err := sm.Create(nil)
+	if err == nil {
+		t.Error("expected error for Create with empty entries")
+	}
+
+	// 2. Save with empty ID
+	err = sm.Save(snapshot.Fileset{})
+	if err == nil {
+		t.Error("expected error for Save with empty ID")
+	}
+
+	// 3. WriteAndSave with missing ID
+	fs := &snapshot.Fileset{Files: []file.Entry{{Path: "x"}}}
+	err = sm.WriteAndSave(fs)
+	if err == nil {
+		t.Error("expected error for WriteAndSave with missing ID")
+	}
+
+	// 4. WriteAndSave with no files
+	fs = &snapshot.Fileset{ID: "abc123"}
+	err = sm.WriteAndSave(fs)
+	if err == nil {
+		t.Error("expected error for WriteAndSave with no files")
+	}
+
+	// 5. Load nonexistent fileset
+	_, err = sm.Load("nonexistent-id")
+	if err == nil {
+		t.Error("expected error when loading nonexistent fileset")
+	}
+
+	// 6. List with corrupt JSON file
+	os.MkdirAll(dir, 0o755)
+	badFile := filepath.Join(dir, "bad.json")
+	os.WriteFile(badFile, []byte("{ invalid json"), 0o644)
+	_, err = sm.List()
+	if err == nil {
+		t.Error("expected error from List with bad JSON")
+	}
+
+	// 7. writeFiles() with nil managers
+	fs = &snapshot.Fileset{
+		ID:    "fake",
+		Files: []file.Entry{{Path: "a", Blocks: []block.BlockRef{{Hash: "123"}}}},
+	}
+	err = sm.WriteAndSave(fs)
+	if err == nil {
+		t.Error("expected error from writeFiles with nil managers")
+	}
+}

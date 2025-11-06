@@ -8,7 +8,7 @@ import (
 
 const IsDev = false
 
-const (
+var (
 	RepoDir         = ".bvc"
 	RepoPointerFile = ".bvc-pointer"
 	CommitsDir      = "commits"
