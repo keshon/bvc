@@ -59,7 +59,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Open the repository context
-	r, err := repo.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.DetectRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -86,7 +86,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func reset(targetID, mode string) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.DetectRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -143,7 +143,7 @@ func reset(targetID, mode string) error {
 // resetIndex resets the staging area to the specified fileset
 func resetIndex(filesetID string) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.DetectRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -169,7 +169,7 @@ func resetIndex(filesetID string) error {
 // resetWorkingDirectory restores files to the state of the commit
 func resetWorkingDirectory(filesetID string) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.DetectRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

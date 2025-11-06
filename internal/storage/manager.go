@@ -23,13 +23,16 @@ type Manager struct {
 	Snapshots *snapshot.SnapshotManager
 }
 
-// InitAt sets up the directory structure under root e.g. .bvc/
+// InitAt sets up the directory structure under root (usually .bvc/).
 func InitAt(root string) (*Manager, error) {
+	// Default root
 	if root == "" {
-		root = config.RepoDir
+		root = config.DetectRepoRoot()
 	}
+
 	root = filepath.Clean(root)
 
+	// Ensure required structure exists
 	dirs := []string{
 		filepath.Join(root, config.CommitsDir),
 		filepath.Join(root, config.FilesetsDir),
@@ -46,9 +49,10 @@ func InitAt(root string) (*Manager, error) {
 	return NewManager(root), nil
 }
 
-// NewManager constructs a new Storage Manager.
-// Used by InitAt().
+// NewManager constructs a new storage manager (called by InitAt).
 func NewManager(root string) *Manager {
+	root = filepath.Clean(root)
+
 	m := &Manager{
 		Root:     root,
 		Objects:  filepath.Join(root, config.ObjectsDir),
@@ -56,8 +60,14 @@ func NewManager(root string) *Manager {
 		Branches: filepath.Join(root, config.BranchesDir),
 		Filesets: filepath.Join(root, config.FilesetsDir),
 	}
+
 	m.Blocks = &block.BlockManager{Root: m.Objects}
 	m.Files = &file.FileManager{Root: root, Blocks: m.Blocks}
-	m.Snapshots = &snapshot.SnapshotManager{Root: m.Filesets, Files: m.Files, Blocks: m.Blocks}
+	m.Snapshots = &snapshot.SnapshotManager{
+		Root:   m.Filesets,
+		Files:  m.Files,
+		Blocks: m.Blocks,
+	}
+
 	return m
 }

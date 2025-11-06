@@ -22,7 +22,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 	}
 
 	// Open the repository context
-	r, err := repo.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.DetectRepoRoot())
 	if err != nil {
 		return "", fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -196,7 +196,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// Open the repository context
-	r, err := repo.OpenAt(config.RepoDir)
+	r, err := repo.OpenAt(config.DetectRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

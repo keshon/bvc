@@ -1,7 +1,7 @@
 package repo
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,21 +10,26 @@ import (
 	"app/internal/storage"
 )
 
-// Repository represents an initialized repository at a given path.
-// Prefer creating/opening via InitAt/OpenAt (or Init/Open which use config.RepoDir).
+// RepoConfig represents the repository configuration saved on disk.
+type RepoConfig struct {
+	HashFormat string `json:"hash"`
+}
+
+// Repository represents an initialized repository.
 type Repository struct {
-	Path        string // base repo directory, e.g. ".bvc"
+	Path        string
 	CommitsDir  string
 	FilesetsDir string
 	BranchesDir string
 	ObjectsDir  string
 	HeadFile    string
+	ConfigFile  string
 
+	Config  RepoConfig
 	Storage *storage.Manager
 }
 
 // NewRepository constructs a Repository pointing at path.
-// It does NOT check the filesystem.
 func NewRepository(path string) (*Repository, error) {
 	r := &Repository{
 		Path:        path,
@@ -33,12 +38,15 @@ func NewRepository(path string) (*Repository, error) {
 		BranchesDir: filepath.Join(path, config.BranchesDir),
 		ObjectsDir:  filepath.Join(path, config.ObjectsDir),
 		HeadFile:    filepath.Join(path, config.HeadFile),
+		ConfigFile:  filepath.Join(path, "config.json"),
 	}
-	var err error
-	r.Storage, err = storage.InitAt(path)
-	if err != nil {
 
+	st, err := storage.InitAt(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init storage manager: %w", err)
 	}
+	r.Storage = st
+
 	return r, nil
 }
 
@@ -46,77 +54,85 @@ func NewRepository(path string) (*Repository, error) {
 // Returns (*Repository, created, error).
 // - created=true when the repo did not exist and was created by this call.
 // - created=false when the repo already existed (idempotent).
-func InitAt(path string) (*Repository, bool, error) {
+func InitAt(path string, algo string) (*Repository, bool, error) {
+	if algo == "" {
+		algo = config.DefaultHash
+	}
+
 	r, err := NewRepository(path)
 	if err != nil {
 		return nil, false, err
 	}
-	// If the repo already exists and has HEAD -> not created.
-	if fi, err := os.Stat(r.Path); err == nil && fi.IsDir() {
-		if _, err := os.Stat(r.HeadFile); err == nil {
-			return r, false, fmt.Errorf("repository already initialized at %q", r.Path)
-		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return nil, false, fmt.Errorf("failed to stat HEAD file: %w", err)
-		}
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, false, fmt.Errorf("failed to stat repo dir %q: %w", r.Path, err)
+
+	// Detect already-initialized repo
+	if fi, err := os.Stat(r.HeadFile); err == nil && fi.Mode().IsRegular() {
+		return r, false, os.ErrExist
 	}
 
-	// Create directories (idempotent)
-	dirs := []string{
-		r.Path,
-		r.CommitsDir,
-		r.FilesetsDir,
-		r.BranchesDir,
-		r.ObjectsDir,
-	}
+	// Create directories
+	dirs := []string{r.Path, r.CommitsDir, r.FilesetsDir, r.BranchesDir, r.ObjectsDir}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0o755); err != nil {
-			return nil, false, fmt.Errorf("failed to create directory %q: %w", d, err)
+			return nil, false, fmt.Errorf("failed to create dir %q: %w", d, err)
 		}
 	}
 
-	// Ensure default branch file exists and HEAD points at it.
-	mainHeadPath := filepath.Join(r.BranchesDir, config.DefaultBranch)
-	if _, err := os.Stat(mainHeadPath); errors.Is(err, os.ErrNotExist) {
-		if err := os.WriteFile(mainHeadPath, []byte(""), 0o644); err != nil {
-			return nil, false, fmt.Errorf("failed to create default branch file %q: %w", mainHeadPath, err)
-		}
-		headContent := "ref: branches/" + config.DefaultBranch
-		if err := os.WriteFile(r.HeadFile, []byte(headContent), 0o644); err != nil {
-			return nil, false, fmt.Errorf("failed to write HEAD file %q: %w", r.HeadFile, err)
-		}
-	} else if err != nil {
-		return nil, false, fmt.Errorf("failed to stat default branch file %q: %w", mainHeadPath, err)
+	// Create default branch file
+	mainBranch := filepath.Join(r.BranchesDir, config.DefaultBranch)
+	if err := os.WriteFile(mainBranch, []byte(""), 0o644); err != nil {
+		return nil, false, fmt.Errorf("failed to create default branch: %w", err)
+	}
+
+	// Write HEAD file
+	headContent := "ref: branches/" + config.DefaultBranch
+	if err := os.WriteFile(r.HeadFile, []byte(headContent), 0o644); err != nil {
+		return nil, false, fmt.Errorf("failed to write HEAD: %w", err)
+	}
+
+	// Write repo config
+	r.Config = RepoConfig{HashFormat: algo}
+	data, _ := json.MarshalIndent(r.Config, "", "  ")
+	if err := os.WriteFile(r.ConfigFile, data, 0o644); err != nil {
+		return nil, false, fmt.Errorf("failed to write config.json: %w", err)
+	}
+
+	// Init storage manager
+	r.Storage, err = storage.InitAt(path)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to init storage manager: %w", err)
 	}
 
 	return r, true, nil
 }
 
-// OpenAt opens an existing repository (validates HEAD exists).
+// OpenAt opens an existing repository.
 func OpenAt(path string) (*Repository, error) {
 	r, err := NewRepository(path)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := os.Stat(r.Path); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("repository not found at %q", r.Path)
-		}
-		return nil, fmt.Errorf("failed to stat repo dir %q: %w", r.Path, err)
-	}
+
 	if _, err := os.Stat(r.HeadFile); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("not a repository (missing HEAD) at %q", r.Path)
-		}
-		return nil, fmt.Errorf("failed to stat HEAD file %q: %w", r.HeadFile, err)
+		return nil, fmt.Errorf("not a repository (missing HEAD): %w", err)
 	}
+
+	data, err := os.ReadFile(r.ConfigFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read repo config: %w", err)
+	}
+	if err := json.Unmarshal(data, &r.Config); err != nil {
+		return nil, fmt.Errorf("failed to parse repo config: %w", err)
+	}
+
+	r.Storage, err = storage.InitAt(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init storage: %w", err)
+	}
+
 	return r, nil
 }
 
-// Get root folder where repo dir is stored.
+// Root returns the parent of the repo path.
 func (r *Repository) Root() string {
-	// we need return the folder name that is a parent of the repo folder, not the repo folder itself
-	// if .bvc is in /temp/.bvc, we need to return /temp
 	return filepath.Dir(r.Path)
 }

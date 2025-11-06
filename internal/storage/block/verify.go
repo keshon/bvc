@@ -1,6 +1,8 @@
 package block
 
 import (
+	"app/internal/config"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +11,7 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// VerifyBlock checks a single block for integrity.
+// VerifyBlock checks a single block for integrity using the selected hash.
 func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 	path := filepath.Join(bm.Root, hash+".bin")
 	data, err := os.ReadFile(path)
@@ -19,7 +21,20 @@ func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 		}
 		return Damaged, err
 	}
-	if fmt.Sprintf("%x", xxh3.Hash128(data).Bytes()) == hash {
+
+	var actual string
+	switch config.SelectedHash() {
+	case "xxh3":
+		actual = fmt.Sprintf("%x", xxh3.Hash128(data).Bytes())
+	case "sha256":
+		h := sha256.Sum256(data)
+		actual = fmt.Sprintf("%x", h[:])
+	default:
+		h := xxh3.Hash128(data).Bytes()
+		actual = fmt.Sprintf("%x", h)
+	}
+
+	if actual == hash {
 		return OK, nil
 	}
 	return Damaged, nil
