@@ -1,8 +1,8 @@
 package config
 
 import (
+	"app/internal/fsio"
 	"encoding/json"
-	"os"
 	"path/filepath"
 )
 
@@ -30,7 +30,7 @@ var DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir}
 func GetSelectedHashName() string {
 	cfgPath := filepath.Join(ResolveRepoRoot(), "config.json")
 
-	data, err := os.ReadFile(cfgPath)
+	data, err := fsio.ReadFile(cfgPath)
 	if err != nil {
 		return DefaultHash
 	}
@@ -52,8 +52,8 @@ func ResolveRepoRoot() string {
 	root := RepoDir
 
 	// Check if pointer file exists
-	if fi, err := os.Stat(RepoPointerFile); err == nil && !fi.IsDir() {
-		data, err := os.ReadFile(RepoPointerFile)
+	if fi, err := fsio.StatFile(RepoPointerFile); err == nil && !fi.IsDir() {
+		data, err := fsio.ReadFile(RepoPointerFile)
 		if err == nil {
 			target := filepath.Clean(string(data))
 			if filepath.IsAbs(target) {

@@ -1,1 +1,1 @@
-go test ./internal/tests/repo -v -cover
+go test -coverpkg=./internal/repo ./internal/tests/repo -v -cover

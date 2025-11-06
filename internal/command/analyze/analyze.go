@@ -3,10 +3,10 @@ package analyze
 import (
 	"app/internal/command"
 	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/middleware"
 	"app/internal/repo"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -232,7 +232,7 @@ func stripANSI(s string) string {
 
 func saveExport(content string) {
 	filename := config.RepoDir + "-analyze"
-	_ = os.WriteFile(filepath.Clean(filename), []byte(strings.TrimSpace(content)+"\n"), 0644)
+	_ = fsio.WriteFile(filepath.Clean(filename), []byte(strings.TrimSpace(content)+"\n"), 0644)
 	fmt.Printf("\n\033[90mExported analysis to %s\033[0m\n", filename)
 }
 

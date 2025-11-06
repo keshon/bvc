@@ -109,60 +109,6 @@ func TestStageAndLoadIndex(t *testing.T) {
 	}
 }
 
-// // --- CreateAllEntries / CreateChangedEntries --- //
-// func TestCreateAllAndChangedEntries(t *testing.T) {
-// 	dir := makeTempDir(t)
-// 	defer os.RemoveAll(dir)
-
-// 	fm := &file.FileManager{Root: dir, Blocks: makeBlockManager(t, dir)}
-
-// 	filePath := filepath.Join(dir, "file.txt")
-// 	os.WriteFile(filePath, []byte("content"), 0o644)
-
-// 	// Stage initial file
-// 	entry, _ := fm.CreateEntry(filePath)
-// 	fm.StageFiles([]file.Entry{entry})
-
-// 	all, err := fm.CreateAllEntries()
-// 	if err != nil {
-// 		t.Fatalf("CreateAllEntries failed: %v", err)
-// 	}
-// 	if len(all) == 0 {
-// 		t.Errorf("expected at least 1 entry in CreateAllEntries")
-// 	}
-
-// 	changed, err := fm.CreateChangedEntries()
-// 	if err != nil {
-// 		t.Fatalf("CreateChangedEntries failed: %v", err)
-// 	}
-// 	if len(changed) == 0 {
-// 		t.Errorf("expected at least 1 entry in CreateChangedEntries")
-// 	}
-// }
-
-// // --- Restore --- //
-// func TestRestore(t *testing.T) {
-// 	dir := makeTempDir(t)
-// 	defer os.RemoveAll(dir)
-
-// 	fm := &file.FileManager{Root: dir, Blocks: makeBlockManager(t, dir)}
-
-// 	filePath := filepath.Join(dir, "file.txt")
-// 	os.WriteFile(filePath, []byte("data"), 0o644)
-
-// 	entry, _ := fm.CreateEntry(filePath)
-// 	// first remove the file to force restore
-// 	os.Remove(filePath)
-
-// 	if err := fm.Restore([]file.Entry{entry}, "test"); err != nil {
-// 		t.Fatalf("Restore failed: %v", err)
-// 	}
-
-// 	if _, err := os.Stat(filePath); err != nil {
-// 		t.Errorf("restored file missing: %v", err)
-// 	}
-// }
-
 // --- ListAll --- //
 func TestListAll(t *testing.T) {
 	dir := makeTempDir(t)

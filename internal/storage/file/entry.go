@@ -1,9 +1,9 @@
 package file
 
 import (
+	"app/internal/fsio"
 	"app/internal/storage/block"
 	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -61,6 +61,6 @@ func (fm *FileManager) Write(e Entry) error {
 
 // Exists checks whether a given path exists in the working tree.
 func (fm *FileManager) Exists(path string) bool {
-	_, err := os.Stat(filepath.Clean(path))
+	_, err := fsio.StatFile(filepath.Clean(path))
 	return err == nil
 }

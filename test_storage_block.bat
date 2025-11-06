@@ -1,1 +1,1 @@
-go test ./internal/tests/storage_block -v -cover
+go test -coverpkg=./internal/storage/block ./internal/tests/storage_block -v -cover

@@ -1,6 +1,7 @@
 package file
 
 import (
+	"app/internal/fsio"
 	"app/internal/progress"
 	"app/internal/util"
 	"bufio"
@@ -46,15 +47,15 @@ func (fm *FileManager) Restore(entries []Entry, label string) error {
 }
 
 func (fm *FileManager) restoreFile(e Entry) error {
-	if err := os.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
+	if err := fsio.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
 		return err
 	}
 
-	tmp, err := os.CreateTemp(filepath.Dir(e.Path), "tmp-*")
+	tmp, err := fsio.CreateTempFile(filepath.Dir(e.Path), "tmp-*")
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name())
+	defer fsio.Remove(tmp.Name())
 	defer tmp.Close()
 
 	writer := bufio.NewWriterSize(tmp, 4*1024*1024)
@@ -71,7 +72,7 @@ func (fm *FileManager) restoreFile(e Entry) error {
 	tmp.Sync()
 	tmp.Close()
 
-	return os.Rename(tmp.Name(), e.Path)
+	return fsio.Rename(tmp.Name(), e.Path)
 }
 
 func (fm *FileManager) pruneUntrackedFiles(valid map[string]bool, exe string) {
@@ -88,15 +89,15 @@ func (fm *FileManager) pruneUntrackedFiles(valid map[string]bool, exe string) {
 			return nil
 		}
 		if !valid[filepath.Clean(path)] && filepath.Base(path) != exe {
-			_ = os.Remove(path)
+			_ = fsio.Remove(path)
 		}
 		return nil
 	})
 
 	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
 	for _, d := range dirs {
-		if entries, _ := os.ReadDir(d); len(entries) == 0 {
-			_ = os.Remove(d)
+		if entries, _ := fsio.ReadDir(d); len(entries) == 0 {
+			_ = fsio.Remove(d)
 		}
 	}
 }

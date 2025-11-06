@@ -2,10 +2,10 @@ package storage
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/storage/block"
 	"app/internal/storage/file"
 	"app/internal/storage/snapshot"
@@ -41,7 +41,7 @@ func InitAt(root string) (*Manager, error) {
 	}
 
 	for _, d := range dirs {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		if err := fsio.MkdirAll(d, 0o755); err != nil {
 			return nil, fmt.Errorf("init storage dir %q: %w", d, err)
 		}
 	}

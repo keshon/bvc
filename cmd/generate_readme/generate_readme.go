@@ -6,6 +6,21 @@ import (
 	"os"
 	"sort"
 	"text/template"
+
+	_ "app/internal/command/add"
+	_ "app/internal/command/analyze"
+	_ "app/internal/command/blocks"
+	_ "app/internal/command/branch"
+	_ "app/internal/command/checkout"
+	_ "app/internal/command/cherry-pick"
+	_ "app/internal/command/commit"
+	_ "app/internal/command/help"
+	_ "app/internal/command/init"
+	_ "app/internal/command/log"
+	_ "app/internal/command/merge"
+	_ "app/internal/command/reset"
+	_ "app/internal/command/status"
+	_ "app/internal/command/verify"
 )
 
 func main() {
@@ -22,6 +37,7 @@ func main() {
 	}
 
 	commands := command.AllCommands()
+
 	sort.Slice(commands, func(i, j int) bool {
 		return commands[i].Name() < commands[j].Name()
 	})

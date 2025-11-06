@@ -1,0 +1,1 @@
+go test -coverpkg=./internal/storage/snapshot ./internal/tests/storage_snapshot -v -cover

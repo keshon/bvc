@@ -3,6 +3,7 @@ package init
 import (
 	"app/internal/command"
 	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/middleware"
 	"app/internal/repo"
 	"errors"
@@ -69,7 +70,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	// If separate dir used and not bare, create pointer file in working directory
 	if *sepDir != "" && !*bare {
 		linkFile := filepath.Join(".", config.RepoPointerFile)
-		if err := os.WriteFile(linkFile, []byte(*sepDir), 0o644); err != nil {
+		if err := fsio.WriteFile(linkFile, []byte(*sepDir), 0o644); err != nil {
 			return fmt.Errorf("failed to write separate-bvc-dir pointer file: %w", err)
 		}
 	}

@@ -1,9 +1,9 @@
 package block
 
 import (
+	"app/internal/fsio"
 	"app/internal/util"
 	"fmt"
-	"os"
 	"sync"
 
 	"golang.org/x/exp/mmap"
@@ -13,7 +13,7 @@ import (
 func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
 	const chunkSize = 1 << 30 // 1 GiB per memory-mapped chunk
 
-	fi, err := os.Stat(path)
+	fi, err := fsio.StatFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat file %q: %w", path, err)
 	}

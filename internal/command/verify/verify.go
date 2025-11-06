@@ -2,13 +2,13 @@ package veirfy
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
 	"app/internal/command"
 	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/repotools"
@@ -150,7 +150,7 @@ func repair() error {
 
 	for _, bc := range toFix {
 		targetPath := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
-		_ = os.Remove(targetPath)
+		_ = fsio.Remove(targetPath)
 
 		fixed := false
 
@@ -173,7 +173,7 @@ func repair() error {
 					repaired++
 					break
 				} else {
-					_ = os.Remove(targetPath)
+					_ = fsio.Remove(targetPath)
 				}
 			}
 			if fixed {
@@ -253,7 +253,7 @@ func verifyRepairedBlocks(toFix []block.BlockCheck) int {
 
 // verifyBlockHash checks block hash consistency
 func verifyBlockHash(path, expected string) (bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := fsio.ReadFile(path)
 	if err != nil {
 		return false, err
 	}

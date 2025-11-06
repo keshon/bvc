@@ -1,6 +1,7 @@
 package file
 
 import (
+	"app/internal/fsio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,10 +15,10 @@ func (fm *FileManager) StageFiles(entries []Entry) error {
 	if err != nil {
 		return fmt.Errorf("marshal index: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+	if err := fsio.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
 		return fmt.Errorf("mkdir index dir: %w", err)
 	}
-	return os.WriteFile(indexPath, data, 0644)
+	return fsio.WriteFile(indexPath, data, 0644)
 }
 
 // ClearIndex removes the staging index.
@@ -26,16 +27,16 @@ func (fm *FileManager) ClearIndex() error {
 	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
 		return nil
 	}
-	return os.Remove(indexPath)
+	return fsio.Remove(indexPath)
 }
 
 // GetIndexFiles loads staged entries from disk.
 func (fm *FileManager) GetIndexFiles() ([]Entry, error) {
 	indexPath := filepath.Join(fm.Root, "index.json")
-	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+	if _, err := fsio.StatFile(indexPath); fsio.IsNotExist(err) {
 		return nil, nil
 	}
-	data, err := os.ReadFile(indexPath)
+	data, err := fsio.ReadFile(indexPath)
 	if err != nil {
 		return nil, fmt.Errorf("read index: %w", err)
 	}

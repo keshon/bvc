@@ -1,6 +1,8 @@
 package repotools
 
 import (
+	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/progress"
 	"app/internal/storage"
 	"os"
@@ -47,9 +49,9 @@ func VerifyBlocksStream(allHistory bool) (<-chan block.BlockCheck, <-chan error)
 		defer close(errCh)
 
 		// Open the repo and access its storage manager
-		mgr, err := storage.NewManager(".bvc"), error(nil)
-		if _, statErr := os.Stat(".bvc"); os.IsNotExist(statErr) {
-			errCh <- fmt.Errorf("repository not initialized (missing .bvc)")
+		mgr, err := storage.NewManager(config.ResolveRepoRoot()), error(nil)
+		if _, statErr := fsio.StatFile(config.ResolveRepoRoot()); os.IsNotExist(statErr) {
+			errCh <- fmt.Errorf("%s", "repository not initialized (missing "+config.ResolveRepoRoot()+")")
 			return
 		}
 

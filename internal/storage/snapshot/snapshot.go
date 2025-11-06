@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"app/internal/fsio"
 	"app/internal/progress"
 	"app/internal/storage/block"
 	"app/internal/storage/file"
@@ -66,6 +67,11 @@ func (sm *SnapshotManager) Save(fs Fileset) error {
 	if fs.ID == "" {
 		return fmt.Errorf("invalid fileset: missing ID")
 	}
+
+	if err := fsio.MkdirAll(sm.Root, 0o755); err != nil {
+		return fmt.Errorf("create snapshots dir: %w", err)
+	}
+
 	path := filepath.Join(sm.Root, fs.ID+".json")
 	return util.WriteJSON(path, fs)
 }

@@ -1,17 +1,17 @@
 package block
 
 import (
+	"app/internal/fsio"
 	"app/internal/util"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 )
 
 // Write stores all blocks for a given file.
 func (bm *BlockManager) Write(filePath string, blocks []BlockRef) error {
-	if err := os.MkdirAll(bm.Root, 0o755); err != nil {
+	if err := fsio.MkdirAll(bm.Root, 0o755); err != nil {
 		return fmt.Errorf("create objects dir: %w", err)
 	}
 	workers := util.WorkerCount()
@@ -23,7 +23,7 @@ func (bm *BlockManager) Write(filePath string, blocks []BlockRef) error {
 // Read retrieves a block by its hash.
 func (bm *BlockManager) Read(hash string) ([]byte, error) {
 	path := filepath.Join(bm.Root, hash+".bin")
-	data, err := os.ReadFile(path)
+	data, err := fsio.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read block %q: %w", hash, err)
 	}
@@ -33,26 +33,26 @@ func (bm *BlockManager) Read(hash string) ([]byte, error) {
 func (bm *BlockManager) writeBlockAtomic(filePath string, block BlockRef) error {
 	dst := filepath.Join(bm.Root, block.Hash+".bin")
 
-	if fi, err := os.Stat(dst); err == nil && fi.Size() == block.Size {
+	if fi, err := fsio.StatFile(dst); err == nil && fi.Size() == block.Size {
 		return nil // already exists
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := fsio.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return fmt.Errorf("ensure dir for %q: %w", dst, err)
 	}
 
-	src, err := os.Open(filePath)
+	src, err := fsio.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("open source file %q: %w", filePath, err)
 	}
 	defer src.Close()
 
-	tmp, err := os.CreateTemp(filepath.Dir(dst), ".tmp-*")
+	tmp, err := fsio.CreateTempFile(filepath.Dir(dst), ".tmp-*")
 	if err != nil {
 		return fmt.Errorf("create temp file in %q: %w", filepath.Dir(dst), err)
 	}
 	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
+	defer fsio.Remove(tmpPath)
 
 	if _, err := src.Seek(block.Offset, io.SeekStart); err != nil {
 		tmp.Close()
@@ -71,7 +71,7 @@ func (bm *BlockManager) writeBlockAtomic(filePath string, block BlockRef) error 
 		return fmt.Errorf("close temp file %q: %w", tmpPath, err)
 	}
 
-	if err := os.Rename(tmpPath, dst); err != nil {
+	if err := fsio.Rename(tmpPath, dst); err != nil {
 		return fmt.Errorf("rename temp file %q to %q: %w", tmpPath, dst, err)
 	}
 

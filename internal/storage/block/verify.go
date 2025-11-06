@@ -2,9 +2,9 @@ package block
 
 import (
 	"app/internal/config"
+	"app/internal/fsio"
 	"crypto/sha256"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -14,9 +14,9 @@ import (
 // VerifyBlock checks a single block for integrity using the selected hash.
 func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 	path := filepath.Join(bm.Root, hash+".bin")
-	data, err := os.ReadFile(path)
+	data, err := fsio.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if fsio.IsNotExist(err) {
 			return Missing, nil
 		}
 		return Damaged, err
