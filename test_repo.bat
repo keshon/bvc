@@ -1,0 +1,1 @@
+go test ./internal/tests/repo -v -cover

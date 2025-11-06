@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/storage"
 )
 
@@ -17,7 +18,7 @@ type RepoConfig struct {
 
 // Repository represents an initialized repository.
 type Repository struct {
-	Path        string
+	Root        string
 	CommitsDir  string
 	FilesetsDir string
 	BranchesDir string
@@ -29,24 +30,17 @@ type Repository struct {
 	Storage *storage.Manager
 }
 
-// NewRepository constructs a Repository pointing at path.
-func NewRepository(path string) (*Repository, error) {
+// NewRepository constructs a Repository pointing at root directory.
+func NewRepository(root string) (*Repository, error) {
 	r := &Repository{
-		Path:        path,
-		CommitsDir:  filepath.Join(path, config.CommitsDir),
-		FilesetsDir: filepath.Join(path, config.FilesetsDir),
-		BranchesDir: filepath.Join(path, config.BranchesDir),
-		ObjectsDir:  filepath.Join(path, config.ObjectsDir),
-		HeadFile:    filepath.Join(path, config.HeadFile),
-		ConfigFile:  filepath.Join(path, "config.json"),
+		Root:        filepath.Clean(root),
+		CommitsDir:  filepath.Join(root, config.CommitsDir),
+		FilesetsDir: filepath.Join(root, config.FilesetsDir),
+		BranchesDir: filepath.Join(root, config.BranchesDir),
+		ObjectsDir:  filepath.Join(root, config.ObjectsDir),
+		HeadFile:    filepath.Join(root, config.HeadFile),
+		ConfigFile:  filepath.Join(root, "config.json"),
 	}
-
-	st, err := storage.InitAt(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init storage manager: %w", err)
-	}
-	r.Storage = st
-
 	return r, nil
 }
 
@@ -65,12 +59,12 @@ func InitAt(path string, algo string) (*Repository, bool, error) {
 	}
 
 	// Detect already-initialized repo
-	if fi, err := os.Stat(r.HeadFile); err == nil && fi.Mode().IsRegular() {
+	if fi, err := fsio.StatFile(r.HeadFile); err == nil && fi.Mode().IsRegular() {
 		return r, false, os.ErrExist
 	}
 
 	// Create directories
-	dirs := []string{r.Path, r.CommitsDir, r.FilesetsDir, r.BranchesDir, r.ObjectsDir}
+	dirs := []string{r.Root, r.CommitsDir, r.FilesetsDir, r.BranchesDir, r.ObjectsDir}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return nil, false, fmt.Errorf("failed to create dir %q: %w", d, err)
@@ -79,20 +73,20 @@ func InitAt(path string, algo string) (*Repository, bool, error) {
 
 	// Create default branch file
 	mainBranch := filepath.Join(r.BranchesDir, config.DefaultBranch)
-	if err := os.WriteFile(mainBranch, []byte(""), 0o644); err != nil {
+	if err := fsio.WriteFile(mainBranch, []byte(""), 0o644); err != nil {
 		return nil, false, fmt.Errorf("failed to create default branch: %w", err)
 	}
 
 	// Write HEAD file
 	headContent := "ref: branches/" + config.DefaultBranch
-	if err := os.WriteFile(r.HeadFile, []byte(headContent), 0o644); err != nil {
+	if err := fsio.WriteFile(r.HeadFile, []byte(headContent), 0o644); err != nil {
 		return nil, false, fmt.Errorf("failed to write HEAD: %w", err)
 	}
 
 	// Write repo config
 	r.Config = RepoConfig{HashFormat: algo}
 	data, _ := json.MarshalIndent(r.Config, "", "  ")
-	if err := os.WriteFile(r.ConfigFile, data, 0o644); err != nil {
+	if err := fsio.WriteFile(r.ConfigFile, data, 0o644); err != nil {
 		return nil, false, fmt.Errorf("failed to write config.json: %w", err)
 	}
 
@@ -112,11 +106,11 @@ func OpenAt(path string) (*Repository, error) {
 		return nil, err
 	}
 
-	if _, err := os.Stat(r.HeadFile); err != nil {
+	if _, err := fsio.StatFile(r.HeadFile); err != nil {
 		return nil, fmt.Errorf("not a repository (missing HEAD): %w", err)
 	}
 
-	data, err := os.ReadFile(r.ConfigFile)
+	data, err := fsio.ReadFile(r.ConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read repo config: %w", err)
 	}
@@ -130,9 +124,4 @@ func OpenAt(path string) (*Repository, error) {
 	}
 
 	return r, nil
-}
-
-// Root returns the parent of the repo path.
-func (r *Repository) Root() string {
-	return filepath.Dir(r.Path)
 }

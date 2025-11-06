@@ -58,7 +58,7 @@ func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
 			go func() {
 				defer wg.Done()
 				for item := range hashCh {
-					blockRef := hashBlock(item.data, item.offset)
+					blockRef := HashBlock(item.data, item.offset)
 					mu.Lock()
 					allBlocks = append(allBlocks, blockRef)
 					mu.Unlock()
@@ -68,7 +68,7 @@ func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
 
 		for i := range size {
 			rh = (rh<<1 + uint32(data[i])) & 0xFFFFFFFF
-			if shouldSplitBlock(i-start+1, rh) {
+			if ShouldSplitBlock(i-start+1, rh) {
 				blockSlice := data[start : i+1]
 				hashCh <- struct {
 					data   []byte

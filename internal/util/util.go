@@ -2,11 +2,12 @@ package util
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"sync"
+
+	"app/internal/fsio"
 )
 
 // WriteJSON writes a JSON file atomically to prevent corruption.
@@ -17,13 +18,12 @@ func WriteJSON(path string, v any) error {
 	}
 
 	dir := filepath.Dir(path)
-	tmpFile, err := os.CreateTemp(dir, "tmp-*.json")
+	tmpFile, err := fsio.CreateTempFile(dir, "tmp-*.json")
 	if err != nil {
 		return err
 	}
-
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+	defer fsio.Remove(tmpPath)
 
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
@@ -37,12 +37,12 @@ func WriteJSON(path string, v any) error {
 		return err
 	}
 
-	return os.Rename(tmpPath, path)
+	return fsio.Rename(tmpPath, path)
 }
 
 // ReadJSON reads a JSON file and unmarshals it into v
 func ReadJSON(path string, v any) error {
-	data, err := os.ReadFile(path)
+	data, err := fsio.ReadFile(path)
 	if err != nil {
 		return err
 	}

@@ -21,7 +21,7 @@ type BlockInfo struct {
 // If allHistory is true, collects blocks from all commits in all branches; otherwise only latest commits.
 func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 	// Open the repository context
-	r, err := repo.OpenAt(config.DetectRepoRoot())
+	r, err := repo.OpenAt(config.ResolveRepoRoot())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -86,7 +86,7 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 // If allHistory is true, counts blocks from all commits; otherwise only latest commits.
 func CountBlocks(allHistory bool) (int, error) {
 	// Open the repository context
-	r, err := repo.OpenAt(config.DetectRepoRoot())
+	r, err := repo.OpenAt(config.ResolveRepoRoot())
 	if err != nil {
 		return 0, fmt.Errorf("failed to open repository: %w", err)
 	}

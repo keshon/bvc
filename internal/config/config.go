@@ -9,30 +9,26 @@ import (
 const IsDev = false
 
 const (
-	RepoDir     = ".bvc"
-	CommitsDir  = "commits"
-	FilesetsDir = "filesets"
-	BranchesDir = "branches"
-	ObjectsDir  = "objects"
-	HeadFile    = "HEAD"
-
-	BVCPointerFile = ".bvc-pointer"
+	RepoDir         = ".bvc"
+	RepoPointerFile = ".bvc-pointer"
+	CommitsDir      = "commits"
+	FilesetsDir     = "filesets"
+	BranchesDir     = "branches"
+	ObjectsDir      = "objects"
+	HeadFile        = "HEAD"
 )
 
 const (
 	DefaultBranch = "main"
+	DefaultHash   = "xxh3" // "xxh3" | "sha256"
 )
 
-const (
-	DefaultHash = "xxh3" // "xxh3" | "sha256"
-)
+var DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir}
 
-var IgnoredFiles = []string{BVCPointerFile, RepoDir}
-
-// SelectedHash returns the configured hash algorithm (e.g. "xxh3", "blake3", etc.).
+// GetSelectedHashName returns the configured hash algorithm (e.g. "xxh3", "blake3", etc.).
 // Falls back to "xxh3" if not specified or config is missing.
-func SelectedHash() string {
-	cfgPath := filepath.Join(DetectRepoRoot(), "config.json")
+func GetSelectedHashName() string {
+	cfgPath := filepath.Join(ResolveRepoRoot(), "config.json")
 
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
@@ -51,13 +47,13 @@ func SelectedHash() string {
 	return cfg.Hash
 }
 
-// DetectRepoRoot returns the actual repository root, respecting .bvc-pointer.
-func DetectRepoRoot() string {
+// ResolveRepoRoot returns the actual repository root, respecting .bvc-pointer or .bvc directory.
+func ResolveRepoRoot() string {
 	root := RepoDir
 
 	// Check if pointer file exists
-	if fi, err := os.Stat(BVCPointerFile); err == nil && !fi.IsDir() {
-		data, err := os.ReadFile(BVCPointerFile)
+	if fi, err := os.Stat(RepoPointerFile); err == nil && !fi.IsDir() {
+		data, err := os.ReadFile(RepoPointerFile)
 		if err == nil {
 			target := filepath.Clean(string(data))
 			if filepath.IsAbs(target) {

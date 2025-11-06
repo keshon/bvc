@@ -35,7 +35,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func (c *Command) log(showAll bool) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.DetectRepoRoot())
+	r, err := repo.OpenAt(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

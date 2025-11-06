@@ -27,7 +27,7 @@ type Manager struct {
 func InitAt(root string) (*Manager, error) {
 	// Default root
 	if root == "" {
-		root = config.DetectRepoRoot()
+		root = config.ResolveRepoRoot()
 	}
 
 	root = filepath.Clean(root)

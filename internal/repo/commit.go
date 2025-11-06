@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"app/internal/fsio"
 	"app/internal/storage/snapshot"
 	"app/internal/util"
 )
@@ -41,7 +42,7 @@ func (r *Repository) CreateCommit(commit *Commit) (string, error) {
 // SetLastCommitID writes the branch last-commit pointer.
 func (r *Repository) SetLastCommitID(branch, commitID string) error {
 	path := filepath.Join(r.BranchesDir, branch)
-	if err := os.WriteFile(path, []byte(commitID), 0o644); err != nil {
+	if err := fsio.WriteFile(path, []byte(commitID), 0o644); err != nil {
 		return fmt.Errorf("failed to set last commit for branch %q: %w", branch, err)
 	}
 	return nil
@@ -50,7 +51,7 @@ func (r *Repository) SetLastCommitID(branch, commitID string) error {
 // GetLastCommitID returns the last commit ID for branch.
 func (r *Repository) GetLastCommitID(branch string) (string, error) {
 	path := filepath.Join(r.BranchesDir, branch)
-	data, err := os.ReadFile(path)
+	data, err := fsio.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil

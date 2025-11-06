@@ -23,7 +23,7 @@ func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 	}
 
 	var actual string
-	switch config.SelectedHash() {
+	switch config.GetSelectedHashName() {
 	case "xxh3":
 		actual = fmt.Sprintf("%x", xxh3.Hash128(data).Bytes())
 	case "sha256":

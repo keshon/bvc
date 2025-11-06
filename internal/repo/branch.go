@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"app/internal/fsio"
 	"errors"
 	"fmt"
 	"os"
@@ -40,7 +41,7 @@ func (r *Repository) GetBranch(name string) (Branch, error) {
 
 // ListBranches returns all branches sorted by name.
 func (r *Repository) ListBranches() ([]Branch, error) {
-	dirEntries, err := os.ReadDir(r.BranchesDir)
+	dirEntries, err := fsio.ReadDir(r.BranchesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read branches directory %q: %w", r.BranchesDir, err)
 	}
@@ -64,13 +65,13 @@ func (r *Repository) CreateBranch(name string) (Branch, error) {
 	}
 
 	path := filepath.Join(r.BranchesDir, name)
-	if _, err := os.Stat(path); err == nil {
+	if _, err := fsio.StatFile(path); err == nil {
 		return Branch{}, fmt.Errorf("branch %q already exists: %w", name, os.ErrExist)
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return Branch{}, fmt.Errorf("failed to check branch file %q: %w", path, err)
 	}
 
-	if err := os.WriteFile(path, []byte(lastID), 0o644); err != nil {
+	if err := fsio.WriteFile(path, []byte(lastID), 0o644); err != nil {
 		return Branch{}, fmt.Errorf("failed to write branch file %q: %w", path, err)
 	}
 	return Branch{Name: name}, nil
@@ -78,7 +79,7 @@ func (r *Repository) CreateBranch(name string) (Branch, error) {
 
 // BranchExists checks for branch existence (fast).
 func (r *Repository) BranchExists(name string) (bool, error) {
-	_, err := os.Stat(filepath.Join(r.BranchesDir, name))
+	_, err := fsio.StatFile(filepath.Join(r.BranchesDir, name))
 	if err == nil {
 		return true, nil
 	}

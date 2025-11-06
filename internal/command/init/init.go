@@ -27,7 +27,18 @@ Options:
       --bare                  Create a bare repository.
       --object-format=<algo>  Hash algorithm: xxh3-128 or sha256 (default xxh3-128).
       --separate-bvc-dir=<d>  Store repository data in a separate directory.
-  -b, --initial-branch=<name> Use a custom initial branch name (default: main).`
+  -b, --initial-branch=<name> Use a custom initial branch name (default: main).
+  
+Usage:
+  bvc init [options]
+
+Examples:
+  bvc init
+  bvc init -q
+  bvc init --bare
+  bvc init --separate-bvc-dir=~/.bvc
+  bvc init --initial-branch=master
+`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
@@ -57,7 +68,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// If separate dir used and not bare, create pointer file in working directory
 	if *sepDir != "" && !*bare {
-		linkFile := filepath.Join(".", config.BVCPointerFile)
+		linkFile := filepath.Join(".", config.RepoPointerFile)
 		if err := os.WriteFile(linkFile, []byte(*sepDir), 0o644); err != nil {
 			return fmt.Errorf("failed to write separate-bvc-dir pointer file: %w", err)
 		}
@@ -68,7 +79,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			if !*quiet {
-				fmt.Printf("Reinitialized existing repository at %q\n", r.Path)
+				fmt.Printf("Reinitialized existing repository at %q\n", r.Root)
 			}
 			return nil
 		}
@@ -82,9 +93,9 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	if !*quiet {
 		if created {
-			fmt.Printf("Initialized empty repository in %q\n", r.Path)
+			fmt.Printf("Initialized empty repository in %q\n", r.Root)
 		} else {
-			fmt.Printf("Reinitialized existing repository in %q\n", r.Path)
+			fmt.Printf("Reinitialized existing repository in %q\n", r.Root)
 		}
 	}
 

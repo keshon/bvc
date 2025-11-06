@@ -1,8 +1,8 @@
 package repo
 
 import (
+	"app/internal/fsio"
 	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -12,7 +12,7 @@ func (h HeadRef) String() string { return string(h) }
 
 // GetHeadRef reads HEAD for this repository.
 func (r *Repository) GetHeadRef() (HeadRef, error) {
-	data, err := os.ReadFile(r.HeadFile)
+	data, err := fsio.ReadFile(r.HeadFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read HEAD %q: %w", r.HeadFile, err)
 	}
@@ -36,7 +36,7 @@ func (r *Repository) SetHeadRef(branch string) (HeadRef, error) {
 		refVal = "branches/" + branch
 	}
 	content := "ref: " + refVal
-	if err := os.WriteFile(r.HeadFile, []byte(content), 0o644); err != nil {
+	if err := fsio.WriteFile(r.HeadFile, []byte(content), 0o644); err != nil {
 		return "", fmt.Errorf("failed to write HEAD %q: %w", r.HeadFile, err)
 	}
 	return HeadRef(refVal), nil
