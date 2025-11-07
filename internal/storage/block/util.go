@@ -18,7 +18,7 @@ func HashBlock(data []byte, offset int64) BlockRef {
 
 	cfg := config.NewRepoConfig(config.ResolveRepoRoot())
 
-	switch cfg.GetSelectedHashName() {
+	switch cfg.GetHash() {
 	case "xxh3":
 		hash := xxh3.Hash128(data).Bytes()
 		hashStr = fmt.Sprintf("%x", hash)

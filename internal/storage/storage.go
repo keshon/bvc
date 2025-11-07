@@ -11,15 +11,37 @@ import (
 )
 
 // Manager is the high-level storage abstraction that unifies all subsystems.
-type Manager struct {
+type StorageManager struct {
 	Config    *config.RepoConfig
 	Blocks    *block.BlockManager
 	Files     *file.FileManager
 	Snapshots *snapshot.SnapshotManager
 }
 
+// NewManager constructs a storage manager (internal).
+func NewManager(cfg *config.RepoConfig) *StorageManager {
+	m := &StorageManager{Config: cfg}
+
+	m.Blocks = &block.BlockManager{
+		Root: cfg.ObjectsDir(),
+	}
+
+	m.Files = &file.FileManager{
+		Root:   cfg.WorkingTreeRoot,
+		Blocks: m.Blocks,
+	}
+
+	m.Snapshots = &snapshot.SnapshotManager{
+		Root:   cfg.FilesetsDir(),
+		Files:  m.Files,
+		Blocks: m.Blocks,
+	}
+
+	return m
+}
+
 // InitAt sets up the directory structure under root (usually .bvc/).
-func InitAt(root string) (*Manager, error) {
+func InitAt(root string) (*StorageManager, error) {
 	cfg := config.NewRepoConfig(root)
 
 	dirs := []string{
@@ -39,22 +61,7 @@ func InitAt(root string) (*Manager, error) {
 }
 
 // OpenAt opens a storage manager for an existing repo.
-func OpenAt(root string) (*Manager, error) {
+func OpenAt(root string) (*StorageManager, error) {
 	cfg := config.NewRepoConfig(root)
 	return NewManager(cfg), nil
-}
-
-// NewManager constructs a storage manager (internal).
-func NewManager(cfg *config.RepoConfig) *Manager {
-	m := &Manager{Config: cfg}
-
-	m.Blocks = &block.BlockManager{Root: cfg.ObjectsDir()}
-	m.Files = &file.FileManager{Root: cfg.WorkingTreeRoot, Blocks: m.Blocks}
-	m.Snapshots = &snapshot.SnapshotManager{
-		Root:   cfg.FilesetsDir(),
-		Files:  m.Files,
-		Blocks: m.Blocks,
-	}
-
-	return m
 }

@@ -55,9 +55,9 @@ func (c *RepoConfig) ConfigFile() string  { return c.RepoPath("config.json") }
 
 // Hash Config Loading
 
-// GetSelectedHashName reads hash format from config.json in the repo root.
+// GetHash reads hash format from config.json in the repo root.
 // Returns DefaultHash if not found or invalid.
-func (c *RepoConfig) GetSelectedHashName() string {
+func (c *RepoConfig) GetHash() string {
 	data, err := fsio.ReadFile(c.ConfigFile())
 	if err != nil {
 		return DefaultHash
