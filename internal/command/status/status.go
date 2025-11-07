@@ -6,7 +6,7 @@ import (
 	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,63 +18,105 @@ type Command struct{}
 func (c *Command) Name() string      { return "status" }
 func (c *Command) Short() string     { return "S" }
 func (c *Command) Aliases() []string { return []string{"st"} }
-func (c *Command) Usage() string     { return "status" }
+func (c *Command) Usage() string     { return "status [options]" }
 func (c *Command) Brief() string     { return "Show uncommitted changes" }
 func (c *Command) Help() string {
-	return `List uncommitted changes in the current branch.
-WARNING: Switching branches with pending changes may cause data loss.`
+	return `Show the working tree status.
+
+Options:
+  -s, --short                    Show short summary (one line per file)
+  -b, --branch                   Show branch info
+  -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
+      --ignored                  Show ignored files
+  -q, --quiet                    Suppress normal output
+
+Examples:
+  bvc status
+  bvc status -s
+  bvc status --branch
+  bvc status -u all
+  bvc status --ignored
+`
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	return status()
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+
+	short := fs.Bool("short", false, "")
+	fs.BoolVar(short, "s", false, "alias for --short")
+
+	branch := fs.Bool("branch", false, "")
+	fs.BoolVar(branch, "b", false, "alias for --branch")
+
+	untracked := fs.String("untracked-files", "normal", "")
+	fs.StringVar(untracked, "u", "normal", "alias for --untracked-files")
+
+	ignored := fs.Bool("ignored", false, "")
+	quiet := fs.Bool("quiet", false, "")
+	fs.BoolVar(quiet, "q", false, "alias for --quiet")
+
+	if err := fs.Parse(ctx.Args); err != nil {
+		return err
+	}
+
+	return status(*short, *branch, *untracked, *ignored, *quiet)
 }
 
-func status() error {
-	// Open the repository context
+// status performs the main status logic
+func status(short, showBranch bool, untrackedMode string, showIgnored, quiet bool) error {
 	r, err := repo.OpenAt(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Get current branch
+	// Branch info
 	currentBranch, err := r.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
-
-	// Load last commit's fileset
-	commitID, err := r.GetLastCommitID(currentBranch.Name)
-	if err != nil {
-		return err
+	if showBranch && !quiet {
+		fmt.Printf("On branch %s\n", currentBranch.Name)
 	}
 
-	var lastFileset snapshot.Fileset
-	if commitID != "" {
-		fs, err := r.GetCommitFileset(commitID)
-		if err == nil {
-			lastFileset = *fs
+	// Load last commit snapshot
+	lastFiles := map[string]file.Entry{}
+	if commitID, err := r.GetLastCommitID(currentBranch.Name); err == nil && commitID != "" {
+		if fs, err := r.GetCommitFileset(commitID); err == nil {
+			for _, f := range fs.Files {
+				lastFiles[filepath.Clean(f.Path)] = f
+			}
 		}
 	}
 
-	lastFiles := make(map[string]file.Entry)
-	for _, f := range lastFileset.Files {
-		lastFiles[filepath.Clean(f.Path)] = f
-	}
-
-	// Create current snapshot
+	// Load current snapshot
 	currFS, err := r.Storage.Snapshots.CreateCurrent()
 	if err != nil {
 		return err
 	}
 
-	currFiles := make(map[string]file.Entry)
+	currFiles := map[string]file.Entry{}
 	for _, f := range currFS.Files {
 		currFiles[filepath.Clean(f.Path)] = f
 	}
 
-	var added, modified, deleted []string
+	// Detect changes
+	added, modified, deleted := detectChanges(lastFiles, currFiles)
 
-	// Detect added and modified
+	if quiet {
+		return nil
+	}
+
+	if short {
+		printShort(added, modified, deleted, untrackedMode, showIgnored)
+	} else {
+		printFull(added, modified, deleted, untrackedMode, showIgnored)
+	}
+
+	return nil
+}
+
+// detectChanges compares last and current filesets
+func detectChanges(lastFiles, currFiles map[string]file.Entry) (added, modified, deleted []string) {
 	for path, currFile := range currFiles {
 		if lastFile, exists := lastFiles[path]; !exists {
 			added = append(added, path)
@@ -83,33 +125,68 @@ func status() error {
 		}
 	}
 
-	// Detect deleted
 	for path := range lastFiles {
 		if _, exists := currFiles[path]; !exists {
 			deleted = append(deleted, path)
 		}
 	}
 
-	// Sort for consistent output
+	// deterministic output
 	sort.Strings(added)
 	sort.Strings(modified)
 	sort.Strings(deleted)
 
-	// Display results
-	fmt.Println("Pending changes:")
-	if len(added) == 0 && len(modified) == 0 && len(deleted) == 0 {
-		fmt.Println("  (no uncommitted changes)")
-		return nil
-	}
+	return
+}
 
+// printFull prints the normal status output
+func printFull(added, modified, deleted []string, untrackedMode string, showIgnored bool) {
+	fmt.Println("Pending changes:")
 	printChanges("Added", "+", added)
 	printChanges("Modified", "~", modified)
 	printChanges("Deleted", "-", deleted)
 
-	return nil
+	if untrackedMode != "no" {
+		fmt.Println("Untracked files: (not implemented yet)")
+	}
+	if showIgnored {
+		fmt.Println("Ignored files: (not implemented yet)")
+	}
 }
 
-// printChanges prints a list of files with a prefix and gray-colored path
+// printShort prints a deterministic one-line-per-file summary
+func printShort(added, modified, deleted []string, untrackedMode string, showIgnored bool) {
+	type entry struct {
+		path, status string
+	}
+
+	var all []entry
+	for _, f := range added {
+		all = append(all, entry{f, "A"})
+	}
+	for _, f := range modified {
+		all = append(all, entry{f, "M"})
+	}
+	for _, f := range deleted {
+		all = append(all, entry{f, "D"})
+	}
+
+	// deterministic sort by path
+	sort.Slice(all, func(i, j int) bool { return all[i].path < all[j].path })
+
+	for _, e := range all {
+		printPathWithGrayColor(e.status+" ", e.path)
+	}
+
+	if untrackedMode != "no" {
+		fmt.Println("(untracked files detection not implemented yet)")
+	}
+	if showIgnored {
+		fmt.Println("(ignored files detection not implemented yet)")
+	}
+}
+
+// printChanges prints a section of files with a prefix
 func printChanges(title, prefix string, files []string) {
 	if len(files) == 0 {
 		return
@@ -118,10 +195,10 @@ func printChanges(title, prefix string, files []string) {
 	for _, f := range files {
 		printPathWithGrayColor(prefix, f)
 	}
-	fmt.Print("\n")
+	fmt.Println()
 }
 
-// printPathWithGrayColor prints a single path with formatting
+// printPathWithGrayColor prints a file path with gray-colored directory
 func printPathWithGrayColor(prefix, path string) {
 	dir := filepath.Clean(filepath.Dir(path))
 	if dir == "." || dir == string(os.PathSeparator) {
@@ -131,21 +208,6 @@ func printPathWithGrayColor(prefix, path string) {
 	}
 
 	base := filepath.Base(path)
-	full := dir + base
-
-	const maxLen = 100
-	if len(full) > maxLen {
-		keep := maxLen - len(base) - 3
-		if keep < 10 {
-			keep = 10
-		}
-		if len(dir) > keep {
-			start := dir[:keep/2]
-			end := dir[len(dir)-(keep/2):]
-			dir = start + "..." + end
-		}
-	}
-
 	fmt.Printf("%s \033[90m%s\033[0m%s\n", prefix, dir, base)
 }
 

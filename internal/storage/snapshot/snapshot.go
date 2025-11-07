@@ -3,6 +3,7 @@ package snapshot
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"app/internal/fsio"
 	"app/internal/progress"
@@ -26,15 +27,19 @@ type Fileset struct {
 
 // CreateCurrent builds a Fileset from the current working tree.
 func (sm *SnapshotManager) CreateCurrent() (Fileset, error) {
-	// Use FileManager to list files and create entries (manager-level operations)
 	paths, err := sm.Files.ListAll()
 	if err != nil {
 		return Fileset{}, fmt.Errorf("failed to list files: %w", err)
 	}
+
 	entries, err := sm.Files.CreateEntries(paths)
 	if err != nil {
 		return Fileset{}, fmt.Errorf("failed to create entries: %w", err)
 	}
+
+	// Sort entries by path before computing hash
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+
 	return Fileset{
 		ID:    HashFileset(entries),
 		Files: entries,

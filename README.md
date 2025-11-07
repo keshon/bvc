@@ -97,8 +97,22 @@ Examples:
 
 
 ### log
-`log [-a|--all]`
-List commits for the current branch or all branches if -a / --all is specified.
+`log [options] [branch]`
+Show commit logs.
+
+Options:
+  -a, --all             Show commits from all branches.
+      --oneline         Show each commit as a single line (ID + message).
+  -n <count>            Limit to the last N commits.
+      --since <date>    Show commits after the given date (YYYY-MM-DD).
+      --until <date>    Show commits before the given date (YYYY-MM-DD).
+
+Usage:
+  bvc log
+  bvc log -a
+  bvc log --oneline -n 10
+  bvc log main
+
 
 ### merge
 `merge <branch-name>`
@@ -115,9 +129,23 @@ Modes:
 If <commit-id> is omitted, the last commit is used (mixed).
 
 ### status
-`status`
-List uncommitted changes in the current branch.
-WARNING: Switching branches with pending changes may cause data loss.
+`status [options]`
+Show the working tree status.
+
+Options:
+  -s, --short                    Show short summary (one line per file)
+  -b, --branch                   Show branch info
+  -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
+      --ignored                  Show ignored files
+  -q, --quiet                    Suppress normal output
+
+Examples:
+  bvc status
+  bvc status -s
+  bvc status --branch
+  bvc status -u all
+  bvc status --ignored
+
 
 ### verify
 `verify [--repair|--auto]`

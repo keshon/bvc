@@ -49,7 +49,7 @@ func NewManager(cfg *config.RepoConfig) *Manager {
 	m := &Manager{Config: cfg}
 
 	m.Blocks = &block.BlockManager{Root: cfg.ObjectsDir()}
-	m.Files = &file.FileManager{Root: cfg.Root, Blocks: m.Blocks}
+	m.Files = &file.FileManager{Root: cfg.WorkingTreeRoot, Blocks: m.Blocks}
 	m.Snapshots = &snapshot.SnapshotManager{
 		Root:   cfg.FilesetsDir(),
 		Files:  m.Files,

@@ -4,6 +4,7 @@ import (
 	"app/internal/config"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // ListAll returns all user files in the working directory (excluding .bvc).
@@ -28,5 +29,11 @@ func (fm *FileManager) ListAll() ([]string, error) {
 		paths = append(paths, abs)
 		return nil
 	})
-	return paths, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort for deterministic order
+	sort.Strings(paths)
+	return paths, nil
 }

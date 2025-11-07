@@ -3,6 +3,7 @@ package config
 import (
 	"app/internal/fsio"
 	"encoding/json"
+	"os"
 	"path/filepath"
 )
 
@@ -25,8 +26,9 @@ var (
 
 // RepoConfig represents a resolved repository configuration and layout.
 type RepoConfig struct {
-	Root       string // repository root directory (absolute or relative)
-	HashFormat string `json:"hash"`
+	Root            string // repository root directory (absolute or relative)
+	WorkingTreeRoot string // working tree root directory
+	HashFormat      string `json:"hash"`
 }
 
 // NewRepoConfig creates a RepoConfig for a given root path.
@@ -35,7 +37,9 @@ func NewRepoConfig(root string) *RepoConfig {
 	if root == "" {
 		root = ResolveRepoRoot()
 	}
-	return &RepoConfig{Root: filepath.Clean(root)}
+	cfg := &RepoConfig{Root: root}
+	cfg.WorkingTreeRoot = ResolveWorkingTreeRoot()
+	return cfg
 }
 
 // Derived Path Helpers
@@ -99,4 +103,37 @@ func ResolveRepoRoot() string {
 	}
 
 	return root
+}
+
+// ResolveWorkingTreeRoot determines the working tree root by walking up.
+// It traverses up the directory tree until it finds a .bvc directory or a .bvc-pointer file.
+func ResolveWorkingTreeRoot() string {
+	cwd, _ := os.Getwd()
+	for {
+		bvcDir := filepath.Join(cwd, RepoDir)
+		ptrFile := filepath.Join(cwd, RepoPointerFile)
+
+		if isDir(bvcDir) || fileExists(ptrFile) {
+			return cwd
+		}
+
+		parent := filepath.Dir(cwd)
+		if parent == cwd {
+			break // reached filesystem root
+		}
+		cwd = parent
+	}
+	return "" // not found
+}
+
+// helper: check if path exists and is a directory
+func isDir(path string) bool {
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
+}
+
+// helper: check if path exists (file or dir)
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

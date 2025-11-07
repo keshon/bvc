@@ -1,19 +1,15 @@
 package block
 
 import (
-	"app/internal/fsio"
-	"app/internal/util"
 	"fmt"
-	"sync"
-
-	"golang.org/x/exp/mmap"
+	"os"
 )
 
-// SplitFile divides a file into content-defined blocks.
+// SplitFile divides a file into content-defined blocks deterministically.
 func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
-	const chunkSize = 1 << 30 // 1 GiB per memory-mapped chunk
+	const chunkSize = 1 << 30 // 1 GiB per chunk
 
-	fi, err := fsio.StatFile(path)
+	fi, err := os.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat file %q: %w", path, err)
 	}
@@ -22,6 +18,12 @@ func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
 	var allBlocks []BlockRef
 	var offset int64
 
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open file %q: %w", path, err)
+	}
+	defer file.Close()
+
 	for chunkStart := int64(0); chunkStart < fileSize; chunkStart += chunkSize {
 		chunkEnd := chunkStart + chunkSize
 		if chunkEnd > fileSize {
@@ -29,69 +31,31 @@ func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
 		}
 		size := int(chunkEnd - chunkStart)
 
-		reader, err := mmap.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("open file %q: %w", path, err)
-		}
-
 		data := make([]byte, size)
-		if _, err := reader.ReadAt(data, chunkStart); err != nil {
-			reader.Close()
-			return nil, fmt.Errorf("read mmap chunk %d-%d: %w", chunkStart, chunkEnd, err)
+		if _, err := file.ReadAt(data, chunkStart); err != nil && err.Error() != "EOF" {
+			return nil, fmt.Errorf("read file chunk %d-%d: %w", chunkStart, chunkEnd, err)
 		}
-		reader.Close()
 
 		var rh uint32
 		start := 0
 
-		hashCh := make(chan struct {
-			data   []byte
-			offset int64
-		}, 128)
-
-		var mu sync.Mutex
-		workers := util.WorkerCount()
-		var wg sync.WaitGroup
-		wg.Add(workers)
-
-		for range workers {
-			go func() {
-				defer wg.Done()
-				for item := range hashCh {
-					blockRef := HashBlock(item.data, item.offset)
-					mu.Lock()
-					allBlocks = append(allBlocks, blockRef)
-					mu.Unlock()
-				}
-			}()
-		}
-
-		for i := range size {
+		for i := 0; i < size; i++ {
 			rh = (rh<<1 + uint32(data[i])) & 0xFFFFFFFF
 			if ShouldSplitBlock(i-start+1, rh) {
 				blockSlice := data[start : i+1]
-				hashCh <- struct {
-					data   []byte
-					offset int64
-				}{blockSlice, offset}
-
+				allBlocks = append(allBlocks, HashBlock(blockSlice, offset))
 				offset += int64(i - start + 1)
 				start = i + 1
 				rh = 0
 			}
 		}
 
+		// Remaining block at the end of the chunk
 		if start < size {
 			blockSlice := data[start:size]
-			hashCh <- struct {
-				data   []byte
-				offset int64
-			}{blockSlice, offset}
+			allBlocks = append(allBlocks, HashBlock(blockSlice, offset))
 			offset += int64(size - start)
 		}
-
-		close(hashCh)
-		wg.Wait()
 	}
 
 	return allBlocks, nil
