@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 )
 
 type Command struct{}
@@ -25,7 +27,6 @@ func (c *Command) Help() string {
 
 Options:
   -q, --quiet                 Suppress normal output.
-      --bare                  Create a bare repository.
       --object-format=<algo>  Hash algorithm: xxh3-128 or sha256 (default xxh3-128).
       --separate-bvc-dir=<d>  Store repository data in a separate directory.
   -b, --initial-branch=<name> Use a custom initial branch name (default: main).
@@ -36,7 +37,6 @@ Usage:
 Examples:
   bvc init
   bvc init -q
-  bvc init --bare
   bvc init --separate-bvc-dir=~/.bvc
   bvc init --initial-branch=master
 `
@@ -47,7 +47,6 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	quiet := fs.Bool("quiet", false, "")
 	fs.BoolVar(quiet, "q", false, "alias for --quiet")
-	bare := fs.Bool("bare", false, "")
 	objectFmt := fs.String("object-format", config.DefaultHash, "")
 	sepDir := fs.String("separate-bvc-dir", "", "")
 	initBranch := fs.String("initial-branch", config.DefaultBranch, "")
@@ -57,33 +56,46 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
-	// Determine repoDir
-	repoDir := config.RepoDir
-	if *bare {
-		// bare repository, all data in current dir (no working tree)
-		repoDir = filepath.Join(".", config.RepoDir)
-	} else if *sepDir != "" {
-		// separate directory (like --separate-git-dir)
-		repoDir = *sepDir
+	// Validate requested hash format
+	validHash := slices.Contains(config.Hashes, *objectFmt)
+	if !validHash {
+		return fmt.Errorf("unsupported object format: %q (supported: %s)", *objectFmt, strings.Join(config.Hashes, ", "))
 	}
 
-	// If separate dir used and not bare, create pointer file in working directory
-	if *sepDir != "" && !*bare {
+	// Determine repoDir respecting existing pointer file
+	repoDir := config.ResolveRepoRoot()
+
+	// If --separate-bvc-dir is provided, override pointer
+	if *sepDir != "" {
+		repoDir = *sepDir
 		linkFile := filepath.Join(".", config.RepoPointerFile)
 		if err := fsio.WriteFile(linkFile, []byte(*sepDir), 0o644); err != nil {
 			return fmt.Errorf("failed to write separate-bvc-dir pointer file: %w", err)
 		}
 	}
 
-	// Initialize repository
+	// Check if repo already exists
 	r, created, err := repo.InitAt(repoDir, *objectFmt)
-	if err != nil {
-		if errors.Is(err, os.ErrExist) {
-			if !*quiet {
-				fmt.Printf("Reinitialized existing repository at %q\n", r.Root)
-			}
-			return nil
+	if err != nil && errors.Is(err, os.ErrExist) {
+		// Repo exists, check hash
+		r, err = repo.OpenAt(repoDir)
+		if err != nil {
+			return fmt.Errorf("failed to open existing repository: %w", err)
 		}
+
+		if r.Config.HashFormat != *objectFmt {
+			return fmt.Errorf("attempt to reinitialize repository with different hash (existing: %s, requested: %s)", r.Config.HashFormat, *objectFmt)
+		}
+
+		// Warn if initial branch was specified but repo already exists
+		if *initBranch != config.DefaultBranch {
+			fmt.Fprintf(os.Stderr, "warning: re-init: ignored --initial-branch=%s\n", *initBranch)
+		}
+		if !*quiet {
+			fmt.Printf("Reinitialized existing BVC repository in %s\n", absPath(r.Config.Root))
+		}
+		return nil
+	} else if err != nil {
 		return err
 	}
 
@@ -93,14 +105,23 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	if !*quiet {
+		root := absPath(r.Config.Root)
 		if created {
-			fmt.Printf("Initialized empty repository in %q\n", r.Root)
+			fmt.Printf("Initialized empty BVC repository in %s\n", root)
 		} else {
-			fmt.Printf("Reinitialized existing repository in %q\n", r.Root)
+			fmt.Printf("Reinitialized existing BVC repository in %s\n", root)
 		}
 	}
 
 	return nil
+}
+
+// helper to convert paths to absolute form
+func absPath(path string) string {
+	if p, err := filepath.Abs(path); err == nil {
+		return p
+	}
+	return path
 }
 
 func init() {

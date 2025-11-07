@@ -11,13 +11,10 @@ import (
 	"app/internal/storage/file"
 )
 
+// helpers
 func makeTempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "bvc-file-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	return dir
+	return t.TempDir()
 }
 
 func makeSplitTestFile(t *testing.T, content string) string {
@@ -126,15 +123,12 @@ func TestStageAndLoadIndex(t *testing.T) {
 
 // --- ListAll --- //
 func TestListAll(t *testing.T) {
-	dir := makeTempDir(t)
-	defer os.RemoveAll(dir)
-	_ = os.Chdir(dir)
-
+	dir := t.TempDir()
 	fm := &file.FileManager{Root: dir}
 
-	os.WriteFile("a.txt", []byte("x"), 0o644)
-	os.Mkdir("subdir", 0o755)
-	os.WriteFile("subdir/b.txt", []byte("y"), 0o644)
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("x"), 0o644)
+	os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
+	os.WriteFile(filepath.Join(dir, "subdir/b.txt"), []byte("y"), 0o644)
 
 	all, err := fm.ListAll()
 	if err != nil {

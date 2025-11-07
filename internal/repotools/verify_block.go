@@ -16,14 +16,14 @@ import (
 // VerifyBlocks checks all blocks in repository and shows a progress bar.
 // If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
-func VerifyBlocks(r Repository, onlyLatestCommit bool) error {
-	out, errCh := VerifyBlocksStream(r, onlyLatestCommit)
-	totalBlocks, err := CountBlocks(r, onlyLatestCommit)
+func VerifyBlocks(r Repository, cfg *config.RepoConfig, onlyLatestCommit bool) error {
+	out, errCh := VerifyBlocksStream(r, cfg, onlyLatestCommit)
+	total, err := CountBlocks(r, cfg, onlyLatestCommit)
 	if err != nil {
 		return err
 	}
 
-	bar := progress.NewProgress(totalBlocks, "Checking blocks")
+	bar := progress.NewProgress(total, "Checking blocks")
 	defer bar.Finish()
 
 	for bc := range out {
@@ -42,7 +42,7 @@ func VerifyBlocks(r Repository, onlyLatestCommit bool) error {
 // VerifyBlocksStream streams block verification results.
 // If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
-func VerifyBlocksStream(r Repository, onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
+func VerifyBlocksStream(r Repository, cfg *config.RepoConfig, onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
 	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
@@ -50,27 +50,23 @@ func VerifyBlocksStream(r Repository, onlyLatestCommit bool) (<-chan block.Block
 		defer close(out)
 		defer close(errCh)
 
-		// Open the repo and access its storage manager
-		mgr, err := storage.NewManager(config.ResolveRepoRoot()), error(nil)
-		if _, statErr := fsio.StatFile(config.ResolveRepoRoot()); os.IsNotExist(statErr) {
-			errCh <- fmt.Errorf("%s", "repository not initialized (missing "+config.ResolveRepoRoot()+")")
+		if _, err := fsio.StatFile(cfg.Root); os.IsNotExist(err) {
+			errCh <- fmt.Errorf("repository not initialized (missing %s)", cfg.Root)
 			return
 		}
 
-		// Collect all referenced blocks
-		blocks, err := ListAllBlocks(r, onlyLatestCommit)
+		blocks, err := ListAllBlocks(r, cfg, onlyLatestCommit)
 		if err != nil {
 			errCh <- err
 			return
 		}
 
-		// Prepare hash set
 		hashes := make(map[string]struct{}, len(blocks))
 		for h := range blocks {
 			hashes[h] = struct{}{}
 		}
 
-		// Use the block subsystem under the manager
+		mgr := storage.NewManager(cfg)
 		verifyOut := mgr.Blocks.Verify(hashes, util.WorkerCount())
 
 		for bc := range verifyOut {

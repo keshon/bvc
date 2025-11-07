@@ -15,7 +15,10 @@ func ShouldSplitBlock(size int, rh uint32) bool {
 // hashBlock computes the hash of data using the selected algorithm from config.
 func HashBlock(data []byte, offset int64) BlockRef {
 	var hashStr string
-	switch config.GetSelectedHashName() {
+
+	cfg := config.NewRepoConfig(config.ResolveRepoRoot())
+
+	switch cfg.GetSelectedHashName() {
 	case "xxh3":
 		hash := xxh3.Hash128(data).Bytes()
 		hashStr = fmt.Sprintf("%x", hash)

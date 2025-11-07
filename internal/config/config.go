@@ -6,32 +6,55 @@ import (
 	"path/filepath"
 )
 
-const IsDev = false
-
-var (
-	RepoDir         = ".bvc"
-	RepoPointerFile = ".bvc-pointer"
-	CommitsDir      = "commits"
-	FilesetsDir     = "filesets"
-	BranchesDir     = "branches"
-	ObjectsDir      = "objects"
-	HeadFile        = "HEAD"
-)
+// Constants
 
 const (
+	IsDev = false
+
+	RepoDir         = ".bvc"
+	RepoPointerFile = ".bvc-pointer"
+
 	DefaultBranch = "main"
-	DefaultHash   = "xxh3" // "xxh3" | "sha256"
+	DefaultHash   = "xxh3" // or "sha256"
 )
 
-var DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir}
-var RepoRootOverride string
+var (
+	Hashes              = []string{"xxh3", "sha256"}
+	DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir}
+)
 
-// GetSelectedHashName returns the configured hash algorithm (e.g. "xxh3", "blake3", etc.).
-// Falls back to "xxh3" if not specified or config is missing.
-func GetSelectedHashName() string {
-	cfgPath := filepath.Join(ResolveRepoRoot(), "config.json")
+// RepoConfig represents a resolved repository configuration and layout.
+type RepoConfig struct {
+	Root       string // repository root directory (absolute or relative)
+	HashFormat string `json:"hash"`
+}
 
-	data, err := fsio.ReadFile(cfgPath)
+// NewRepoConfig creates a RepoConfig for a given root path.
+// If root == "", it automatically resolves it using ResolveRepoRoot().
+func NewRepoConfig(root string) *RepoConfig {
+	if root == "" {
+		root = ResolveRepoRoot()
+	}
+	return &RepoConfig{Root: filepath.Clean(root)}
+}
+
+// Derived Path Helpers
+func (c *RepoConfig) RepoPath(parts ...string) string {
+	return filepath.Join(append([]string{c.Root}, parts...)...)
+}
+func (c *RepoConfig) CommitsDir() string  { return c.RepoPath("commits") }
+func (c *RepoConfig) FilesetsDir() string { return c.RepoPath("filesets") }
+func (c *RepoConfig) BranchesDir() string { return c.RepoPath("branches") }
+func (c *RepoConfig) ObjectsDir() string  { return c.RepoPath("objects") }
+func (c *RepoConfig) HeadFile() string    { return c.RepoPath("HEAD") }
+func (c *RepoConfig) ConfigFile() string  { return c.RepoPath("config.json") }
+
+// Hash Config Loading
+
+// GetSelectedHashName reads hash format from config.json in the repo root.
+// Returns DefaultHash if not found or invalid.
+func (c *RepoConfig) GetSelectedHashName() string {
+	data, err := fsio.ReadFile(c.ConfigFile())
 	if err != nil {
 		return DefaultHash
 	}
@@ -39,26 +62,33 @@ func GetSelectedHashName() string {
 	var cfg struct {
 		Hash string `json:"hash"`
 	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return DefaultHash
-	}
-	if cfg.Hash == "" {
+	if err := json.Unmarshal(data, &cfg); err != nil || cfg.Hash == "" {
 		return DefaultHash
 	}
 	return cfg.Hash
 }
 
-// ResolveRepoRoot returns the actual repository root, respecting .bvc-pointer or .bvc directory.
-func ResolveRepoRoot() string {
-	if RepoRootOverride != "" {
-		return RepoRootOverride
+// SaveHash writes the current HashFormat to config.json in the repo.
+func (c *RepoConfig) SaveHash() error {
+	if c.HashFormat == "" {
+		c.HashFormat = DefaultHash
 	}
+	data, err := json.MarshalIndent(struct {
+		Hash string `json:"hash"`
+	}{c.HashFormat}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return fsio.WriteFile(c.ConfigFile(), data, 0o644)
+}
+
+// ResolveRepoRoot determines the actual repository root.
+// It respects the .bvc-pointer file, if it exists.
+func ResolveRepoRoot() string {
 	root := RepoDir
 
-	// Check if pointer file exists
 	if fi, err := fsio.StatFile(RepoPointerFile); err == nil && !fi.IsDir() {
-		data, err := fsio.ReadFile(RepoPointerFile)
-		if err == nil {
+		if data, err := fsio.ReadFile(RepoPointerFile); err == nil {
 			target := filepath.Clean(string(data))
 			if filepath.IsAbs(target) {
 				root = target

@@ -14,64 +14,58 @@ import (
 	"testing"
 )
 
-// --- Helpers ---
+// --- helpers ---
 
-func tmpRepo(t *testing.T) string {
+// tmpRepo creates a temporary repo and returns (dir, cfg)
+func tmpRepo(t *testing.T) (string, *config.RepoConfig) {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "bvc-repotools-*")
-	if err != nil {
-		t.Fatalf("tempdir: %v", err)
-	}
-
-	// Backup globals
-	oldCommits := config.CommitsDir
-	oldFilesets := config.FilesetsDir
-	oldRoot := config.RepoRootOverride
-
-	t.Cleanup(func() {
-		config.CommitsDir = oldCommits
-		config.FilesetsDir = oldFilesets
-		config.RepoRootOverride = oldRoot
-		os.RemoveAll(dir)
-	})
-
-	// Override repo structure
-	config.RepoRootOverride = dir
-	config.CommitsDir = filepath.Join(dir, "commits")
-	config.FilesetsDir = filepath.Join(dir, "filesets")
-
-	os.MkdirAll(config.CommitsDir, 0o755)
-	os.MkdirAll(config.FilesetsDir, 0o755)
-
-	return dir
+	dir := t.TempDir()
+	cfg := config.NewRepoConfig(dir)
+	return dir, cfg
 }
 
+func patchReadJSON(t *testing.T, fn func(string, any) error) {
+	t.Helper()
+	old := util.ReadJSON
+	util.ReadJSON = fn
+	t.Cleanup(func() { util.ReadJSON = old })
+}
+
+func mustJSON(v any) []byte {
+	data, _ := json.Marshal(v)
+	return data
+}
+
+// --- Fake repo for testing ---
 type fakeRepo struct {
 	Branches []string
-	Err      error
 }
 
 func (r *fakeRepo) ListBranches() ([]repo.Branch, error) {
-	if r.Err != nil {
-		return nil, r.Err
+	if r.Branches == nil {
+		return nil, fmt.Errorf("ListBranches failed")
 	}
-	out := []repo.Branch{}
-	for _, n := range r.Branches {
-		out = append(out, repo.Branch{Name: n})
+	var out []repo.Branch
+	for _, name := range r.Branches {
+		out = append(out, repo.Branch{Name: name})
 	}
 	return out, nil
 }
 
 func (r *fakeRepo) AllCommitIDs(branch string) ([]string, error) {
-	if branch == "badall" {
-		return nil, fmt.Errorf("fail allcommit")
+	switch branch {
+	case "badall":
+		return nil, fmt.Errorf("AllCommitIDs failed")
+	case "badlast":
+		return []string{"cX"}, nil // Ensure GetLastCommitID is called
+	default:
+		return []string{"c1"}, nil
 	}
-	return []string{"c1"}, nil
 }
 
 func (r *fakeRepo) GetLastCommitID(branch string) (string, error) {
 	if branch == "badlast" {
-		return "", fmt.Errorf("fail lastcommit")
+		return "", fmt.Errorf("GetLastCommitID failed")
 	}
 	return "c1", nil
 }
@@ -79,18 +73,19 @@ func (r *fakeRepo) GetLastCommitID(branch string) (string, error) {
 // --- Tests ---
 
 func TestListAllBlocks_Success(t *testing.T) {
-	_ = tmpRepo(t)
+	_, cfg := tmpRepo(t)
 
 	r := &fakeRepo{Branches: []string{"main"}}
 
-	// Write a real repo.Commit JSON
+	// Write a commit JSON
 	commit := repo.Commit{
 		ID:        "c1",
 		Branch:    "main",
 		FilesetID: "fs1",
 	}
 	b, _ := json.Marshal(commit)
-	os.WriteFile(filepath.Join(config.CommitsDir, "c1.json"), b, 0o644)
+	os.MkdirAll(cfg.CommitsDir(), 0o755)
+	os.WriteFile(filepath.Join(cfg.CommitsDir(), "c1.json"), b, 0o644)
 
 	// Write snapshot.Fileset JSON
 	fileset := struct {
@@ -121,9 +116,10 @@ func TestListAllBlocks_Success(t *testing.T) {
 		},
 	}
 	b, _ = json.Marshal(fileset)
-	os.WriteFile(filepath.Join(config.FilesetsDir, "fs1.json"), b, 0o644)
+	os.MkdirAll(cfg.FilesetsDir(), 0o755)
+	os.WriteFile(filepath.Join(cfg.FilesetsDir(), "fs1.json"), b, 0o644)
 
-	got, err := repotools.ListAllBlocks(r, true)
+	got, err := repotools.ListAllBlocks(r, cfg, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -134,39 +130,49 @@ func TestListAllBlocks_Success(t *testing.T) {
 		t.Errorf("expected h1 in map")
 	}
 }
-
 func TestListAllBlocks_ErrorBranches(t *testing.T) {
-	_ = tmpRepo(t)
-	r := &fakeRepo{}
+	_, cfg := tmpRepo(t)
 
-	// ListBranches fails
-	r.Err = fmt.Errorf("branchfail")
-	if _, err := repotools.ListAllBlocks(r, true); err == nil {
+	// --- ListBranches fails ---
+	r := &fakeRepo{Branches: nil} // triggers ListBranches error
+	if _, err := repotools.ListAllBlocks(r, cfg, true); err == nil {
 		t.Error("expected error from ListBranches")
 	}
-	r.Err = nil
 
-	// AllCommitIDs fails
-	r.Branches = []string{"badall"}
-	if _, err := repotools.ListAllBlocks(r, false); err == nil {
+	// --- AllCommitIDs fails ---
+	r = &fakeRepo{Branches: []string{"badall"}}
+	if _, err := repotools.ListAllBlocks(r, cfg, false); err == nil {
 		t.Error("expected error from AllCommitIDs")
 	}
 
-	// GetLastCommitID fails
-	r.Branches = []string{"badlast"}
-	if _, err := repotools.ListAllBlocks(r, true); err == nil {
+	// --- GetLastCommitID fails ---
+	r = &fakeRepo{Branches: []string{"badlast"}}
+
+	// ensure commits dir exists
+	if err := os.MkdirAll(cfg.CommitsDir(), 0o755); err != nil {
+		t.Fatalf("failed to create commits dir: %v", err)
+	}
+
+	// write dummy commit for branch "badlast"
+	dummyCommit := map[string]string{"ID": "c1", "Branch": "badlast", "FilesetID": "fs1"}
+	b, _ := json.Marshal(dummyCommit)
+	os.WriteFile(filepath.Join(cfg.CommitsDir(), "c1.json"), b, 0o644)
+
+	// now ListAllBlocks will call GetLastCommitID and trigger the error
+	if _, err := repotools.ListAllBlocks(r, cfg, true); err == nil {
 		t.Error("expected error from GetLastCommitID")
 	}
+
 }
 
 func TestCountBlocks_Success(t *testing.T) {
-	_ = tmpRepo(t)
-
+	_, cfg := tmpRepo(t)
 	r := &fakeRepo{Branches: []string{"main"}}
 
 	commit := repo.Commit{ID: "c1", Branch: "main", FilesetID: "fs1"}
 	b, _ := json.Marshal(commit)
-	os.WriteFile(filepath.Join(config.CommitsDir, "c1.json"), b, 0o644)
+	os.MkdirAll(cfg.CommitsDir(), 0o755)
+	os.WriteFile(filepath.Join(cfg.CommitsDir(), "c1.json"), b, 0o644)
 
 	fileset := struct {
 		Files []struct {
@@ -196,9 +202,10 @@ func TestCountBlocks_Success(t *testing.T) {
 		},
 	}
 	b, _ = json.Marshal(fileset)
-	os.WriteFile(filepath.Join(config.FilesetsDir, "fs1.json"), b, 0o644)
+	os.MkdirAll(cfg.FilesetsDir(), 0o755)
+	os.WriteFile(filepath.Join(cfg.FilesetsDir(), "fs1.json"), b, 0o644)
 
-	n, err := repotools.CountBlocks(r, true)
+	n, err := repotools.CountBlocks(r, cfg, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -208,15 +215,20 @@ func TestCountBlocks_Success(t *testing.T) {
 }
 
 func TestCountBlocks_ErrorCases(t *testing.T) {
-	_ = tmpRepo(t)
-	r := &fakeRepo{Err: fmt.Errorf("branchfail")}
-	if _, err := repotools.CountBlocks(r, true); err == nil {
+	_, cfg := tmpRepo(t)
+
+	// fakeRepo that fails on ListBranches
+	r := &fakeRepo{
+		Branches: nil, // nil triggers ListBranches error
+	}
+
+	if _, err := repotools.CountBlocks(r, cfg, true); err == nil {
 		t.Error("expected branch error")
 	}
 }
 
 func TestVerifyBlocksStream(t *testing.T) {
-	dir := tmpRepo(t)
+	dir, cfg := tmpRepo(t)
 	fsio.MkdirAll(dir, 0o755)
 
 	r := &fakeRepo{Branches: []string{"main"}}
@@ -234,7 +246,7 @@ func TestVerifyBlocksStream(t *testing.T) {
 		return nil
 	})
 
-	out, errCh := repotools.VerifyBlocksStream(r, false)
+	out, errCh := repotools.VerifyBlocksStream(r, cfg, false)
 
 	var got []block.BlockCheck
 	for bc := range out {
@@ -246,25 +258,12 @@ func TestVerifyBlocksStream(t *testing.T) {
 }
 
 func TestVerifyBlocks_MissingRepo(t *testing.T) {
-	dir := tmpRepo(t)
+	dir, cfg := tmpRepo(t)
 	os.RemoveAll(dir)
 
 	r := &fakeRepo{Branches: []string{"main"}}
-	err := repotools.VerifyBlocks(r, false)
+	err := repotools.VerifyBlocks(r, cfg, false)
 	if err == nil {
 		t.Error("expected missing repo error")
 	}
-}
-
-// --- Helpers ---
-func patchReadJSON(t *testing.T, fn func(string, any) error) {
-	t.Helper()
-	old := util.ReadJSON
-	util.ReadJSON = fn
-	t.Cleanup(func() { util.ReadJSON = old })
-}
-
-func mustJSON(v any) []byte {
-	data, _ := json.Marshal(v)
-	return data
 }

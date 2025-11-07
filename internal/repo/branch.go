@@ -41,9 +41,9 @@ func (r *Repository) GetBranch(name string) (Branch, error) {
 
 // ListBranches returns all branches sorted by name.
 func (r *Repository) ListBranches() ([]Branch, error) {
-	dirEntries, err := fsio.ReadDir(r.BranchesDir)
+	dirEntries, err := fsio.ReadDir(r.Config.BranchesDir())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read branches directory %q: %w", r.BranchesDir, err)
+		return nil, fmt.Errorf("failed to read branches directory %q: %w", r.Config.BranchesDir(), err)
 	}
 	branches := make([]Branch, 0, len(dirEntries))
 	for _, e := range dirEntries {
@@ -64,7 +64,7 @@ func (r *Repository) CreateBranch(name string) (Branch, error) {
 		return Branch{}, fmt.Errorf("failed to get last commit ID: %w", err)
 	}
 
-	path := filepath.Join(r.BranchesDir, name)
+	path := filepath.Join(r.Config.BranchesDir(), name)
 	if _, err := fsio.StatFile(path); err == nil {
 		return Branch{}, fmt.Errorf("branch %q already exists: %w", name, os.ErrExist)
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -79,7 +79,7 @@ func (r *Repository) CreateBranch(name string) (Branch, error) {
 
 // BranchExists checks for branch existence (fast).
 func (r *Repository) BranchExists(name string) (bool, error) {
-	_, err := fsio.StatFile(filepath.Join(r.BranchesDir, name))
+	_, err := fsio.StatFile(filepath.Join(r.Config.BranchesDir(), name))
 	if err == nil {
 		return true, nil
 	}

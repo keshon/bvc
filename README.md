@@ -82,7 +82,6 @@ Initialize a new repository in the current directory.
 
 Options:
   -q, --quiet                 Suppress normal output.
-      --bare                  Create a bare repository.
       --object-format=<algo>  Hash algorithm: xxh3-128 or sha256 (default xxh3-128).
       --separate-bvc-dir=<d>  Store repository data in a separate directory.
   -b, --initial-branch=<name> Use a custom initial branch name (default: main).
@@ -93,7 +92,6 @@ Usage:
 Examples:
   bvc init
   bvc init -q
-  bvc init --bare
   bvc init --separate-bvc-dir=~/.bvc
   bvc init --initial-branch=master
 

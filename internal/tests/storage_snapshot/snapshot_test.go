@@ -13,11 +13,7 @@ import (
 // helpers
 func makeTempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "bvc-snapshot-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	return dir
+	return t.TempDir()
 }
 
 func makeBlockManager(t *testing.T, dir string) *block.BlockManager {
@@ -38,15 +34,18 @@ func makeSnapshotManager(t *testing.T, root string, fm *file.FileManager, bm *bl
 // --- Test SnapshotManager CreateCurrent + Create + Save/Load/List --- //
 func TestSnapshotManagerWorkflow(t *testing.T) {
 	root := makeTempDir(t)
-	defer os.RemoveAll(root)
 
 	// setup managers
 	bm := makeBlockManager(t, filepath.Join(root, "blocks"))
 	fm := makeFileManager(t, filepath.Join(root, "files"), bm)
 	sm := makeSnapshotManager(t, filepath.Join(root, "snapshots"), fm, bm)
 
-	// create test file
-	filePath := filepath.Join(root, "test.txt")
+	// create test file INSIDE fm.Root
+	filePath := filepath.Join(fm.Root, "test.txt")
+	// ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		t.Fatalf("failed to create parent directories: %v", err)
+	}
 	content := []byte("snapshot test content")
 	if err := os.WriteFile(filePath, content, 0o644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
@@ -62,7 +61,7 @@ func TestSnapshotManagerWorkflow(t *testing.T) {
 	}
 
 	// Create fileset explicitly from entries
-	entry, err := fm.CreateEntry(filePath)
+	entry, err := fm.CreateEntry(filePath) // full path to file in fm.Root
 	if err != nil {
 		t.Fatalf("CreateEntry failed: %v", err)
 	}

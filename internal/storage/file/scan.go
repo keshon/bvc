@@ -8,17 +8,14 @@ import (
 
 // ListAll returns all user files in the working directory (excluding .bvc).
 func (fm *FileManager) ListAll() ([]string, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
-
+	exe, _ := os.Executable()
 	var paths []string
-	err = filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
+
+	err := filepath.WalkDir(fm.Root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && path == config.RepoDir {
+		if d.IsDir() && d.Name() == config.RepoDir {
 			return filepath.SkipDir
 		}
 		if d.IsDir() {
@@ -28,7 +25,7 @@ func (fm *FileManager) ListAll() ([]string, error) {
 		if abs == exe {
 			return nil
 		}
-		paths = append(paths, path)
+		paths = append(paths, abs)
 		return nil
 	})
 	return paths, err

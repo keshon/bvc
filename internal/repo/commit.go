@@ -23,7 +23,7 @@ type Commit struct {
 // GetCommit reads a commit by ID.
 func (r *Repository) GetCommit(commitID string) (*Commit, error) {
 	var c Commit
-	path := filepath.Join(r.CommitsDir, commitID+".json")
+	path := filepath.Join(r.Config.CommitsDir(), commitID+".json")
 	if err := util.ReadJSON(path, &c); err != nil {
 		return nil, fmt.Errorf("failed to read commit %q: %w", commitID, err)
 	}
@@ -32,7 +32,7 @@ func (r *Repository) GetCommit(commitID string) (*Commit, error) {
 
 // CreateCommit writes a commit to store.
 func (r *Repository) CreateCommit(commit *Commit) (string, error) {
-	path := filepath.Join(r.CommitsDir, commit.ID+".json")
+	path := filepath.Join(r.Config.CommitsDir(), commit.ID+".json")
 	if err := util.WriteJSON(path, commit); err != nil {
 		return "", fmt.Errorf("failed to write commit %q: %w", commit.ID, err)
 	}
@@ -41,7 +41,7 @@ func (r *Repository) CreateCommit(commit *Commit) (string, error) {
 
 // SetLastCommitID writes the branch last-commit pointer.
 func (r *Repository) SetLastCommitID(branch, commitID string) error {
-	path := filepath.Join(r.BranchesDir, branch)
+	path := filepath.Join(r.Config.BranchesDir(), branch)
 	if err := fsio.WriteFile(path, []byte(commitID), 0o644); err != nil {
 		return fmt.Errorf("failed to set last commit for branch %q: %w", branch, err)
 	}
@@ -50,7 +50,7 @@ func (r *Repository) SetLastCommitID(branch, commitID string) error {
 
 // GetLastCommitID returns the last commit ID for branch.
 func (r *Repository) GetLastCommitID(branch string) (string, error) {
-	path := filepath.Join(r.BranchesDir, branch)
+	path := filepath.Join(r.Config.BranchesDir(), branch)
 	data, err := fsio.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

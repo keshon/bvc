@@ -12,41 +12,33 @@ import (
 	"testing"
 )
 
-// Helper to create a temporary directory and switch into it
-func tmpWorkDir(t *testing.T) string {
+// helpers
+func makeTempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "bvc-init-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-
-	oldDir, _ := os.Getwd()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to chdir to temp dir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		os.Chdir(oldDir)
-		os.RemoveAll(dir)
-	})
-
-	return dir
+	return t.TempDir()
 }
 
 // Run the init command with args in the current working directory
-func runInit(t *testing.T, args ...string) error {
+func runInitAt(t *testing.T, workDir string, args ...string) error {
 	t.Helper()
+	old, _ := os.Getwd()
+	defer os.Chdir(old)
+
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatal(err)
+	}
+
 	cmd := &initcmd.Command{}
 	ctx := &command.Context{Args: args}
 	return cmd.Run(ctx)
 }
 
 // Check if a repository was created
-func checkRepoExists(t *testing.T, path string) *repo.Repository {
+func checkRepoExists(t *testing.T, repoPath string) *repo.Repository {
 	t.Helper()
-	r, err := repo.OpenAt(path)
+	r, err := repo.OpenAt(repoPath)
 	if err != nil {
-		t.Fatalf("expected repository at %q, got error: %v", path, err)
+		t.Fatalf("expected repository at %q, got error: %v", repoPath, err)
 	}
 	return r
 }
@@ -54,53 +46,47 @@ func checkRepoExists(t *testing.T, path string) *repo.Repository {
 // --- Tests ---
 
 func TestInit_DefaultRepo(t *testing.T) {
-	tmpWorkDir(t)
-	if err := runInit(t); err != nil {
+	dir := t.TempDir()
+	repoDir := filepath.Join(dir, ".bvc")
+
+	if err := runInitAt(t, dir); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
-	r := checkRepoExists(t, ".bvc")
+
+	r := checkRepoExists(t, repoDir)
 	if r.Config.HashFormat != config.DefaultHash {
 		t.Errorf("expected hash %q, got %q", config.DefaultHash, r.Config.HashFormat)
 	}
 }
 
 func TestInit_CustomInitialBranch(t *testing.T) {
-	tmpWorkDir(t)
+	dir := t.TempDir()
+	repoDir := filepath.Join(dir, ".bvc")
+
 	args := []string{"--initial-branch", "dev"}
-	if err := runInit(t, args...); err != nil {
+	if err := runInitAt(t, dir, args...); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
-	r := checkRepoExists(t, ".bvc")
+
+	r := checkRepoExists(t, repoDir)
 	head, _ := r.GetHeadRef()
 	if !strings.HasSuffix(head.String(), "dev") {
 		t.Errorf("expected HEAD to point to dev branch, got %q", head)
 	}
 }
-
-func TestInit_BareRepo(t *testing.T) {
-	tmpWorkDir(t)
-	args := []string{"--bare"}
-	if err := runInit(t, args...); err != nil {
-		t.Fatalf("init failed: %v", err)
-	}
-	r := checkRepoExists(t, filepath.Join(".", config.RepoDir))
-	if r == nil {
-		t.Fatal("bare repository not created")
-	}
-}
-
 func TestInit_SeparateDir(t *testing.T) {
-	dir := tmpWorkDir(t)
+	dir := t.TempDir()
 	sep := filepath.Join(dir, "myrepo")
-	args := []string{"--separate-bvc-dir", sep}
-	if err := runInit(t, args...); err != nil {
+
+	if err := runInitAt(t, dir, "--separate-bvc-dir", sep); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 
-	// Pointer file created in working dir
-	data, err := fsio.ReadFile(config.RepoPointerFile)
+	// pointer file
+	pointerFile := filepath.Join(dir, config.RepoPointerFile)
+	data, err := fsio.ReadFile(pointerFile)
 	if err != nil {
-		t.Fatalf("expected pointer file in working dir, got error: %v", err)
+		t.Fatalf("expected pointer file, got error: %v", err)
 	}
 	if string(data) != sep {
 		t.Errorf("expected pointer file content %q, got %q", sep, string(data))
@@ -113,21 +99,88 @@ func TestInit_SeparateDir(t *testing.T) {
 }
 
 func TestInit_ReinitExistingRepo(t *testing.T) {
-	dir := tmpWorkDir(t)
+	dir := makeTempDir(t)
 	repoDir := filepath.Join(dir, config.RepoDir)
 	_, _, _ = repo.InitAt(repoDir, config.DefaultHash)
 
 	// Re-init should succeed silently in quiet mode
 	args := []string{"--quiet"}
-	if err := runInit(t, args...); err != nil {
+	if err := runInitAt(t, dir, args...); err != nil {
 		t.Fatalf("re-init failed: %v", err)
 	}
 }
 
 func TestInit_QuietMode(t *testing.T) {
-	tmpWorkDir(t)
+	dir := makeTempDir(t)
 	args := []string{"--quiet"}
-	if err := runInit(t, args...); err != nil {
+	if err := runInitAt(t, dir, args...); err != nil {
 		t.Fatalf("init failed in quiet mode: %v", err)
+	}
+}
+
+func TestInit_RespectsPointerFile(t *testing.T) {
+	dir := makeTempDir(t)
+	sep := filepath.Join(dir, "myrepo")
+
+	// init with separate dir
+	if err := runInitAt(t, dir, "--separate-bvc-dir", sep); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	// now re-init without --separate-bvc-dir
+	if err := runInitAt(t, dir); err != nil {
+		t.Fatalf("re-init failed: %v", err)
+	}
+
+	r := checkRepoExists(t, sep)
+	if r == nil {
+		t.Fatal("repo not found at pointer location after re-init")
+	}
+}
+
+func TestInit_InvalidHash(t *testing.T) {
+	dir := makeTempDir(t)
+	args := []string{"--object-format", "sha251"} // invalid
+	err := runInitAt(t, dir, args...)
+	if err == nil || !strings.Contains(err.Error(), "unsupported object format") {
+		t.Fatalf("expected unsupported object format error, got: %v", err)
+	}
+}
+
+func TestInit_ReinitDifferentHash(t *testing.T) {
+	dir := makeTempDir(t)
+	// init with default hash
+	if err := runInitAt(t, dir, "--object-format", "xxh3"); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	// try to re-init with sha256
+	err := runInitAt(t, dir, "--object-format", "sha256")
+	if err == nil || !strings.Contains(err.Error(), "different hash") {
+		t.Fatalf("expected error for different hash, got: %v", err)
+	}
+}
+
+func TestInit_IgnoredInitialBranch(t *testing.T) {
+	dir := t.TempDir()
+	repoDir := filepath.Join(dir, ".bvc")
+
+	// init default
+	if err := runInitAt(t, dir); err != nil {
+		t.Fatalf("init failed: %v", err)
+	}
+
+	// re-init with custom branch
+	args := []string{"--initial-branch", "dev"}
+	err := runInitAt(t, dir, args...)
+	if err != nil {
+		t.Fatalf("re-init failed: %v", err)
+	}
+
+	// HEAD should still be default
+	r := checkRepoExists(t, repoDir)
+	head, _ := r.GetHeadRef()
+	if !strings.HasSuffix(head.String(), config.DefaultBranch) {
+		t.Errorf("HEAD branch changed unexpectedly: got %s", head)
 	}
 }

@@ -49,7 +49,7 @@ func scan() error {
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
-	out, errCh := repotools.VerifyBlocksStream(r, true)
+	out, errCh := repotools.VerifyBlocksStream(r, r.Config, true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
 
@@ -112,7 +112,7 @@ func repair() error {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	out, errCh := repotools.VerifyBlocksStream(r, true)
+	out, errCh := repotools.VerifyBlocksStream(r, r.Config, true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
 
@@ -153,7 +153,7 @@ func repair() error {
 	var fixedList, failedList []block.BlockCheck
 
 	for _, bc := range toFix {
-		targetPath := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
+		targetPath := filepath.Join(r.Config.ObjectsDir(), bc.Hash+".bin")
 		_ = fsio.Remove(targetPath)
 
 		fixed := false
@@ -241,8 +241,10 @@ func verifyRepairedBlocks(toFix []block.BlockCheck) int {
 	fmt.Println("\nVerifying repaired blocks...")
 	failed := 0
 
+	cfg := config.NewRepoConfig(config.ResolveRepoRoot())
+
 	for _, bc := range toFix {
-		path := filepath.Join(config.ObjectsDir, bc.Hash+".bin")
+		path := filepath.Join(cfg.ObjectsDir(), bc.Hash+".bin")
 		ok, _ := verifyBlockHash(path, bc.Hash)
 		if !ok {
 			failed++

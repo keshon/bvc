@@ -11,7 +11,7 @@ import (
 	"app/internal/repo"
 )
 
-// --- Helper functions --- //
+// helpers
 var (
 	ReadFileFunc  = os.ReadFile
 	WriteFileFunc = os.WriteFile
@@ -51,8 +51,7 @@ func simulateStatError() func() {
 	return func() { fsio.StatFile = orig }
 }
 
-// --- Tests --- //
-
+// --- InitAt/OpenAt --- //
 func TestInitAndOpenRepository(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -64,12 +63,12 @@ func TestInitAndOpenRepository(t *testing.T) {
 	if !created {
 		t.Errorf("expected repo to be created")
 	}
-	if r.Root != tmp {
-		t.Errorf("expected Root=%q got %q", tmp, r.Root)
+	if r.Config.Root != tmp {
+		t.Errorf("expected Root=%q got %q", tmp, r.Config.Root)
 	}
 
 	// Check HEAD file
-	headData, err := os.ReadFile(r.HeadFile)
+	headData, err := os.ReadFile(r.Config.HeadFile())
 	if err != nil {
 		t.Fatalf("failed to read HEAD: %v", err)
 	}
@@ -87,6 +86,7 @@ func TestInitAndOpenRepository(t *testing.T) {
 	}
 }
 
+// --- Branches --- //
 func TestBranchCreationAndListing(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -133,6 +133,7 @@ func TestBranchCreationAndListing(t *testing.T) {
 	}
 }
 
+// --- Commits --- //
 func TestCommitsLifecycle(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -201,6 +202,7 @@ func TestCommitsLifecycle(t *testing.T) {
 	}
 }
 
+// --- HeadRef --- //
 func TestHeadRefSetAndGet(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -227,6 +229,7 @@ func TestHeadRefSetAndGet(t *testing.T) {
 	}
 }
 
+// --- Storage --- //
 func TestRepositoryStorageIntegration(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -239,11 +242,12 @@ func TestRepositoryStorageIntegration(t *testing.T) {
 	if r.Storage == nil {
 		t.Errorf("expected storage manager to be initialized")
 	}
-	if r.Storage.Root != r.Root {
-		t.Errorf("expected storage.Root=%s got %s", r.Root, r.Storage.Root)
+	if r.Storage.Config.Root != r.Config.Root {
+		t.Errorf("expected storage.Root=%s got %s", r.Config.Root, r.Storage.Config.Root)
 	}
 }
 
+// --- InitAt/OpenAt existing repo --- //
 func TestInitAtExistingRepo(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -262,6 +266,7 @@ func TestInitAtExistingRepo(t *testing.T) {
 	}
 }
 
+// --- OpenAt non-existent repo --- //
 func TestOpenAtNonexistentRepo(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -272,6 +277,7 @@ func TestOpenAtNonexistentRepo(t *testing.T) {
 	}
 }
 
+// --- Errors for branch simulation --- //
 func TestBranchErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -306,6 +312,7 @@ func TestBranchErrorsSimulation(t *testing.T) {
 	}
 }
 
+// --- Errors for commit simulation --- //
 func TestCommitErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -369,6 +376,7 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	}
 }
 
+// --- Errors for HEAD simulation --- //
 func TestHeadErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -393,6 +401,7 @@ func TestHeadErrorsSimulation(t *testing.T) {
 	}
 }
 
+// --- AllCommitIDs cycles --- //
 func TestAllCommitIDsCycles(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)

@@ -22,8 +22,10 @@ func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 		return Damaged, err
 	}
 
+	cfg := config.NewRepoConfig(bm.Root)
+
 	var actual string
-	switch config.GetSelectedHashName() {
+	switch cfg.GetSelectedHashName() {
 	case "xxh3":
 		actual = fmt.Sprintf("%x", xxh3.Hash128(data).Bytes())
 	case "sha256":

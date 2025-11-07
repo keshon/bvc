@@ -9,13 +9,10 @@ import (
 	"app/internal/storage/block"
 )
 
+// helpers
 func makeTempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "bvc-block-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	return dir
+	return t.TempDir()
 }
 
 // --- CleanupTemp tests --- //
