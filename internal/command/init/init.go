@@ -47,7 +47,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	quiet := fs.Bool("quiet", false, "")
 	fs.BoolVar(quiet, "q", false, "alias for --quiet")
-	objectFmt := fs.String("object-format", config.DefaultHash, "")
+	targetHash := fs.String("object-format", config.DefaultHash, "")
 	sepDir := fs.String("separate-bvc-dir", "", "")
 	initBranch := fs.String("initial-branch", config.DefaultBranch, "")
 	fs.StringVar(initBranch, "b", config.DefaultBranch, "alias for --initial-branch")
@@ -57,9 +57,9 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Validate requested hash format
-	validHash := slices.Contains(config.Hashes, *objectFmt)
+	validHash := slices.Contains(config.Hashes, *targetHash)
 	if !validHash {
-		return fmt.Errorf("unsupported object format: %q (supported: %s)", *objectFmt, strings.Join(config.Hashes, ", "))
+		return fmt.Errorf("unsupported object format: %q (supported: %s)", *targetHash, strings.Join(config.Hashes, ", "))
 	}
 
 	// Determine repoDir respecting existing pointer file
@@ -75,7 +75,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Check if repo already exists
-	r, created, err := repo.InitAt(repoDir, *objectFmt)
+	r, created, err := repo.InitAt(repoDir, *targetHash)
 	if err != nil && errors.Is(err, os.ErrExist) {
 		// Repo exists, check hash
 		r, err = repo.OpenAt(repoDir)
@@ -83,8 +83,8 @@ func (c *Command) Run(ctx *command.Context) error {
 			return fmt.Errorf("failed to open existing repository: %w", err)
 		}
 
-		if r.Config.HashFormat != *objectFmt {
-			return fmt.Errorf("attempt to reinitialize repository with different hash (existing: %s, requested: %s)", r.Config.HashFormat, *objectFmt)
+		if r.Config.HashFormat != *targetHash {
+			return fmt.Errorf("attempt to reinitialize repository with different hash (existing: %s, requested: %s)", r.Config.HashFormat, *targetHash)
 		}
 
 		// Warn if initial branch was specified but repo already exists
