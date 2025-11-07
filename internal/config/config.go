@@ -24,6 +24,7 @@ const (
 )
 
 var DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir}
+var RepoRootOverride string
 
 // GetSelectedHashName returns the configured hash algorithm (e.g. "xxh3", "blake3", etc.).
 // Falls back to "xxh3" if not specified or config is missing.
@@ -49,6 +50,9 @@ func GetSelectedHashName() string {
 
 // ResolveRepoRoot returns the actual repository root, respecting .bvc-pointer or .bvc directory.
 func ResolveRepoRoot() string {
+	if RepoRootOverride != "" {
+		return RepoRootOverride
+	}
 	root := RepoDir
 
 	// Check if pointer file exists

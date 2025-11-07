@@ -3,6 +3,7 @@ package repotools_test
 import (
 	"app/internal/config"
 	"app/internal/fsio"
+	"app/internal/repo"
 	"app/internal/repotools"
 	"app/internal/storage/block"
 	"app/internal/util"
@@ -21,11 +22,27 @@ func tmpRepo(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("tempdir: %v", err)
 	}
-	// Override repo dirs
+
+	// Backup globals
+	oldCommits := config.CommitsDir
+	oldFilesets := config.FilesetsDir
+	oldRoot := config.RepoRootOverride
+
+	t.Cleanup(func() {
+		config.CommitsDir = oldCommits
+		config.FilesetsDir = oldFilesets
+		config.RepoRootOverride = oldRoot
+		os.RemoveAll(dir)
+	})
+
+	// Override repo structure
+	config.RepoRootOverride = dir
 	config.CommitsDir = filepath.Join(dir, "commits")
 	config.FilesetsDir = filepath.Join(dir, "filesets")
+
 	os.MkdirAll(config.CommitsDir, 0o755)
 	os.MkdirAll(config.FilesetsDir, 0o755)
+
 	return dir
 }
 
@@ -34,13 +51,13 @@ type fakeRepo struct {
 	Err      error
 }
 
-func (r *fakeRepo) ListBranches() ([]struct{ Name string }, error) {
+func (r *fakeRepo) ListBranches() ([]repo.Branch, error) {
 	if r.Err != nil {
 		return nil, r.Err
 	}
-	out := []struct{ Name string }{}
+	out := []repo.Branch{}
 	for _, n := range r.Branches {
-		out = append(out, struct{ Name string }{Name: n})
+		out = append(out, repo.Branch{Name: n})
 	}
 	return out, nil
 }
@@ -59,40 +76,54 @@ func (r *fakeRepo) GetLastCommitID(branch string) (string, error) {
 	return "c1", nil
 }
 
-var repoOpenAt func(string) (interface{}, error)
-
-// Override util.ReadJSON temporarily
-func patchReadJSON(t *testing.T, fn func(string, any) error) {
-	t.Helper()
-	old := util.ReadJSON
-	util.ReadJSON = fn
-	t.Cleanup(func() { util.ReadJSON = old })
-}
-
 // --- Tests ---
 
 func TestListAllBlocks_Success(t *testing.T) {
-	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
+	_ = tmpRepo(t)
 
-	// Fake repo with one branch
 	r := &fakeRepo{Branches: []string{"main"}}
-	repoOpenAt = func(string) (interface{}, error) { return r, nil }
 
-	// Create fake commit and fileset data
-	commitPath := filepath.Join(config.CommitsDir, "c1.json")
-	filesetPath := filepath.Join(config.FilesetsDir, "fs1.json")
+	// Write a real repo.Commit JSON
+	commit := repo.Commit{
+		ID:        "c1",
+		Branch:    "main",
+		FilesetID: "fs1",
+	}
+	b, _ := json.Marshal(commit)
+	os.WriteFile(filepath.Join(config.CommitsDir, "c1.json"), b, 0o644)
 
-	commitData := map[string]string{"FilesetID": "fs1"}
-	fsData := map[string]any{"Files": []map[string]any{
-		{"Path": "a.txt", "Blocks": []map[string]any{{"Hash": "h1", "Size": 123}}},
-	}}
+	// Write snapshot.Fileset JSON
+	fileset := struct {
+		Files []struct {
+			Path   string
+			Blocks []struct {
+				Hash string
+				Size int64
+			}
+		}
+	}{
+		Files: []struct {
+			Path   string
+			Blocks []struct {
+				Hash string
+				Size int64
+			}
+		}{
+			{
+				Path: "a.txt",
+				Blocks: []struct {
+					Hash string
+					Size int64
+				}{
+					{Hash: "h1", Size: 123},
+				},
+			},
+		},
+	}
+	b, _ = json.Marshal(fileset)
+	os.WriteFile(filepath.Join(config.FilesetsDir, "fs1.json"), b, 0o644)
 
-	os.WriteFile(commitPath, mustJSON(commitData), 0o644)
-	os.WriteFile(filesetPath, mustJSON(fsData), 0o644)
-
-	// Real util.ReadJSON works fine
-	got, err := repotools.ListAllBlocks(false)
+	got, err := repotools.ListAllBlocks(r, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -105,55 +136,69 @@ func TestListAllBlocks_Success(t *testing.T) {
 }
 
 func TestListAllBlocks_ErrorBranches(t *testing.T) {
-	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
+	_ = tmpRepo(t)
+	r := &fakeRepo{}
 
-	// --- Case: repo.OpenAt fails
-	repoOpenAt = func(string) (interface{}, error) { return nil, fmt.Errorf("openfail") }
-	if _, err := repotools.ListAllBlocks(false); err == nil {
-		t.Error("expected error from repo.OpenAt")
-	}
-
-	// --- Case: ListBranches fails
-	repoOpenAt = func(string) (interface{}, error) {
-		return &fakeRepo{Err: fmt.Errorf("branchfail")}, nil
-	}
-	if _, err := repotools.ListAllBlocks(false); err == nil {
+	// ListBranches fails
+	r.Err = fmt.Errorf("branchfail")
+	if _, err := repotools.ListAllBlocks(r, true); err == nil {
 		t.Error("expected error from ListBranches")
 	}
+	r.Err = nil
 
-	// --- Case: AllCommitIDs fails
-	repoOpenAt = func(string) (interface{}, error) {
-		return &fakeRepo{Branches: []string{"badall"}}, nil
-	}
-	if _, err := repotools.ListAllBlocks(true); err == nil {
+	// AllCommitIDs fails
+	r.Branches = []string{"badall"}
+	if _, err := repotools.ListAllBlocks(r, false); err == nil {
 		t.Error("expected error from AllCommitIDs")
 	}
 
-	// --- Case: GetLastCommitID fails
-	repoOpenAt = func(string) (interface{}, error) {
-		return &fakeRepo{Branches: []string{"badlast"}}, nil
-	}
-	if _, err := repotools.ListAllBlocks(false); err == nil {
+	// GetLastCommitID fails
+	r.Branches = []string{"badlast"}
+	if _, err := repotools.ListAllBlocks(r, true); err == nil {
 		t.Error("expected error from GetLastCommitID")
 	}
 }
 
 func TestCountBlocks_Success(t *testing.T) {
-	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
+	_ = tmpRepo(t)
 
 	r := &fakeRepo{Branches: []string{"main"}}
-	repoOpenAt = func(string) (interface{}, error) { return r, nil }
 
-	os.WriteFile(filepath.Join(config.CommitsDir, "c1.json"),
-		mustJSON(map[string]string{"FilesetID": "fs1"}), 0o644)
-	os.WriteFile(filepath.Join(config.FilesetsDir, "fs1.json"),
-		mustJSON(map[string]any{"Files": []map[string]any{
-			{"Blocks": []map[string]any{{"Hash": "x"}}},
-		}}), 0o644)
+	commit := repo.Commit{ID: "c1", Branch: "main", FilesetID: "fs1"}
+	b, _ := json.Marshal(commit)
+	os.WriteFile(filepath.Join(config.CommitsDir, "c1.json"), b, 0o644)
 
-	n, err := repotools.CountBlocks(false)
+	fileset := struct {
+		Files []struct {
+			Path   string
+			Blocks []struct {
+				Hash string
+				Size int64
+			}
+		}
+	}{
+		Files: []struct {
+			Path   string
+			Blocks []struct {
+				Hash string
+				Size int64
+			}
+		}{
+			{
+				Path: "a.txt",
+				Blocks: []struct {
+					Hash string
+					Size int64
+				}{
+					{Hash: "x", Size: 1},
+				},
+			},
+		},
+	}
+	b, _ = json.Marshal(fileset)
+	os.WriteFile(filepath.Join(config.FilesetsDir, "fs1.json"), b, 0o644)
+
+	n, err := repotools.CountBlocks(r, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -163,38 +208,23 @@ func TestCountBlocks_Success(t *testing.T) {
 }
 
 func TestCountBlocks_ErrorCases(t *testing.T) {
-	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
-
-	// repo.OpenAt fails
-	repoOpenAt = func(string) (interface{}, error) { return nil, fmt.Errorf("no repo") }
-	if _, err := repotools.CountBlocks(false); err == nil {
-		t.Error("expected error on open")
-	}
-
-	// ListBranches fails
-	repoOpenAt = func(string) (interface{}, error) {
-		return &fakeRepo{Err: fmt.Errorf("branchfail")}, nil
-	}
-	if _, err := repotools.CountBlocks(false); err == nil {
+	_ = tmpRepo(t)
+	r := &fakeRepo{Err: fmt.Errorf("branchfail")}
+	if _, err := repotools.CountBlocks(r, true); err == nil {
 		t.Error("expected branch error")
 	}
 }
 
 func TestVerifyBlocksStream(t *testing.T) {
 	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
+	fsio.MkdirAll(dir, 0o755)
 
-	// Make sure root exists
-	fsio.MkdirAll(config.ResolveRepoRoot(), 0o755)
-
-	// Patch dependencies
-	repoOpenAt = func(string) (interface{}, error) { return &fakeRepo{Branches: []string{"main"}}, nil }
+	r := &fakeRepo{Branches: []string{"main"}}
 	patchReadJSON(t, func(path string, v any) error {
-		switch {
-		case filepath.Base(path) == "c1.json":
+		switch filepath.Base(path) {
+		case "c1.json":
 			_ = json.Unmarshal(mustJSON(map[string]string{"FilesetID": "fs1"}), v)
-		case filepath.Base(path) == "fs1.json":
+		case "fs1.json":
 			_ = json.Unmarshal(mustJSON(map[string]any{
 				"Files": []map[string]any{
 					{"Path": "a.txt", "Blocks": []map[string]any{{"Hash": "x", "Size": 1}}},
@@ -204,7 +234,7 @@ func TestVerifyBlocksStream(t *testing.T) {
 		return nil
 	})
 
-	out, errCh := repotools.VerifyBlocksStream(false)
+	out, errCh := repotools.VerifyBlocksStream(r, false)
 
 	var got []block.BlockCheck
 	for bc := range out {
@@ -215,36 +245,25 @@ func TestVerifyBlocksStream(t *testing.T) {
 	}
 }
 
-func TestVerifyBlocksStream_ErrorRepo(t *testing.T) {
-	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
-
-	repoOpenAt = func(string) (interface{}, error) { return nil, fmt.Errorf("bad repo") }
-
-	out, errCh := repotools.VerifyBlocksStream(false)
-	select {
-	case <-out:
-	default:
-	}
-	if err := <-errCh; err == nil {
-		t.Error("expected repo error")
-	}
-}
-
 func TestVerifyBlocks_MissingRepo(t *testing.T) {
 	dir := tmpRepo(t)
-	defer os.RemoveAll(dir)
+	os.RemoveAll(dir)
 
-	// Ensure root missing
-	os.RemoveAll(config.ResolveRepoRoot())
-
-	err := repotools.VerifyBlocks(false)
+	r := &fakeRepo{Branches: []string{"main"}}
+	err := repotools.VerifyBlocks(r, false)
 	if err == nil {
 		t.Error("expected missing repo error")
 	}
 }
 
 // --- Helpers ---
+func patchReadJSON(t *testing.T, fn func(string, any) error) {
+	t.Helper()
+	old := util.ReadJSON
+	util.ReadJSON = fn
+	t.Cleanup(func() { util.ReadJSON = old })
+}
+
 func mustJSON(v any) []byte {
 	data, _ := json.Marshal(v)
 	return data

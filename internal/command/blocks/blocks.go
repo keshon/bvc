@@ -2,7 +2,9 @@ package blocks
 
 import (
 	"app/internal/command"
+	"app/internal/config"
 	"app/internal/middleware"
+	"app/internal/repo"
 	"app/internal/repotools"
 	"app/internal/util"
 	"fmt"
@@ -35,8 +37,13 @@ func (c *Command) Run(ctx *command.Context) error {
 		sortMode = strings.ToLower(ctx.Args[0])
 	}
 
+	// open the repository context
+	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
 	// list all blocks
-	blocksMap, err := repotools.ListAllBlocks(false)
+	blocksMap, err := repotools.ListAllBlocks(r, true)
 	if err != nil {
 		return err
 	}

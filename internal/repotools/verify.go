@@ -14,11 +14,11 @@ import (
 )
 
 // VerifyBlocks checks all blocks in repository and shows a progress bar.
+// If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
-func VerifyBlocks(allHistory bool) error {
-	out, errCh := VerifyBlocksStream(allHistory)
-
-	totalBlocks, err := CountBlocks(allHistory)
+func VerifyBlocks(r Repository, onlyLatestCommit bool) error {
+	out, errCh := VerifyBlocksStream(r, onlyLatestCommit)
+	totalBlocks, err := CountBlocks(r, onlyLatestCommit)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,9 @@ func VerifyBlocks(allHistory bool) error {
 }
 
 // VerifyBlocksStream streams block verification results.
-func VerifyBlocksStream(allHistory bool) (<-chan block.BlockCheck, <-chan error) {
+// If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
+// Returns error if any block is missing/damaged.
+func VerifyBlocksStream(r Repository, onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
 	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
@@ -56,7 +58,7 @@ func VerifyBlocksStream(allHistory bool) (<-chan block.BlockCheck, <-chan error)
 		}
 
 		// Collect all referenced blocks
-		blocks, err := ListAllBlocks(allHistory)
+		blocks, err := ListAllBlocks(r, onlyLatestCommit)
 		if err != nil {
 			errCh <- err
 			return

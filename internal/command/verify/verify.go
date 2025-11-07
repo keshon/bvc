@@ -45,7 +45,11 @@ func (c *Command) Run(ctx *command.Context) error {
 }
 
 func scan() error {
-	out, errCh := repotools.VerifyBlocksStream(true)
+	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	if err != nil {
+		return fmt.Errorf("failed to open repository: %w", err)
+	}
+	out, errCh := repotools.VerifyBlocksStream(r, true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
 
@@ -108,7 +112,7 @@ func repair() error {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	out, errCh := repotools.VerifyBlocksStream(true)
+	out, errCh := repotools.VerifyBlocksStream(r, true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
 

@@ -1,7 +1,6 @@
 package repotools
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"app/internal/config"
@@ -10,22 +9,9 @@ import (
 	"app/internal/util"
 )
 
-// BlockInfo holds metadata about a block in the repository
-type BlockInfo struct {
-	Size     int64
-	Files    map[string]struct{}
-	Branches map[string]struct{}
-}
-
 // ListAllBlocks returns a map[hash] of BlockInfo for all blocks in all branches.
-// If allHistory is true, collects blocks from all commits in all branches; otherwise only latest commits.
-func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
-	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
-	if err != nil {
-		return nil, fmt.Errorf("failed to open repository: %w", err)
-	}
-
+// If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
+func ListAllBlocks(r Repository, onlyLatestCommit bool) (map[string]*BlockInfo, error) {
 	branches, err := r.ListBranches()
 	if err != nil {
 		return nil, err
@@ -35,7 +21,7 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 
 	for _, b := range branches {
 		var commitIDs []string
-		if allHistory {
+		if !onlyLatestCommit {
 			commitIDs, err = r.AllCommitIDs(b.Name)
 			if err != nil {
 				return nil, err
@@ -51,13 +37,20 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 		}
 
 		for _, commitID := range commitIDs {
+			commitPath := filepath.Join(config.CommitsDir, commitID+".json")
 			var commit repo.Commit
-			if err := util.ReadJSON(filepath.Join(config.CommitsDir, commitID+".json"), &commit); err != nil {
+			if err := util.ReadJSON(commitPath, &commit); err != nil {
+				// skip missing commit file, but not silently fail everything
 				continue
 			}
 
+			if commit.FilesetID == "" {
+				continue
+			}
+
+			filesetPath := filepath.Join(config.FilesetsDir, commit.FilesetID+".json")
 			var fs snapshot.Fileset
-			if err := util.ReadJSON(filepath.Join(config.FilesetsDir, commit.FilesetID+".json"), &fs); err != nil {
+			if err := util.ReadJSON(filesetPath, &fs); err != nil {
 				continue
 			}
 
@@ -83,23 +76,18 @@ func ListAllBlocks(allHistory bool) (map[string]*BlockInfo, error) {
 }
 
 // CountBlocks returns the total number of blocks in all branches.
-// If allHistory is true, counts blocks from all commits; otherwise only latest commits.
-func CountBlocks(allHistory bool) (int, error) {
-	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
-	if err != nil {
-		return 0, fmt.Errorf("failed to open repository: %w", err)
-	}
-
+// If onlyLatestCommit is false, counts blocks from all commits; otherwise only latest commits.
+func CountBlocks(r Repository, onlyLatestCommit bool) (int, error) {
 	branches, err := r.ListBranches()
 	if err != nil {
 		return 0, err
 	}
+
 	hashes := map[string]struct{}{}
 
 	for _, b := range branches {
 		var commitIDs []string
-		if allHistory {
+		if !onlyLatestCommit {
 			commitIDs, err = r.AllCommitIDs(b.Name)
 			if err != nil {
 				return 0, err
@@ -115,17 +103,25 @@ func CountBlocks(allHistory bool) (int, error) {
 		}
 
 		for _, commitID := range commitIDs {
+			commitPath := filepath.Join(config.CommitsDir, commitID+".json")
 			var commit repo.Commit
-			if err := util.ReadJSON(fmt.Sprintf("%s/%s.json", config.CommitsDir, commitID), &commit); err != nil {
+			if err := util.ReadJSON(commitPath, &commit); err != nil {
 				continue
 			}
+
+			if commit.FilesetID == "" {
+				continue
+			}
+
+			filesetPath := filepath.Join(config.FilesetsDir, commit.FilesetID+".json")
 			var fs snapshot.Fileset
-			if err := util.ReadJSON(fmt.Sprintf("%s/%s.json", config.FilesetsDir, commit.FilesetID), &fs); err != nil {
+			if err := util.ReadJSON(filesetPath, &fs); err != nil {
 				continue
 			}
-			for _, e := range fs.Files {
-				for _, b := range e.Blocks {
-					hashes[b.Hash] = struct{}{}
+
+			for _, file := range fs.Files {
+				for _, blk := range file.Blocks {
+					hashes[blk.Hash] = struct{}{}
 				}
 			}
 		}

@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"app/internal/command"
+	"app/internal/config"
+	"app/internal/repo"
 	"app/internal/repotools"
 	"fmt"
 )
@@ -13,7 +15,11 @@ func WithBlockIntegrityCheck() command.Middleware {
 			Command: cmd,
 			Wrap: func(ctx *command.Context) error {
 				fmt.Println("Checking repository integrity...")
-				if err := repotools.VerifyBlocks(false); err != nil {
+				r, err := repo.OpenAt(config.ResolveRepoRoot())
+				if err != nil {
+					return fmt.Errorf("failed to open repository: %w", err)
+				}
+				if err := repotools.VerifyBlocks(r, true); err != nil {
 					return fmt.Errorf(
 						"repository verification failed: %v\nPlease run `bvc repair` before continuing",
 						err,
