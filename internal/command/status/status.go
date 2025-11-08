@@ -81,7 +81,7 @@ func status(short, showBranch bool, untrackedMode string, showIgnored, quiet boo
 	// Load last commit snapshot
 	lastFiles := map[string]file.Entry{}
 	if commitID, err := r.Meta.GetLastCommitID(currentBranch.Name); err == nil && commitID != "" {
-		if fs, err := r.Meta.GetCommitFileset(commitID); err == nil {
+		if fs, err := r.GetCommitFileset(commitID); err == nil {
 			for _, f := range fs.Files {
 				lastFiles[filepath.Clean(f.Path)] = f
 			}

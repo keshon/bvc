@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"app/internal/fsio"
-	"app/internal/repo/store/snapshot"
 
 	"app/internal/util"
 )
@@ -122,20 +121,4 @@ func (mc *MetaContext) GetLastCommitForBranch(branch string) (*Commit, error) {
 		return nil, nil
 	}
 	return mc.GetCommit(lastID)
-}
-
-// GetCommitFileset returns snapshot.Fileset for a commit.
-func (mc *MetaContext) GetCommitFileset(commitID string) (*snapshot.Fileset, error) {
-	commit, err := mc.GetCommit(commitID)
-	if err != nil {
-		return nil, err
-	}
-	fs, err := mc.Storage.Snapshots.Load(commit.FilesetID)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("fileset %q not found for commit %q: %w", commit.FilesetID, commitID, err)
-		}
-		return nil, fmt.Errorf("failed to get fileset for commit %q: %w", commitID, err)
-	}
-	return &fs, nil
 }

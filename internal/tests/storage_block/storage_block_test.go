@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"app/internal/storage/block"
+	"app/internal/repo/store/block"
 )
 
 // helpers
@@ -27,7 +27,7 @@ func TestCleanupTemp(t *testing.T) {
 		f.Close()
 	}
 
-	bm := &block.BlockManager{Root: dir}
+	bm := &block.BlockContext{Root: dir}
 	if err := bm.CleanupTemp(); err != nil {
 		t.Fatalf("CleanupTemp failed: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestWriteAndReadBlock(t *testing.T) {
 		t.Fatalf("failed to write source file: %v", err)
 	}
 
-	bm := &block.BlockManager{Root: dir}
+	bm := &block.BlockContext{Root: dir}
 
 	ref := block.BlockRef{
 		Hash:   "myhash",
@@ -80,7 +80,7 @@ func TestVerifyBlock(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
-	bm := &block.BlockManager{Root: dir}
+	bm := &block.BlockContext{Root: dir}
 	content := []byte("verify me")
 	filePath := filepath.Join(dir, "verify.dat")
 	os.WriteFile(filePath, content, 0o644)
@@ -116,7 +116,7 @@ func TestVerifyChannel(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
-	bm := &block.BlockManager{Root: dir}
+	bm := &block.BlockContext{Root: dir}
 	data := []byte("abc123")
 	ref := block.HashBlock(data, 0)
 	os.WriteFile(filepath.Join(dir, ref.Hash+".bin"), data, 0o644)
@@ -157,7 +157,7 @@ func TestSplitFileSmall(t *testing.T) {
 	content := []byte("small file for split")
 	os.WriteFile(filePath, content, 0o644)
 
-	bm := &block.BlockManager{Root: dir}
+	bm := &block.BlockContext{Root: dir}
 	blocks, err := bm.SplitFile(filePath)
 	if err != nil {
 		t.Fatalf("SplitFile failed: %v", err)

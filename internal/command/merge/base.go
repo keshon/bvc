@@ -221,15 +221,15 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// load filesets
-	baseFS, err := r.Meta.GetCommitFileset(baseID)
+	baseFS, err := r.GetCommitFileset(baseID)
 	if err != nil {
 		return fmt.Errorf("failed to load base fileset: %v", err)
 	}
-	oursFS, err := r.Meta.GetCommitFileset(currentCommitID)
+	oursFS, err := r.GetCommitFileset(currentCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load our fileset: %v", err)
 	}
-	theirsFS, err := r.Meta.GetCommitFileset(targetCommitID)
+	theirsFS, err := r.GetCommitFileset(targetCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load their fileset: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"app/internal/config"
 	"app/internal/repo/meta"
 	"app/internal/repo/store"
+	"app/internal/repo/store/snapshot"
 )
 
 type Repository struct {
@@ -34,6 +35,18 @@ func NewRepository(cfg *config.RepoConfig) (*Repository, error) {
 		Store:  st,
 	}
 	return r, nil
+}
+
+func (r *Repository) GetCommitFileset(commitID string) (*snapshot.Fileset, error) {
+	commit, err := r.Meta.GetCommit(commitID)
+	if err != nil {
+		return nil, err
+	}
+	fs, err := r.Store.Snapshots.Load(commit.FilesetID)
+	if err != nil {
+		return nil, err
+	}
+	return &fs, nil
 }
 
 func IsRepoExists(path string) bool {

@@ -43,7 +43,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 	// list all blocks
-	blocksMap, err := repotools.ListAllBlocks(r, r.Config, true)
+	blocksMap, err := repotools.ListAllBlocks(r.Meta, r.Config, true)
 	if err != nil {
 		return err
 	}

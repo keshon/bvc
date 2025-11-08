@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"app/internal/config"
-	"app/internal/repo"
 	"app/internal/repo/meta"
 
 	"app/internal/repo/store/snapshot"
@@ -13,8 +12,8 @@ import (
 
 // ListAllBlocks returns a map[hash]*BlockInfo for all blocks in all branches.
 // cfg defines the repository root (e.g., config.NewRepoConfig(".bvc")).
-func ListAllBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit bool) (map[string]*BlockInfo, error) {
-	branches, err := r.Meta.ListBranches()
+func ListAllBlocks(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool) (map[string]*BlockInfo, error) {
+	branches, err := m.ListBranches()
 	if err != nil {
 		return nil, err
 	}
@@ -23,25 +22,24 @@ func ListAllBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit 
 
 	for _, b := range branches {
 		var commitIDs []string
-		var err error
 		if !onlyLatestCommit {
-			commitIDs, err = r.Meta.AllCommitIDs(b.Name)
+			commitIDs, err = m.AllCommitIDs(b.Name)
 		} else {
 			var last string
-			last, err = r.Meta.GetLastCommitID(b.Name) // capture error
+			last, err = m.GetLastCommitID(b.Name)
 			if err == nil && last != "" {
 				commitIDs = []string{last}
 			}
 		}
 		if err != nil {
-			return nil, err // propagate error
+			return nil, err
 		}
 
 		for _, commitID := range commitIDs {
 			commitPath := filepath.Join(cfg.CommitsDir(), commitID+".json")
 			var commit meta.Commit
 			if err := util.ReadJSON(commitPath, &commit); err != nil {
-				continue // skip missing commit
+				continue
 			}
 			if commit.FilesetID == "" {
 				continue

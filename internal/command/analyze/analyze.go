@@ -50,13 +50,13 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// open the repository context
-	repo, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// list all branches
-	branches, err := repo.Meta.ListBranches()
+	branches, err := r.Meta.ListBranches()
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
@@ -72,12 +72,12 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// iterate over all branches
 	for _, branch := range branches {
-		lastCommit, err := repo.Meta.GetLastCommitForBranch(branch.Name)
+		lastCommit, err := r.Meta.GetLastCommitForBranch(branch.Name)
 		if err != nil || lastCommit == nil || lastCommit.ID == "" {
 			continue
 		}
 
-		fileset, err := repo.Meta.GetCommitFileset(lastCommit.FilesetID)
+		fileset, err := r.GetCommitFileset(lastCommit.FilesetID)
 		if err != nil {
 			continue
 		}

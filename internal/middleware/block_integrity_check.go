@@ -19,7 +19,7 @@ func WithBlockIntegrityCheck() command.Middleware {
 				if err != nil {
 					return fmt.Errorf("failed to open repository: %w", err)
 				}
-				if err := repotools.VerifyBlocks(r, r.Config, true); err != nil {
+				if err := repotools.VerifyBlocks(r.Meta, r.Config, true); err != nil {
 					return fmt.Errorf(
 						"repository verification failed: %v\nPlease run `bvc repair` before continuing",
 						err,

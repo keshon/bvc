@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"app/internal/storage/block"
-	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
+	"app/internal/repo/store/block"
+	"app/internal/repo/store/file"
+	"app/internal/repo/store/snapshot"
 )
 
 // helpers
@@ -16,29 +16,29 @@ func makeTempDir(t *testing.T) string {
 	return t.TempDir()
 }
 
-func makeBlockManager(t *testing.T, dir string) *block.BlockManager {
+func makeBlockContext(t *testing.T, dir string) *block.BlockContext {
 	t.Helper()
-	return &block.BlockManager{Root: dir}
+	return &block.BlockContext{Root: dir}
 }
 
-func makeFileManager(t *testing.T, root string, bm *block.BlockManager) *file.FileManager {
+func makeFileContext(t *testing.T, root string, bm *block.BlockContext) *file.FileContext {
 	t.Helper()
-	return &file.FileManager{Root: root, Blocks: bm}
+	return &file.FileContext{Root: root, Blocks: bm}
 }
 
-func makeSnapshotManager(t *testing.T, root string, fm *file.FileManager, bm *block.BlockManager) *snapshot.SnapshotManager {
+func makeSnapshotContext(t *testing.T, root string, fm *file.FileContext, bm *block.BlockContext) *snapshot.SnapshotContext {
 	t.Helper()
-	return &snapshot.SnapshotManager{Root: root, Files: fm, Blocks: bm}
+	return &snapshot.SnapshotContext{Root: root, Files: fm, Blocks: bm}
 }
 
-// --- Test SnapshotManager CreateCurrent + Create + Save/Load/List --- //
-func TestSnapshotManagerWorkflow(t *testing.T) {
+// --- Test SnapshotContext CreateCurrent + Create + Save/Load/List --- //
+func TestSnapshotContextWorkflow(t *testing.T) {
 	root := makeTempDir(t)
 
 	// setup managers
-	bm := makeBlockManager(t, filepath.Join(root, "blocks"))
-	fm := makeFileManager(t, filepath.Join(root, "files"), bm)
-	sm := makeSnapshotManager(t, filepath.Join(root, "snapshots"), fm, bm)
+	bm := makeBlockContext(t, filepath.Join(root, "blocks"))
+	fm := makeFileContext(t, filepath.Join(root, "files"), bm)
+	sm := makeSnapshotContext(t, filepath.Join(root, "snapshots"), fm, bm)
 
 	// create test file INSIDE fm.Root
 	filePath := filepath.Join(fm.Root, "test.txt")
@@ -141,10 +141,10 @@ func TestHashFilesetDeterminism(t *testing.T) {
 	}
 }
 
-// --- Test SnapshotManager Errors --- //
-func TestSnapshotManager_Errors(t *testing.T) {
+// --- Test SnapshotContext Errors --- //
+func TestSnapshotContext_Errors(t *testing.T) {
 	dir := makeTempDir(t)
-	sm := &snapshot.SnapshotManager{
+	sm := &snapshot.SnapshotContext{
 		Root:   dir,
 		Files:  nil, // purposely nil
 		Blocks: nil,

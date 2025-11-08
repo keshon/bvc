@@ -2,7 +2,6 @@ package repotools
 
 import (
 	"app/internal/config"
-	"app/internal/repo"
 	"app/internal/repo/meta"
 	"app/internal/repo/store/snapshot"
 	"app/internal/util"
@@ -11,8 +10,8 @@ import (
 
 // CountBlocks returns the total number of blocks in all branches.
 // If onlyLatestCommit is false, counts blocks from all commits; otherwise only latest commits.
-func CountBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit bool) (int, error) {
-	branches, err := r.Meta.ListBranches()
+func CountBlocks(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool) (int, error) {
+	branches, err := m.ListBranches()
 	if err != nil {
 		return 0, err
 	}
@@ -22,9 +21,9 @@ func CountBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit bo
 	for _, b := range branches {
 		var commitIDs []string
 		if !onlyLatestCommit {
-			commitIDs, err = r.Meta.AllCommitIDs(b.Name)
+			commitIDs, err = m.AllCommitIDs(b.Name)
 		} else {
-			last, _ := r.Meta.GetLastCommitID(b.Name)
+			last, _ := m.GetLastCommitID(b.Name)
 			if last != "" {
 				commitIDs = []string{last}
 			}
@@ -39,7 +38,6 @@ func CountBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit bo
 			if err := util.ReadJSON(commitPath, &commit); err != nil {
 				continue
 			}
-
 			if commit.FilesetID == "" {
 				continue
 			}

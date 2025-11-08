@@ -4,7 +4,7 @@ import (
 	"app/internal/config"
 	"app/internal/fsio"
 	"app/internal/progress"
-	"app/internal/repo"
+
 	"app/internal/repo/store"
 	"app/internal/repo/store/block"
 	"app/internal/util"
@@ -15,9 +15,9 @@ import (
 // VerifyBlocks checks all blocks in repository and shows a progress bar.
 // If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
-func VerifyBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit bool) error {
-	out, errCh := VerifyBlocksStream(r, cfg, onlyLatestCommit)
-	total, err := CountBlocks(r, cfg, onlyLatestCommit)
+func VerifyBlocks(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool) error {
+	out, errCh := VerifyBlocksStream(m, cfg, onlyLatestCommit)
+	total, err := CountBlocks(m, cfg, onlyLatestCommit)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func VerifyBlocks(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit b
 // VerifyBlocksStream streams block verification results.
 // If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
-func VerifyBlocksStream(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
+func VerifyBlocksStream(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
 	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
@@ -54,7 +54,7 @@ func VerifyBlocksStream(r *repo.Repository, cfg *config.RepoConfig, onlyLatestCo
 			return
 		}
 
-		blocks, err := ListAllBlocks(r, cfg, onlyLatestCommit)
+		blocks, err := ListAllBlocks(m, cfg, onlyLatestCommit)
 		if err != nil {
 			errCh <- err
 			return

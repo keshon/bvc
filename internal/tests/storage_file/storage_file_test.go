@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"app/internal/fsio"
-	"app/internal/storage/block"
-	"app/internal/storage/file"
+	"app/internal/repo/store/block"
+	"app/internal/repo/store/file"
 )
 
 // helpers
@@ -30,9 +30,9 @@ func makeSplitTestFile(t *testing.T, content string) string {
 	return f.Name()
 }
 
-func makeBlockManager(t *testing.T, dir string) *block.BlockManager {
+func makeBlockContext(t *testing.T, dir string) *block.BlockContext {
 	t.Helper()
-	return &block.BlockManager{Root: dir}
+	return &block.BlockContext{Root: dir}
 }
 
 // --- CreateEntry / Write / Exists --- //
@@ -40,9 +40,9 @@ func TestCreateEntryWriteExists(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
-	fm := &file.FileManager{
+	fm := &file.FileContext{
 		Root:   dir,
-		Blocks: makeBlockManager(t, dir),
+		Blocks: makeBlockContext(t, dir),
 	}
 
 	content := []byte("hello world")
@@ -70,9 +70,9 @@ func TestCreateEntries(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
-	fm := &file.FileManager{
+	fm := &file.FileContext{
 		Root:   dir,
-		Blocks: makeBlockManager(t, dir),
+		Blocks: makeBlockContext(t, dir),
 	}
 
 	files := []string{}
@@ -97,7 +97,7 @@ func TestStageAndLoadIndex(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
-	fm := &file.FileManager{Root: dir}
+	fm := &file.FileContext{Root: dir}
 
 	entry := file.Entry{Path: "a.txt", Blocks: nil}
 	if err := fm.StageFiles([]file.Entry{entry}); err != nil {
@@ -124,7 +124,7 @@ func TestStageAndLoadIndex(t *testing.T) {
 // --- ListAll --- //
 func TestListAll(t *testing.T) {
 	dir := t.TempDir()
-	fm := &file.FileManager{Root: dir}
+	fm := &file.FileContext{Root: dir}
 
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("x"), 0o644)
 	os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
@@ -139,11 +139,11 @@ func TestListAll(t *testing.T) {
 	}
 }
 
-func TestFileManager_ErrorBranches(t *testing.T) {
+func TestFileContext_ErrorBranches(t *testing.T) {
 	tmp := makeTempDir(t)
-	fm := &file.FileManager{Root: tmp}
+	fm := &file.FileContext{Root: tmp}
 
-	// 1. CreateEntry/Write with nil BlockManager
+	// 1. CreateEntry/Write with nil BlockContext
 	if _, err := fm.CreateEntry("a.txt"); err == nil {
 		t.Error("expected error for CreateEntry with nil Blocks")
 	}
@@ -218,9 +218,9 @@ func TestFileManager_ErrorBranches(t *testing.T) {
 
 func TestCreateAllAndChangedEntriesErrors(t *testing.T) {
 	tmp := makeTempDir(t)
-	fm := &file.FileManager{
+	fm := &file.FileContext{
 		Root:   tmp,
-		Blocks: makeBlockManager(t, tmp),
+		Blocks: makeBlockContext(t, tmp),
 	}
 
 	// CreateAllEntries with no files — should not panic
@@ -232,11 +232,11 @@ func TestCreateAllAndChangedEntriesErrors(t *testing.T) {
 	}
 }
 
-// Simple integration test for FileManager + BlockManager SplitFile
+// Simple integration test for FileContext + BlockContext SplitFile
 func TestSplitFileIntegration(t *testing.T) {
 	dir := t.TempDir()
-	bm := &block.BlockManager{Root: dir}
-	fm := &file.FileManager{Root: dir, Blocks: bm}
+	bm := &block.BlockContext{Root: dir}
+	fm := &file.FileContext{Root: dir, Blocks: bm}
 
 	content := "abcdefghijklmnopqrstuvwxyz" // small file, simple deterministic content
 	testFile := makeSplitTestFile(t, content)
