@@ -1,9 +1,7 @@
 package block
 
 import (
-	"app/internal/config"
 	"app/internal/fsio"
-	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -12,8 +10,8 @@ import (
 )
 
 // VerifyBlock checks a single block for integrity using the selected hash.
-func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
-	path := filepath.Join(bm.Root, hash+".bin")
+func (bc *BlockContext) VerifyBlock(hash string) (BlockStatus, error) {
+	path := filepath.Join(bc.Root, hash+".bin")
 	data, err := fsio.ReadFile(path)
 	if err != nil {
 		if fsio.IsNotExist(err) {
@@ -22,19 +20,10 @@ func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 		return Damaged, err
 	}
 
-	cfg := config.NewRepoConfig(bm.Root)
-
 	var actual string
-	switch cfg.GetHash() {
-	case "xxh3":
-		actual = fmt.Sprintf("%x", xxh3.Hash128(data).Bytes())
-	case "sha256":
-		h := sha256.Sum256(data)
-		actual = fmt.Sprintf("%x", h[:])
-	default:
-		h := xxh3.Hash128(data).Bytes()
-		actual = fmt.Sprintf("%x", h)
-	}
+
+	h := xxh3.Hash128(data).Bytes()
+	actual = fmt.Sprintf("%x", h)
 
 	if actual == hash {
 		return OK, nil
@@ -43,7 +32,7 @@ func (bm *BlockManager) VerifyBlock(hash string) (BlockStatus, error) {
 }
 
 // Verify checks a set of block hashes concurrently.
-func (bm *BlockManager) Verify(hashes map[string]struct{}, workers int) <-chan BlockCheck {
+func (bc *BlockContext) Verify(hashes map[string]struct{}, workers int) <-chan BlockCheck {
 	out := make(chan BlockCheck, 128)
 	go func() {
 		defer close(out)
@@ -62,7 +51,7 @@ func (bm *BlockManager) Verify(hashes map[string]struct{}, workers int) <-chan B
 			go func() {
 				defer wg.Done()
 				for h := range tasks {
-					status, _ := bm.VerifyBlock(h)
+					status, _ := bc.VerifyBlock(h)
 					out <- BlockCheck{Hash: h, Status: status}
 				}
 			}()

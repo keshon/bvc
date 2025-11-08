@@ -7,16 +7,17 @@ import (
 
 	"app/internal/fsio"
 	"app/internal/progress"
-	"app/internal/storage/block"
-	"app/internal/storage/file"
+	"app/internal/repo/store/block"
+	"app/internal/repo/store/file"
+
 	"app/internal/util"
 )
 
-// SnapshotManager handles higher-level operations (filesets, commits)
-type SnapshotManager struct {
+// SnapshotContext handles higher-level operations (filesets, commits)
+type SnapshotContext struct {
 	Root   string
-	Files  *file.FileManager
-	Blocks *block.BlockManager
+	Files  *file.FileContext
+	Blocks *block.BlockContext
 }
 
 // Fileset represents a snapshot of tracked files and their block mappings.
@@ -26,13 +27,13 @@ type Fileset struct {
 }
 
 // CreateCurrent builds a Fileset from the current working tree.
-func (sm *SnapshotManager) CreateCurrent() (Fileset, error) {
-	paths, err := sm.Files.ListAll()
+func (sc *SnapshotContext) CreateCurrent() (Fileset, error) {
+	paths, err := sc.Files.ListAll()
 	if err != nil {
 		return Fileset{}, fmt.Errorf("failed to list files: %w", err)
 	}
 
-	entries, err := sm.Files.CreateEntries(paths)
+	entries, err := sc.Files.CreateEntries(paths)
 	if err != nil {
 		return Fileset{}, fmt.Errorf("failed to create entries: %w", err)
 	}
@@ -47,7 +48,7 @@ func (sm *SnapshotManager) CreateCurrent() (Fileset, error) {
 }
 
 // Create builds a Fileset from a list of staged entries and stores their blocks.
-func (sm *SnapshotManager) Create(entries []file.Entry) (Fileset, error) {
+func (sc *SnapshotContext) Create(entries []file.Entry) (Fileset, error) {
 	if len(entries) == 0 {
 		return Fileset{}, fmt.Errorf("no files to commit")
 	}
@@ -55,7 +56,7 @@ func (sm *SnapshotManager) Create(entries []file.Entry) (Fileset, error) {
 	// Store all blocks for the staged files using the BlockManager via the Files layer
 	for _, e := range entries {
 		// Ensure blocks are written via the FileManager (which uses BlockManager)
-		if err := sm.Files.Write(e); err != nil {
+		if err := sc.Files.Write(e); err != nil {
 			return Fileset{}, fmt.Errorf("storing file %s: %w", e.Path, err)
 		}
 	}
@@ -68,22 +69,22 @@ func (sm *SnapshotManager) Create(entries []file.Entry) (Fileset, error) {
 }
 
 // Save persists a Fileset JSON to disk.
-func (sm *SnapshotManager) Save(fs Fileset) error {
+func (sc *SnapshotContext) Save(fs Fileset) error {
 	if fs.ID == "" {
 		return fmt.Errorf("invalid fileset: missing ID")
 	}
 
-	if err := fsio.MkdirAll(sm.Root, 0o755); err != nil {
+	if err := fsio.MkdirAll(sc.Root, 0o755); err != nil {
 		return fmt.Errorf("create snapshots dir: %w", err)
 	}
 
-	path := filepath.Join(sm.Root, fs.ID+".json")
+	path := filepath.Join(sc.Root, fs.ID+".json")
 	return util.WriteJSON(path, fs)
 }
 
 // Load retrieves a Fileset by its ID from disk.
-func (sm *SnapshotManager) Load(filesetID string) (Fileset, error) {
-	path := filepath.Join(sm.Root, filesetID+".json")
+func (sc *SnapshotContext) Load(filesetID string) (Fileset, error) {
+	path := filepath.Join(sc.Root, filesetID+".json")
 	var fs Fileset
 	if err := util.ReadJSON(path, &fs); err != nil {
 		return Fileset{}, fmt.Errorf("failed to read fileset %q: %w", filesetID, err)
@@ -92,8 +93,8 @@ func (sm *SnapshotManager) Load(filesetID string) (Fileset, error) {
 }
 
 // List retrieves all filesets from disk.
-func (sm *SnapshotManager) List() ([]Fileset, error) {
-	files, err := filepath.Glob(filepath.Join(sm.Root, "*.json"))
+func (sc *SnapshotContext) List() ([]Fileset, error) {
+	files, err := filepath.Glob(filepath.Join(sc.Root, "*.json"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list filesets: %w", err)
 	}
@@ -109,35 +110,35 @@ func (sm *SnapshotManager) List() ([]Fileset, error) {
 }
 
 // WriteAndSave stores all file blocks and saves the Fileset metadata.
-func (sm *SnapshotManager) WriteAndSave(fs *Fileset) error {
+func (sc *SnapshotContext) WriteAndSave(fs *Fileset) error {
 	if fs.ID == "" {
 		return fmt.Errorf("invalid fileset: missing ID")
 	}
 	if len(fs.Files) == 0 {
 		return fmt.Errorf("invalid fileset: no files")
 	}
-	if err := sm.writeFiles(fs); err != nil {
+	if err := sc.writeFiles(fs); err != nil {
 		return fmt.Errorf("failed to store files: %w", err)
 	}
-	return sm.Save(*fs)
+	return sc.Save(*fs)
 }
 
 // writeFiles stores each file’s blocks to disk with progress display.
-func (sm *SnapshotManager) writeFiles(fs *Fileset) error {
+func (sc *SnapshotContext) writeFiles(fs *Fileset) error {
 	// Let BlockManager attempt cleanup of temp files if it provides it.
 	// If not present, ignore error (non-fatal).
-	if sm.Blocks != nil {
-		_ = sm.Blocks.CleanupTemp()
+	if sc.Blocks != nil {
+		_ = sc.Blocks.CleanupTemp()
 	}
 
 	bar := progress.NewProgress(len(fs.Files), "Storing files ")
 	defer bar.Finish()
 
 	return util.Parallel(fs.Files, util.WorkerCount(), func(f file.Entry) error {
-		if sm.Blocks == nil || sm.Files == nil {
-			return fmt.Errorf("storage managers not attached")
+		if sc.Blocks == nil || sc.Files == nil {
+			return fmt.Errorf("store managers not attached")
 		}
-		if err := sm.Blocks.Write(f.Path, f.Blocks); err != nil {
+		if err := sc.Blocks.Write(f.Path, f.Blocks); err != nil {
 			return fmt.Errorf("error storing file %s: %w", f.Path, err)
 		}
 		bar.Increment()

@@ -36,7 +36,7 @@ func runInitAt(t *testing.T, workDir string, args ...string) error {
 // Check if a repository was created
 func checkRepoExists(t *testing.T, repoPath string) *repo.Repository {
 	t.Helper()
-	r, err := repo.OpenAt(repoPath)
+	r, err := repo.NewRepositoryByPath(repoPath)
 	if err != nil {
 		t.Fatalf("expected repository at %q, got error: %v", repoPath, err)
 	}
@@ -44,20 +44,6 @@ func checkRepoExists(t *testing.T, repoPath string) *repo.Repository {
 }
 
 // --- Tests ---
-
-func TestInit_DefaultRepo(t *testing.T) {
-	dir := t.TempDir()
-	repoDir := filepath.Join(dir, ".bvc")
-
-	if err := runInitAt(t, dir); err != nil {
-		t.Fatalf("init failed: %v", err)
-	}
-
-	r := checkRepoExists(t, repoDir)
-	if r.Config.HashFormat != config.DefaultHash {
-		t.Errorf("expected hash %q, got %q", config.DefaultHash, r.Config.HashFormat)
-	}
-}
 
 func TestInit_CustomInitialBranch(t *testing.T) {
 	dir := t.TempDir()
@@ -69,7 +55,7 @@ func TestInit_CustomInitialBranch(t *testing.T) {
 	}
 
 	r := checkRepoExists(t, repoDir)
-	head, _ := r.GetHeadRef()
+	head, _ := r.Meta.GetHeadRef()
 	if !strings.HasSuffix(head.String(), "dev") {
 		t.Errorf("expected HEAD to point to dev branch, got %q", head)
 	}
@@ -101,7 +87,7 @@ func TestInit_SeparateDir(t *testing.T) {
 func TestInit_ReinitExistingRepo(t *testing.T) {
 	dir := makeTempDir(t)
 	repoDir := filepath.Join(dir, config.RepoDir)
-	_, _, _ = repo.InitAt(repoDir, config.DefaultHash)
+	_, _ = repo.NewRepositoryByPath(repoDir)
 
 	// Re-init should succeed silently in quiet mode
 	args := []string{"--quiet"}
@@ -138,29 +124,6 @@ func TestInit_RespectsPointerFile(t *testing.T) {
 	}
 }
 
-func TestInit_InvalidHash(t *testing.T) {
-	dir := makeTempDir(t)
-	args := []string{"--object-format", "sha251"} // invalid
-	err := runInitAt(t, dir, args...)
-	if err == nil || !strings.Contains(err.Error(), "unsupported object format") {
-		t.Fatalf("expected unsupported object format error, got: %v", err)
-	}
-}
-
-func TestInit_ReinitDifferentHash(t *testing.T) {
-	dir := makeTempDir(t)
-	// init with default hash
-	if err := runInitAt(t, dir, "--object-format", "xxh3"); err != nil {
-		t.Fatalf("init failed: %v", err)
-	}
-
-	// try to re-init with sha256
-	err := runInitAt(t, dir, "--object-format", "sha256")
-	if err == nil || !strings.Contains(err.Error(), "different hash") {
-		t.Fatalf("expected error for different hash, got: %v", err)
-	}
-}
-
 func TestInit_IgnoredInitialBranch(t *testing.T) {
 	dir := t.TempDir()
 	repoDir := filepath.Join(dir, ".bvc")
@@ -179,7 +142,7 @@ func TestInit_IgnoredInitialBranch(t *testing.T) {
 
 	// HEAD should still be default
 	r := checkRepoExists(t, repoDir)
-	head, _ := r.GetHeadRef()
+	head, _ := r.Meta.GetHeadRef()
 	if !strings.HasSuffix(head.String(), config.DefaultBranch) {
 		t.Errorf("HEAD branch changed unexpectedly: got %s", head)
 	}

@@ -8,11 +8,11 @@ import (
 )
 
 // ListAll returns all user files in the working directory (excluding .bvc).
-func (fm *FileManager) ListAll() ([]string, error) {
+func (fc *FileContext) ListAll() ([]string, error) {
 	exe, _ := os.Executable()
 	var paths []string
 
-	err := filepath.WalkDir(fm.Root, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(fc.Root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

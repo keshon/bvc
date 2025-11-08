@@ -59,19 +59,19 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	branch, err := r.GetCurrentBranch()
+	branch, err := r.Meta.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// If commit-id is not specified, use the last commit
 	if targetID == "" {
-		last, err := r.GetLastCommitID(branch.Name)
+		last, err := r.Meta.GetLastCommitID(branch.Name)
 		if err != nil {
 			return fmt.Errorf("cannot determine last commit: %v", err)
 		}
@@ -86,18 +86,18 @@ func (c *Command) Run(ctx *command.Context) error {
 
 func reset(targetID, mode string) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// Load target commit
-	target, err := r.GetCommit(targetID)
+	target, err := r.Meta.GetCommit(targetID)
 	if err != nil {
 		return fmt.Errorf("unknown commit: %s", targetID)
 	}
 
-	branch, err := r.GetCurrentBranch()
+	branch, err := r.Meta.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
@@ -107,13 +107,13 @@ func reset(targetID, mode string) error {
 	switch mode {
 	case "soft":
 		// Move HEAD only
-		if err := r.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 
 	case "mixed":
 		// Move HEAD and reset index, keep working directory
-		if err := r.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
@@ -122,7 +122,7 @@ func reset(targetID, mode string) error {
 
 	case "hard":
 		// Move HEAD, reset index and working directory
-		if err := r.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
@@ -143,22 +143,22 @@ func reset(targetID, mode string) error {
 // resetIndex resets the staging area to the specified fileset
 func resetIndex(filesetID string) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// Load fileset
-	fs, err := r.Storage.Snapshots.Load(filesetID)
+	fs, err := r.Store.Snapshots.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
 	// Clear current staging and stage all files from the fileset
-	if err := r.Storage.Files.ClearIndex(); err != nil {
+	if err := r.Store.Files.ClearIndex(); err != nil {
 		return err
 	}
-	if err := r.Storage.Files.StageFiles(fs.Files); err != nil {
+	if err := r.Store.Files.StageFiles(fs.Files); err != nil {
 		return err
 	}
 
@@ -169,18 +169,18 @@ func resetIndex(filesetID string) error {
 // resetWorkingDirectory restores files to the state of the commit
 func resetWorkingDirectory(filesetID string) error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// Load fileset
-	fs, err := r.Storage.Snapshots.Load(filesetID)
+	fs, err := r.Store.Snapshots.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	if err := r.Storage.Files.Restore(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
+	if err := r.Store.Files.Restore(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
 		return err
 	}
 

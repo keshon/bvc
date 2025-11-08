@@ -5,6 +5,7 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"app/internal/repo/meta"
 	"fmt"
 	"strings"
 	"time"
@@ -62,13 +63,13 @@ func (c *Command) Run(ctx *command.Context) error {
 	message := strings.Join(messages, "\n\n")
 
 	// open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// get staged files
-	stagedFileentries, err := r.Storage.Files.GetIndexFiles()
+	stagedFileentries, err := r.Store.Files.GetIndexFiles()
 	if err != nil {
 		return err
 	}
@@ -78,26 +79,26 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// create fileset from staged files (or empty fileset if --allow-empty)
-	fileset, err := r.Storage.Snapshots.Create(stagedFileentries)
+	fileset, err := r.Store.Snapshots.Create(stagedFileentries)
 	if err != nil {
 		return err
 	}
 
 	if len(fileset.Files) > 0 {
-		if err := r.Storage.Snapshots.WriteAndSave(&fileset); err != nil {
+		if err := r.Store.Snapshots.WriteAndSave(&fileset); err != nil {
 			return err
 		}
 	}
 
 	// create commit
-	currentBranch, _ := r.GetCurrentBranch()
+	currentBranch, _ := r.Meta.GetCurrentBranch()
 	parent := ""
-	if last, err := r.GetLastCommitID(currentBranch.Name); err == nil {
+	if last, err := r.Meta.GetLastCommitID(currentBranch.Name); err == nil {
 		parent = last
 	}
 
 	newCommitID := fmt.Sprintf("%x", time.Now().UnixNano())
-	newCommit := repo.Commit{
+	newCommit := meta.Commit{
 		ID:        newCommitID,
 		Parents:   []string{},
 		Branch:    currentBranch.Name,
@@ -109,17 +110,17 @@ func (c *Command) Run(ctx *command.Context) error {
 		newCommit.Parents = append(newCommit.Parents, parent)
 	}
 
-	_, err = r.CreateCommit(&newCommit)
+	_, err = r.Meta.CreateCommit(&newCommit)
 	if err != nil {
 		return err
 	}
-	if err := r.SetLastCommitID(currentBranch.Name, newCommitID); err != nil {
+	if err := r.Meta.SetLastCommitID(currentBranch.Name, newCommitID); err != nil {
 		return err
 	}
 
 	// clear staged changes after commit
 	if len(stagedFileentries) > 0 {
-		if err := r.Storage.Files.ClearIndex(); err != nil {
+		if err := r.Store.Files.ClearIndex(); err != nil {
 			return err
 		}
 	}

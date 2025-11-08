@@ -10,19 +10,19 @@ import (
 )
 
 // Write stores all blocks for a given file.
-func (bm *BlockManager) Write(filePath string, blocks []BlockRef) error {
-	if err := fsio.MkdirAll(bm.Root, 0o755); err != nil {
+func (bc *BlockContext) Write(filePath string, blocks []BlockRef) error {
+	if err := fsio.MkdirAll(bc.Root, 0o755); err != nil {
 		return fmt.Errorf("create objects dir: %w", err)
 	}
 	workers := util.WorkerCount()
 	return util.Parallel(blocks, workers, func(b BlockRef) error {
-		return bm.writeBlockAtomic(filePath, b)
+		return bc.writeBlockAtomic(filePath, b)
 	})
 }
 
 // Read retrieves a block by its hash.
-func (bm *BlockManager) Read(hash string) ([]byte, error) {
-	path := filepath.Join(bm.Root, hash+".bin")
+func (bc *BlockContext) Read(hash string) ([]byte, error) {
+	path := filepath.Join(bc.Root, hash+".bin")
 	data, err := fsio.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read block %q: %w", hash, err)
@@ -30,8 +30,8 @@ func (bm *BlockManager) Read(hash string) ([]byte, error) {
 	return data, nil
 }
 
-func (bm *BlockManager) writeBlockAtomic(filePath string, block BlockRef) error {
-	dst := filepath.Join(bm.Root, block.Hash+".bin")
+func (bc *BlockContext) writeBlockAtomic(filePath string, block BlockRef) error {
+	dst := filepath.Join(bc.Root, block.Hash+".bin")
 
 	if fi, err := fsio.StatFile(dst); err == nil && fi.Size() == block.Size {
 		return nil // already exists

@@ -13,8 +13,8 @@ import (
 )
 
 // Restore rebuilds files from entries (e.g., from a snapshot).
-func (fm *FileManager) Restore(entries []Entry, label string) error {
-	if fm.Blocks == nil {
+func (fc *FileContext) Restore(entries []Entry, label string) error {
+	if fc.Blocks == nil {
 		return fmt.Errorf("no BlockManager attached")
 	}
 
@@ -34,7 +34,7 @@ func (fm *FileManager) Restore(entries []Entry, label string) error {
 			bar.Increment()
 			return nil
 		}
-		if err := fm.restoreFile(e); err != nil {
+		if err := fc.restoreFile(e); err != nil {
 			fmt.Printf("\nWarning: %v\n", err)
 		}
 		bar.Increment()
@@ -42,11 +42,11 @@ func (fm *FileManager) Restore(entries []Entry, label string) error {
 	})
 
 	// Remove files not in snapshot
-	fm.pruneUntrackedFiles(valid, exe)
+	fc.pruneUntrackedFiles(valid, exe)
 	return err
 }
 
-func (fm *FileManager) restoreFile(e Entry) error {
+func (fc *FileContext) restoreFile(e Entry) error {
 	if err := fsio.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (fm *FileManager) restoreFile(e Entry) error {
 
 	writer := bufio.NewWriterSize(tmp, 4*1024*1024)
 	for _, b := range e.Blocks {
-		data, err := fm.Blocks.Read(b.Hash)
+		data, err := fc.Blocks.Read(b.Hash)
 		if err != nil {
 			return fmt.Errorf("missing block %s for %s", b.Hash, e.Path)
 		}
@@ -75,14 +75,14 @@ func (fm *FileManager) restoreFile(e Entry) error {
 	return fsio.Rename(tmp.Name(), e.Path)
 }
 
-func (fm *FileManager) pruneUntrackedFiles(valid map[string]bool, exe string) {
+func (fc *FileContext) pruneUntrackedFiles(valid map[string]bool, exe string) {
 	var dirs []string
 	filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(path, fm.Root) {
+			if strings.HasPrefix(path, fc.Root) {
 				return filepath.SkipDir
 			}
 			dirs = append(dirs, path)

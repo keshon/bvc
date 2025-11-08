@@ -1,4 +1,4 @@
-package repo
+package meta
 
 import (
 	"app/internal/fsio"
@@ -15,8 +15,8 @@ type Branch struct {
 }
 
 // GetCurrentBranch returns the current branch.
-func (r *Repository) GetCurrentBranch() (Branch, error) {
-	ref, err := r.GetHeadRef()
+func (mc *MetaContext) GetCurrentBranch() (Branch, error) {
+	ref, err := mc.GetHeadRef()
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to get HEAD ref: %w", err)
 	}
@@ -28,8 +28,8 @@ func (r *Repository) GetCurrentBranch() (Branch, error) {
 }
 
 // GetBranch returns a Branch if it exists.
-func (r *Repository) GetBranch(name string) (Branch, error) {
-	exists, err := r.BranchExists(name)
+func (mc *MetaContext) GetBranch(name string) (Branch, error) {
+	exists, err := mc.BranchExists(name)
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to check branch existence: %w", err)
 	}
@@ -40,10 +40,10 @@ func (r *Repository) GetBranch(name string) (Branch, error) {
 }
 
 // ListBranches returns all branches sorted by name.
-func (r *Repository) ListBranches() ([]Branch, error) {
-	dirEntries, err := fsio.ReadDir(r.Config.BranchesDir())
+func (mc *MetaContext) ListBranches() ([]Branch, error) {
+	dirEntries, err := fsio.ReadDir(mc.Config.BranchesDir())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read branches directory %q: %w", r.Config.BranchesDir(), err)
+		return nil, fmt.Errorf("failed to read branches directory %q: %w", mc.Config.BranchesDir(), err)
 	}
 	branches := make([]Branch, 0, len(dirEntries))
 	for _, e := range dirEntries {
@@ -54,17 +54,17 @@ func (r *Repository) ListBranches() ([]Branch, error) {
 }
 
 // CreateBranch creates a new branch pointing at the current HEAD commit.
-func (r *Repository) CreateBranch(name string) (Branch, error) {
-	curr, err := r.GetCurrentBranch()
+func (mc *MetaContext) CreateBranch(name string) (Branch, error) {
+	curr, err := mc.GetCurrentBranch()
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to get current branch: %w", err)
 	}
-	lastID, err := r.GetLastCommitID(curr.Name)
+	lastID, err := mc.GetLastCommitID(curr.Name)
 	if err != nil {
 		return Branch{}, fmt.Errorf("failed to get last commit ID: %w", err)
 	}
 
-	path := filepath.Join(r.Config.BranchesDir(), name)
+	path := filepath.Join(mc.Config.BranchesDir(), name)
 	if _, err := fsio.StatFile(path); err == nil {
 		return Branch{}, fmt.Errorf("branch %q already exists: %w", name, os.ErrExist)
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -78,8 +78,8 @@ func (r *Repository) CreateBranch(name string) (Branch, error) {
 }
 
 // BranchExists checks for branch existence (fast).
-func (r *Repository) BranchExists(name string) (bool, error) {
-	_, err := fsio.StatFile(filepath.Join(r.Config.BranchesDir(), name))
+func (mc *MetaContext) BranchExists(name string) (bool, error) {
+	_, err := fsio.StatFile(filepath.Join(mc.Config.BranchesDir(), name))
 	if err == nil {
 		return true, nil
 	}

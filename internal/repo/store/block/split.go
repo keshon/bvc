@@ -6,7 +6,7 @@ import (
 )
 
 // SplitFile divides a file into content-defined blocks deterministically.
-func (bm *BlockManager) SplitFile(path string) ([]BlockRef, error) {
+func (bc *BlockContext) SplitFile(path string) ([]BlockRef, error) {
 	const chunkSize = 1 << 30 // 1 GiB per chunk
 
 	fi, err := os.Stat(path)

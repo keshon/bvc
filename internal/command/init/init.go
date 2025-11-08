@@ -6,13 +6,10 @@ import (
 	"app/internal/fsio"
 	"app/internal/middleware"
 	"app/internal/repo"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 )
 
 type Command struct{}
@@ -27,7 +24,6 @@ func (c *Command) Help() string {
 
 Options:
   -q, --quiet                 Suppress normal output.
-      --object-format=<algo>  Hash algorithm: xxh3-128 or sha256 (default xxh3-128).
       --separate-bvc-dir=<d>  Store repository data in a separate directory.
   -b, --initial-branch=<name> Use a custom initial branch name (default: main).
   
@@ -47,19 +43,12 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	quiet := fs.Bool("quiet", false, "")
 	fs.BoolVar(quiet, "q", false, "alias for --quiet")
-	targetHash := fs.String("object-format", config.DefaultHash, "")
 	sepDir := fs.String("separate-bvc-dir", "", "")
 	initBranch := fs.String("initial-branch", config.DefaultBranch, "")
 	fs.StringVar(initBranch, "b", config.DefaultBranch, "alias for --initial-branch")
 
 	if err := fs.Parse(ctx.Args); err != nil {
 		return err
-	}
-
-	// Validate requested hash format
-	validHash := slices.Contains(config.Hashes, *targetHash)
-	if !validHash {
-		return fmt.Errorf("unsupported object format: %q (supported: %s)", *targetHash, strings.Join(config.Hashes, ", "))
 	}
 
 	// Determine repoDir respecting existing pointer file
@@ -75,41 +64,34 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Check if repo already exists
-	r, created, err := repo.InitAt(repoDir, *targetHash)
-	if err != nil && errors.Is(err, os.ErrExist) {
-		// Repo exists, check hash
-		r, err = repo.OpenAt(repoDir)
-		if err != nil {
-			return fmt.Errorf("failed to open existing repository: %w", err)
-		}
+	cfg := config.NewRepoConfig(repoDir)
+	alreadyExists := repo.IsRepoExists(cfg.RepoRoot)
 
-		if r.Config.HashFormat != *targetHash {
-			return fmt.Errorf("attempt to reinitialize repository with different hash (existing: %s, requested: %s)", r.Config.HashFormat, *targetHash)
-		}
-
-		// Warn if initial branch was specified but repo already exists
-		if *initBranch != config.DefaultBranch {
-			fmt.Fprintf(os.Stderr, "warning: re-init: ignored --initial-branch=%s\n", *initBranch)
-		}
-		if !*quiet {
-			fmt.Printf("Reinitialized existing BVC repository in %s\n", absPath(r.Config.Root))
-		}
-		return nil
-	} else if err != nil {
-		return err
+	// Initialize repository + storage
+	r, err := repo.NewRepositoryByPath(repoDir)
+	if err != nil {
+		return fmt.Errorf("failed to init repository: %w", err)
 	}
 
-	// Set HEAD to initial branch
-	if _, err := r.SetHeadRef(*initBranch); err != nil {
-		return fmt.Errorf("failed to set initial branch %q: %w", *initBranch, err)
+	// Warn if initial branch was specified but repo already exists
+	if alreadyExists && *initBranch != config.DefaultBranch {
+		fmt.Fprintf(os.Stderr, "warning: re-init: ignored --initial-branch=%s\n", *initBranch)
 	}
 
+	// Set HEAD only if new repo
+	if !alreadyExists {
+		if _, err := r.Meta.SetHeadRef(*initBranch); err != nil {
+			return fmt.Errorf("failed to set initial branch %q: %w", *initBranch, err)
+		}
+	}
+
+	// Output messages
 	if !*quiet {
-		root := absPath(r.Config.Root)
-		if created {
-			fmt.Printf("Initialized empty BVC repository in %s\n", root)
-		} else {
+		root := absPath(r.Config.RepoRoot)
+		if alreadyExists {
 			fmt.Printf("Reinitialized existing BVC repository in %s\n", root)
+		} else {
+			fmt.Printf("Initialized empty BVC repository in %s\n", root)
 		}
 	}
 

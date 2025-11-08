@@ -1,19 +1,17 @@
 package veirfy
 
 import (
-	"fmt"
-	"path/filepath"
-	"sort"
-	"time"
-
 	"app/internal/command"
 	"app/internal/config"
 	"app/internal/fsio"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"app/internal/repo/store/block"
 	"app/internal/repotools"
-
-	"app/internal/storage/block"
+	"fmt"
+	"path/filepath"
+	"sort"
+	"time"
 
 	"github.com/zeebo/xxh3"
 )
@@ -45,7 +43,7 @@ func (c *Command) Run(ctx *command.Context) error {
 }
 
 func scan() error {
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -107,7 +105,7 @@ func scan() error {
 
 func repair() error {
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -159,7 +157,7 @@ func repair() error {
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := r.Storage.Files.CreateEntry(currFile)
+			entry, err := r.Store.Files.CreateEntry(currFile)
 			if err != nil {
 				continue
 			}
@@ -168,10 +166,10 @@ func repair() error {
 				if b.Hash != bc.Hash {
 					continue
 				}
-				if err := r.Storage.Blocks.Write(entry.Path, []block.BlockRef{b}); err != nil {
+				if err := r.Store.Blocks.Write(entry.Path, []block.BlockRef{b}); err != nil {
 					continue
 				}
-				status, _ := r.Storage.Blocks.VerifyBlock(b.Hash)
+				status, _ := r.Store.Blocks.VerifyBlock(b.Hash)
 				if status == block.OK {
 					fixed = true
 					repaired++

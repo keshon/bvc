@@ -2,7 +2,8 @@ package file
 
 import (
 	"app/internal/fsio"
-	"app/internal/storage/block"
+	"app/internal/repo/store/block"
+
 	"fmt"
 	"path/filepath"
 )
@@ -33,34 +34,34 @@ func (e *Entry) Equal(other *Entry) bool {
 	return true
 }
 
-// FileManager wraps file-level operations that depend on BlockManager.
-type FileManager struct {
+// FileContext wraps file-level operations that depend on BlockManager.
+type FileContext struct {
 	Root   string
-	Blocks *block.BlockManager
+	Blocks *block.BlockContext
 }
 
 // CreateEntry splits a file into block references (content-defined).
-func (fm *FileManager) CreateEntry(path string) (Entry, error) {
-	if fm.Blocks == nil {
+func (fc *FileContext) CreateEntry(path string) (Entry, error) {
+	if fc.Blocks == nil {
 		return Entry{}, fmt.Errorf("no BlockManager attached")
 	}
-	blocks, err := fm.Blocks.SplitFile(path)
+	blocks, err := fc.Blocks.SplitFile(path)
 	if err != nil {
 		return Entry{}, fmt.Errorf("split %q: %w", path, err)
 	}
 	return Entry{Path: path, Blocks: blocks}, nil
 }
 
-// Write stores all blocks of an entry into storage.
-func (fm *FileManager) Write(e Entry) error {
-	if fm.Blocks == nil {
+// Write stores all blocks of an entry into store.
+func (fc *FileContext) Write(e Entry) error {
+	if fc.Blocks == nil {
 		return fmt.Errorf("no BlockManager attached")
 	}
-	return fm.Blocks.Write(e.Path, e.Blocks)
+	return fc.Blocks.Write(e.Path, e.Blocks)
 }
 
 // Exists checks whether a given path exists in the working tree.
-func (fm *FileManager) Exists(path string) bool {
+func (fc *FileContext) Exists(path string) bool {
 	_, err := fsio.StatFile(filepath.Clean(path))
 	return err == nil
 }

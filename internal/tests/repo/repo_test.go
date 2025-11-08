@@ -9,6 +9,7 @@ import (
 	"app/internal/config"
 	"app/internal/fsio"
 	"app/internal/repo"
+	"app/internal/repo/meta"
 )
 
 // helpers
@@ -51,20 +52,18 @@ func simulateStatError() func() {
 	return func() { fsio.StatFile = orig }
 }
 
-// --- InitAt/OpenAt --- //
+// --- Init --- //
 func TestInitAndOpenRepository(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, created, err := repo.InitAt(tmp, "xxh3")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
-	if !created {
-		t.Errorf("expected repo to be created")
-	}
-	if r.Config.Root != tmp {
-		t.Errorf("expected Root=%q got %q", tmp, r.Config.Root)
+
+	if r.Meta.Config.RepoRoot != tmp {
+		t.Errorf("expected Root=%q got %q", tmp, r.Meta.Config.RepoRoot)
 	}
 
 	// Check HEAD file
@@ -76,14 +75,6 @@ func TestInitAndOpenRepository(t *testing.T) {
 		t.Errorf("unexpected HEAD content: %s", string(headData))
 	}
 
-	// Open the same repo
-	r2, err := repo.OpenAt(tmp)
-	if err != nil {
-		t.Fatalf("OpenAt failed: %v", err)
-	}
-	if r2.Config.HashFormat != "xxh3" {
-		t.Errorf("expected hash xxh3 got %s", r2.Config.HashFormat)
-	}
 }
 
 // --- Branches --- //
@@ -91,13 +82,13 @@ func TestBranchCreationAndListing(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
 	// Current branch
-	cur, err := r.GetCurrentBranch()
+	cur, err := r.Meta.GetCurrentBranch()
 	if err != nil {
 		t.Fatalf("GetCurrentBranch failed: %v", err)
 	}
@@ -106,7 +97,7 @@ func TestBranchCreationAndListing(t *testing.T) {
 	}
 
 	// Create new branch
-	newBranch, err := r.CreateBranch("feature")
+	newBranch, err := r.Meta.CreateBranch("feature")
 	if err != nil {
 		t.Fatalf("CreateBranch failed: %v", err)
 	}
@@ -115,7 +106,7 @@ func TestBranchCreationAndListing(t *testing.T) {
 	}
 
 	// Check existence
-	exists, err := r.BranchExists("feature")
+	exists, err := r.Meta.BranchExists("feature")
 	if err != nil {
 		t.Fatalf("BranchExists failed: %v", err)
 	}
@@ -124,7 +115,7 @@ func TestBranchCreationAndListing(t *testing.T) {
 	}
 
 	// List branches
-	branches, err := r.ListBranches()
+	branches, err := r.Meta.ListBranches()
 	if err != nil {
 		t.Fatalf("ListBranches failed: %v", err)
 	}
@@ -138,14 +129,14 @@ func TestCommitsLifecycle(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
 	branch := config.DefaultBranch
 
-	commit := &repo.Commit{
+	commit := &meta.Commit{
 		ID:        "abc123",
 		Parents:   nil,
 		Branch:    branch,
@@ -154,7 +145,7 @@ func TestCommitsLifecycle(t *testing.T) {
 		FilesetID: "fileset1",
 	}
 
-	id, err := r.CreateCommit(commit)
+	id, err := r.Meta.CreateCommit(commit)
 	if err != nil {
 		t.Fatalf("CreateCommit failed: %v", err)
 	}
@@ -163,10 +154,10 @@ func TestCommitsLifecycle(t *testing.T) {
 	}
 
 	// Set/Get last commit ID
-	if err := r.SetLastCommitID(branch, commit.ID); err != nil {
+	if err := r.Meta.SetLastCommitID(branch, commit.ID); err != nil {
 		t.Fatalf("SetLastCommitID failed: %v", err)
 	}
-	lastID, err := r.GetLastCommitID(branch)
+	lastID, err := r.Meta.GetLastCommitID(branch)
 	if err != nil {
 		t.Fatalf("GetLastCommitID failed: %v", err)
 	}
@@ -175,7 +166,7 @@ func TestCommitsLifecycle(t *testing.T) {
 	}
 
 	// Get commit
-	c, err := r.GetCommit(commit.ID)
+	c, err := r.Meta.GetCommit(commit.ID)
 	if err != nil {
 		t.Fatalf("GetCommit failed: %v", err)
 	}
@@ -184,7 +175,7 @@ func TestCommitsLifecycle(t *testing.T) {
 	}
 
 	// AllCommitIDs
-	ids, err := r.AllCommitIDs(branch)
+	ids, err := r.Meta.AllCommitIDs(branch)
 	if err != nil {
 		t.Fatalf("AllCommitIDs failed: %v", err)
 	}
@@ -193,7 +184,7 @@ func TestCommitsLifecycle(t *testing.T) {
 	}
 
 	// GetLastCommitForBranch
-	lastCommit, err := r.GetLastCommitForBranch(branch)
+	lastCommit, err := r.Meta.GetLastCommitForBranch(branch)
 	if err != nil {
 		t.Fatalf("GetLastCommitForBranch failed: %v", err)
 	}
@@ -207,12 +198,12 @@ func TestHeadRefSetAndGet(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
-	ref, err := r.SetHeadRef("main")
+	ref, err := r.Meta.SetHeadRef("main")
 	if err != nil {
 		t.Fatalf("SetHeadRef failed: %v", err)
 	}
@@ -220,7 +211,7 @@ func TestHeadRefSetAndGet(t *testing.T) {
 		t.Errorf("unexpected HeadRef: %s", ref)
 	}
 
-	gotRef, err := r.GetHeadRef()
+	gotRef, err := r.Meta.GetHeadRef()
 	if err != nil {
 		t.Fatalf("GetHeadRef failed: %v", err)
 	}
@@ -234,55 +225,24 @@ func TestRepositoryStorageIntegration(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
-	if r.Storage == nil {
+	if r.Store == nil {
 		t.Errorf("expected storage manager to be initialized")
-	}
-	if r.Storage.Config.Root != r.Config.Root {
-		t.Errorf("expected storage.Root=%s got %s", r.Config.Root, r.Storage.Config.Root)
 	}
 }
 
 // --- InitAt/OpenAt existing repo --- //
-func TestInitAtExistingRepo(t *testing.T) {
-	tmp := makeTempDir(t)
-	defer os.RemoveAll(tmp)
-
-	_, _, err := repo.InitAt(tmp, "")
-	if err != nil {
-		t.Fatalf("first InitAt failed: %v", err)
-	}
-
-	_, created, err := repo.InitAt(tmp, "")
-	if !os.IsExist(err) && !errors.Is(err, os.ErrExist) {
-		t.Fatalf("expected os.ErrExist, got %v", err)
-	}
-	if created {
-		t.Errorf("expected created=false for existing repo")
-	}
-}
-
-// --- OpenAt non-existent repo --- //
-func TestOpenAtNonexistentRepo(t *testing.T) {
-	tmp := makeTempDir(t)
-	defer os.RemoveAll(tmp)
-
-	_, err := repo.OpenAt(tmp)
-	if err == nil {
-		t.Fatal("expected error opening non-existent repo")
-	}
-}
 
 // --- Errors for branch simulation --- //
 func TestBranchErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
@@ -290,7 +250,7 @@ func TestBranchErrorsSimulation(t *testing.T) {
 	// simulate stat error in BranchExists
 	restoreStat := simulateStatError()
 	defer restoreStat()
-	_, err = r.BranchExists("any")
+	_, err = r.Meta.BranchExists("any")
 	if err == nil {
 		t.Error("expected simulated stat error")
 	}
@@ -298,7 +258,7 @@ func TestBranchErrorsSimulation(t *testing.T) {
 	// simulate write error in CreateBranch
 	restoreWrite := simulateWriteFileError()
 	defer restoreWrite()
-	_, err = r.CreateBranch("newbranch")
+	_, err = r.Meta.CreateBranch("newbranch")
 	if err == nil {
 		t.Error("expected simulated write error")
 	}
@@ -306,7 +266,7 @@ func TestBranchErrorsSimulation(t *testing.T) {
 	// simulate read error in GetBranch
 	restoreRead := simulateReadFileError()
 	defer restoreRead()
-	_, err = r.GetBranch("nonexistent")
+	_, err = r.Meta.GetBranch("nonexistent")
 	if err == nil {
 		t.Error("expected simulated read error")
 	}
@@ -317,12 +277,12 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
-	commit := &repo.Commit{
+	commit := &meta.Commit{
 		ID:      "error1",
 		Branch:  config.DefaultBranch,
 		Message: "test",
@@ -335,7 +295,7 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	}
 	defer func() { fsio.CreateTempFile = origCreateTemp }()
 
-	_, err = r.CreateCommit(commit)
+	_, err = r.Meta.CreateCommit(commit)
 	if err == nil {
 		t.Error("expected simulated write error")
 	}
@@ -347,7 +307,7 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	}
 	defer func() { fsio.ReadFile = origRead }()
 
-	_, err = r.GetCommit("nonexistent")
+	_, err = r.Meta.GetCommit("nonexistent")
 	if err == nil {
 		t.Error("expected simulated read error")
 	}
@@ -359,7 +319,7 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	}
 	defer func() { fsio.WriteFile = origWrite }()
 
-	err = r.SetLastCommitID("badbranch", "abc")
+	err = r.Meta.SetLastCommitID("badbranch", "abc")
 	if err == nil {
 		t.Error("expected simulated write error")
 	}
@@ -370,7 +330,7 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	}
 	defer func() { fsio.ReadFile = origRead }()
 
-	_, err = r.GetLastCommitID("badbranch")
+	_, err = r.Meta.GetLastCommitID("badbranch")
 	if err == nil {
 		t.Error("expected simulated read error")
 	}
@@ -381,21 +341,21 @@ func TestHeadErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
 	restoreRead := simulateReadFileError()
 	defer restoreRead()
-	_, err = r.GetHeadRef()
+	_, err = r.Meta.GetHeadRef()
 	if err == nil {
 		t.Error("expected simulated read error for HEAD")
 	}
 
 	restoreWrite := simulateWriteFileError()
 	defer restoreWrite()
-	_, err = r.SetHeadRef("main")
+	_, err = r.Meta.SetHeadRef("main")
 	if err == nil {
 		t.Error("expected simulated write error for HEAD")
 	}
@@ -406,19 +366,19 @@ func TestAllCommitIDsCycles(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
 
-	r, _, err := repo.InitAt(tmp, "")
+	r, err := repo.NewRepositoryByPath(tmp)
 	if err != nil {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
-	commitA := &repo.Commit{
+	commitA := &meta.Commit{
 		ID:        "A",
 		Parents:   []string{"B"}, // cycle
 		Branch:    config.DefaultBranch,
 		Message:   "A",
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
-	commitB := &repo.Commit{
+	commitB := &meta.Commit{
 		ID:        "B",
 		Parents:   []string{"A"}, // cycle
 		Branch:    config.DefaultBranch,
@@ -426,11 +386,11 @@ func TestAllCommitIDsCycles(t *testing.T) {
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	r.CreateCommit(commitA)
-	r.CreateCommit(commitB)
-	r.SetLastCommitID(config.DefaultBranch, "A")
+	r.Meta.CreateCommit(commitA)
+	r.Meta.CreateCommit(commitB)
+	r.Meta.SetLastCommitID(config.DefaultBranch, "A")
 
-	ids, err := r.AllCommitIDs(config.DefaultBranch)
+	ids, err := r.Meta.AllCommitIDs(config.DefaultBranch)
 	if err != nil {
 		t.Fatalf("AllCommitIDs failed: %v", err)
 	}

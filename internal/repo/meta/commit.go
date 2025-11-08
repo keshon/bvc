@@ -1,4 +1,4 @@
-package repo
+package meta
 
 import (
 	"errors"
@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 
 	"app/internal/fsio"
-	"app/internal/storage/snapshot"
+	"app/internal/repo/store/snapshot"
+
 	"app/internal/util"
 )
 
@@ -21,9 +22,9 @@ type Commit struct {
 }
 
 // GetCommit reads a commit by ID.
-func (r *Repository) GetCommit(commitID string) (*Commit, error) {
+func (mc *MetaContext) GetCommit(commitID string) (*Commit, error) {
 	var c Commit
-	path := filepath.Join(r.Config.CommitsDir(), commitID+".json")
+	path := filepath.Join(mc.Config.CommitsDir(), commitID+".json")
 	if err := util.ReadJSON(path, &c); err != nil {
 		return nil, fmt.Errorf("failed to read commit %q: %w", commitID, err)
 	}
@@ -31,8 +32,8 @@ func (r *Repository) GetCommit(commitID string) (*Commit, error) {
 }
 
 // CreateCommit writes a commit to store.
-func (r *Repository) CreateCommit(commit *Commit) (string, error) {
-	path := filepath.Join(r.Config.CommitsDir(), commit.ID+".json")
+func (mc *MetaContext) CreateCommit(commit *Commit) (string, error) {
+	path := filepath.Join(mc.Config.CommitsDir(), commit.ID+".json")
 	if err := util.WriteJSON(path, commit); err != nil {
 		return "", fmt.Errorf("failed to write commit %q: %w", commit.ID, err)
 	}
@@ -40,8 +41,8 @@ func (r *Repository) CreateCommit(commit *Commit) (string, error) {
 }
 
 // SetLastCommitID writes the branch last-commit pointer.
-func (r *Repository) SetLastCommitID(branch, commitID string) error {
-	path := filepath.Join(r.Config.BranchesDir(), branch)
+func (mc *MetaContext) SetLastCommitID(branch, commitID string) error {
+	path := filepath.Join(mc.Config.BranchesDir(), branch)
 	if err := fsio.WriteFile(path, []byte(commitID), 0o644); err != nil {
 		return fmt.Errorf("failed to set last commit for branch %q: %w", branch, err)
 	}
@@ -49,8 +50,8 @@ func (r *Repository) SetLastCommitID(branch, commitID string) error {
 }
 
 // GetLastCommitID returns the last commit ID for branch.
-func (r *Repository) GetLastCommitID(branch string) (string, error) {
-	path := filepath.Join(r.Config.BranchesDir(), branch)
+func (mc *MetaContext) GetLastCommitID(branch string) (string, error) {
+	path := filepath.Join(mc.Config.BranchesDir(), branch)
 	data, err := fsio.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -62,8 +63,8 @@ func (r *Repository) GetLastCommitID(branch string) (string, error) {
 }
 
 // AllCommitIDs returns all commit IDs for branch (latest -> oldest).
-func (r *Repository) AllCommitIDs(branch string) ([]string, error) {
-	lastID, err := r.GetLastCommitID(branch)
+func (mc *MetaContext) AllCommitIDs(branch string) ([]string, error) {
+	lastID, err := mc.GetLastCommitID(branch)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (r *Repository) AllCommitIDs(branch string) ([]string, error) {
 		seen[id] = true
 		ids = append(ids, id)
 
-		c, err := r.GetCommit(id)
+		c, err := mc.GetCommit(id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read commit %q: %w", id, err)
 		}
@@ -92,8 +93,8 @@ func (r *Repository) AllCommitIDs(branch string) ([]string, error) {
 }
 
 // GetCommitsForBranch returns []*Commit (latest -> oldest).
-func (r *Repository) GetCommitsForBranch(branch string) ([]*Commit, error) {
-	ids, err := r.AllCommitIDs(branch)
+func (mc *MetaContext) GetCommitsForBranch(branch string) ([]*Commit, error) {
+	ids, err := mc.AllCommitIDs(branch)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func (r *Repository) GetCommitsForBranch(branch string) ([]*Commit, error) {
 	}
 	commits := make([]*Commit, 0, len(ids))
 	for _, id := range ids {
-		c, err := r.GetCommit(id)
+		c, err := mc.GetCommit(id)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read commit %q: %w", id, err)
 		}
@@ -112,25 +113,24 @@ func (r *Repository) GetCommitsForBranch(branch string) ([]*Commit, error) {
 }
 
 // GetLastCommitForBranch returns the last commit for branch.
-func (r *Repository) GetLastCommitForBranch(branch string) (*Commit, error) {
-	lastID, err := r.GetLastCommitID(branch)
+func (mc *MetaContext) GetLastCommitForBranch(branch string) (*Commit, error) {
+	lastID, err := mc.GetLastCommitID(branch)
 	if err != nil {
 		return nil, err
 	}
 	if lastID == "" {
 		return nil, nil
 	}
-	return r.GetCommit(lastID)
+	return mc.GetCommit(lastID)
 }
 
 // GetCommitFileset returns snapshot.Fileset for a commit.
-func (r *Repository) GetCommitFileset(commitID string) (*snapshot.Fileset, error) {
-	commit, err := r.GetCommit(commitID)
+func (mc *MetaContext) GetCommitFileset(commitID string) (*snapshot.Fileset, error) {
+	commit, err := mc.GetCommit(commitID)
 	if err != nil {
 		return nil, err
 	}
-	//fs, err := snapshot.GetFileset(commit.FilesetID)
-	fs, err := r.Storage.Snapshots.Load(commit.FilesetID)
+	fs, err := mc.Storage.Snapshots.Load(commit.FilesetID)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("fileset %q not found for commit %q: %w", commit.FilesetID, commitID, err)

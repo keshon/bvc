@@ -7,7 +7,7 @@ import (
 )
 
 // CreateEntries builds entries from a list of paths.
-func (fm *FileManager) CreateEntries(paths []string) ([]Entry, error) {
+func (fc *FileContext) CreateEntries(paths []string) ([]Entry, error) {
 	bar := progress.NewProgress(len(paths), "Scanning files ")
 	defer bar.Finish()
 
@@ -24,7 +24,7 @@ func (fm *FileManager) CreateEntries(paths []string) ([]Entry, error) {
 		go func() {
 			defer wg.Done()
 			for p := range jobs {
-				entry, err := fm.CreateEntry(p)
+				entry, err := fc.CreateEntry(p)
 				if err != nil {
 					errs <- err
 					continue
@@ -64,20 +64,20 @@ func (fm *FileManager) CreateEntries(paths []string) ([]Entry, error) {
 }
 
 // CreateAllEntries builds entries for all tracked + untracked files.
-func (fm *FileManager) CreateAllEntries() ([]Entry, error) {
-	allFiles, err := fm.ListAll()
+func (fc *FileContext) CreateAllEntries() ([]Entry, error) {
+	allFiles, err := fc.ListAll()
 	if err != nil {
 		return nil, err
 	}
-	entries, err := fm.CreateEntries(allFiles)
+	entries, err := fc.CreateEntries(allFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	tracked, _ := fm.GetIndexFiles()
+	tracked, _ := fc.GetIndexFiles()
 	var deleted []Entry
 	for _, t := range tracked {
-		if !fm.Exists(t.Path) {
+		if !fc.Exists(t.Path) {
 			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
 		}
 	}
@@ -85,8 +85,8 @@ func (fm *FileManager) CreateAllEntries() ([]Entry, error) {
 }
 
 // CreateChangedEntries builds entries only for modified and deleted files.
-func (fm *FileManager) CreateChangedEntries() ([]Entry, error) {
-	tracked, err := fm.GetIndexFiles()
+func (fc *FileContext) CreateChangedEntries() ([]Entry, error) {
+	tracked, err := fc.GetIndexFiles()
 	if err != nil {
 		return nil, err
 	}
@@ -94,11 +94,11 @@ func (fm *FileManager) CreateChangedEntries() ([]Entry, error) {
 	var toUpdate []string
 	var deleted []Entry
 	for _, t := range tracked {
-		if !fm.Exists(t.Path) {
+		if !fc.Exists(t.Path) {
 			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
 			continue
 		}
-		current, err := fm.CreateEntry(t.Path)
+		current, err := fc.CreateEntry(t.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func (fm *FileManager) CreateChangedEntries() ([]Entry, error) {
 		}
 	}
 
-	modified, err := fm.CreateEntries(toUpdate)
+	modified, err := fc.CreateEntries(toUpdate)
 	if err != nil {
 		return nil, err
 	}

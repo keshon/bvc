@@ -5,6 +5,7 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"app/internal/repo/meta"
 	"flag"
 	"fmt"
 	"sort"
@@ -63,7 +64,7 @@ func (c *Command) Run(ctx *command.Context) error {
 }
 
 func (c *Command) log(showAll, oneline bool, n int, since, until, branchArg string) error {
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -72,7 +73,7 @@ func (c *Command) log(showAll, oneline bool, n int, since, until, branchArg stri
 	if branchArg != "" {
 		branches = []string{branchArg}
 	} else if showAll {
-		all, err := r.ListBranches()
+		all, err := r.Meta.ListBranches()
 		if err != nil {
 			return fmt.Errorf("failed to list branches: %w", err)
 		}
@@ -80,18 +81,18 @@ func (c *Command) log(showAll, oneline bool, n int, since, until, branchArg stri
 			branches = append(branches, b.Name)
 		}
 	} else {
-		cur, err := r.GetCurrentBranch()
+		cur, err := r.Meta.GetCurrentBranch()
 		if err != nil {
 			return err
 		}
 		branches = []string{cur.Name}
 	}
 
-	var commits []*repo.Commit
+	var commits []*meta.Commit
 	seen := make(map[string]bool)
 
 	for _, branch := range branches {
-		branchCommits, err := r.GetCommitsForBranch(branch)
+		branchCommits, err := r.Meta.GetCommitsForBranch(branch)
 		if err != nil {
 			return fmt.Errorf("failed to get commits for branch %q: %w", branch, err)
 		}

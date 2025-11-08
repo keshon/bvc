@@ -26,7 +26,7 @@ Usage:
 
 func (c *Command) Run(ctx *command.Context) error {
 	// open the repository context
-	repo, err := repo.OpenAt(config.ResolveRepoRoot())
+	repo, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -34,7 +34,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	// case 1: create new branch
 	if len(ctx.Args) > 0 {
 		name := ctx.Args[0]
-		newBranch, err := repo.CreateBranch(name)
+		newBranch, err := repo.Meta.CreateBranch(name)
 		if err != nil {
 			return fmt.Errorf("failed to create branch %q: %w", name, err)
 		}
@@ -43,14 +43,14 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// case 2: list branches
-	currentBranch, err := repo.GetCurrentBranch()
+	currentBranch, err := repo.Meta.GetCurrentBranch()
 	if err != nil {
 		return fmt.Errorf("failed to determine current branch: %w", err)
 	}
 
 	// list all branches
 	fmt.Println("Branches:")
-	allBranches, err := repo.ListBranches()
+	allBranches, err := repo.Meta.ListBranches()
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}

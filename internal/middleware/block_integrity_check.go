@@ -15,7 +15,7 @@ func WithBlockIntegrityCheck() command.Middleware {
 			Command: cmd,
 			Wrap: func(ctx *command.Context) error {
 				fmt.Println("Checking repository integrity...")
-				r, err := repo.OpenAt(config.ResolveRepoRoot())
+				r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 				if err != nil {
 					return fmt.Errorf("failed to open repository: %w", err)
 				}

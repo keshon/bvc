@@ -1,11 +1,10 @@
 package snapshot
 
 import (
+	"app/internal/repo/store/file"
 	"fmt"
 	"path/filepath"
 	"sort"
-
-	"app/internal/storage/file"
 
 	"github.com/zeebo/xxh3"
 )

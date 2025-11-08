@@ -29,29 +29,29 @@ func (c *Command) Run(ctx *command.Context) error {
 	branchName := ctx.Args[0]
 
 	// open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// ensure branch exists
-	targetBranch, err := r.GetBranch(branchName)
+	targetBranch, err := r.Meta.GetBranch(branchName)
 	if err != nil {
 		return err
 	}
 
 	// resolve its last commit
-	commitID, err := r.GetLastCommitID(targetBranch.Name)
+	commitID, err := r.Meta.GetLastCommitID(targetBranch.Name)
 	if err != nil {
 		return err
 	}
 
 	// case 1: handle empty branch
 	if commitID == "" {
-		if err := r.Storage.Files.Restore(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
+		if err := r.Store.Files.Restore(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
 			return err
 		}
-		if _, err := r.SetHeadRef(branchName); err != nil {
+		if _, err := r.Meta.SetHeadRef(branchName); err != nil {
 			return err
 		}
 		fmt.Println("Branch is empty, switched to", branchName)
@@ -60,27 +60,27 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// case 2: handle non-empty branch
 	// load commit and fileset
-	commit, err := r.GetCommit(commitID)
+	commit, err := r.Meta.GetCommit(commitID)
 	if err != nil {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
 	}
 
-	fs, err := r.Storage.Snapshots.Load(commit.FilesetID)
+	fs, err := r.Store.Snapshots.Load(commit.FilesetID)
 
 	if err != nil {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
 
 	// restore files
-	if err := r.Storage.Files.Restore(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
+	if err := r.Store.Files.Restore(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
 		return fmt.Errorf("restore failed: %w", err)
 	}
 
 	// update HEAD and last commit
-	if _, err := r.SetHeadRef(branchName); err != nil {
+	if _, err := r.Meta.SetHeadRef(branchName); err != nil {
 		return err
 	}
-	if err := r.SetLastCommitID(branchName, commitID); err != nil {
+	if err := r.Meta.SetLastCommitID(branchName, commitID); err != nil {
 		return err
 	}
 

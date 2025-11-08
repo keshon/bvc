@@ -3,9 +3,9 @@ package merge
 import (
 	"app/internal/config"
 	"app/internal/repo"
-	"app/internal/storage/file"
-	"app/internal/storage/snapshot"
-
+	"app/internal/repo/meta"
+	"app/internal/repo/store/file"
+	"app/internal/repo/store/snapshot"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -22,7 +22,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 	}
 
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return "", fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -38,8 +38,8 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 		}
 		seen[commitID] = true
 
-		var c *repo.Commit
-		c, err := r.GetCommit(commitID)
+		var c *meta.Commit
+		c, err := r.Meta.GetCommit(commitID)
 		if err != nil {
 			continue
 		}
@@ -65,8 +65,8 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 			return commitID, nil
 		}
 
-		var c *repo.Commit
-		c, err := r.GetCommit(commitID)
+		var c *meta.Commit
+		c, err := r.Meta.GetCommit(commitID)
 		if err != nil {
 			continue
 		}
@@ -196,14 +196,14 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// Open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// get commits
-	currentCommitID, _ := r.GetLastCommitID(currentBranch)
-	targetCommitID, err := r.GetLastCommitID(targetBranch)
+	currentCommitID, _ := r.Meta.GetLastCommitID(currentBranch)
+	targetCommitID, err := r.Meta.GetLastCommitID(targetBranch)
 	if err != nil {
 		return err
 	}
@@ -221,15 +221,15 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// load filesets
-	baseFS, err := r.GetCommitFileset(baseID)
+	baseFS, err := r.Meta.GetCommitFileset(baseID)
 	if err != nil {
 		return fmt.Errorf("failed to load base fileset: %v", err)
 	}
-	oursFS, err := r.GetCommitFileset(currentCommitID)
+	oursFS, err := r.Meta.GetCommitFileset(currentCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load our fileset: %v", err)
 	}
-	theirsFS, err := r.GetCommitFileset(targetCommitID)
+	theirsFS, err := r.Meta.GetCommitFileset(targetCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load their fileset: %v", err)
 	}
@@ -238,7 +238,7 @@ func merge(currentBranch, targetBranch string) error {
 	mergedFS, conflicts := mergeFilesets(baseFS, oursFS, theirsFS)
 
 	// save merged fileset
-	r.Storage.Snapshots.Save(mergedFS)
+	r.Store.Snapshots.Save(mergedFS)
 
 	// create merge commit with two parents
 	hash128 := xxh3.Hash128([]byte(
@@ -246,7 +246,7 @@ func merge(currentBranch, targetBranch string) error {
 	)).Bytes()
 	commitID := fmt.Sprintf("%x", hash128[:8])
 
-	mergeCommit := repo.Commit{
+	mergeCommit := meta.Commit{
 		ID:        commitID,
 		Parents:   []string{currentCommitID, targetCommitID},
 		Branch:    currentBranch,
@@ -256,18 +256,18 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// create merge commit
-	_, err = r.CreateCommit(&mergeCommit)
+	_, err = r.Meta.CreateCommit(&mergeCommit)
 	if err != nil {
 		return fmt.Errorf("failed to create merge commit: %v", err)
 	}
 
 	// update current branch to point to new merge commit
-	if err := r.SetLastCommitID(currentBranch, commitID); err != nil {
+	if err := r.Meta.SetLastCommitID(currentBranch, commitID); err != nil {
 		return fmt.Errorf("failed to update branch: %v", err)
 	}
 
 	// apply merged fileset to working directory
-	if err := r.Storage.Files.Restore(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
+	if err := r.Store.Files.Restore(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
 		return fmt.Errorf("failed to apply merged fileset: %v", err)
 	}
 

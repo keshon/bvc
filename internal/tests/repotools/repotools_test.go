@@ -3,9 +3,9 @@ package repotools_test
 import (
 	"app/internal/config"
 	"app/internal/fsio"
-	"app/internal/repo"
+	"app/internal/repo/meta"
+	"app/internal/repo/store/block"
 	"app/internal/repotools"
-	"app/internal/storage/block"
 	"app/internal/util"
 	"encoding/json"
 	"fmt"
@@ -41,13 +41,13 @@ type fakeRepo struct {
 	Branches []string
 }
 
-func (r *fakeRepo) ListBranches() ([]repo.Branch, error) {
+func (r *fakeRepo) ListBranches() ([]meta.Branch, error) {
 	if r.Branches == nil {
 		return nil, fmt.Errorf("ListBranches failed")
 	}
-	var out []repo.Branch
+	var out []meta.Branch
 	for _, name := range r.Branches {
-		out = append(out, repo.Branch{Name: name})
+		out = append(out, meta.Branch{Name: name})
 	}
 	return out, nil
 }
@@ -78,7 +78,7 @@ func TestListAllBlocks_Success(t *testing.T) {
 	r := &fakeRepo{Branches: []string{"main"}}
 
 	// Write a commit JSON
-	commit := repo.Commit{
+	commit := meta.Commit{
 		ID:        "c1",
 		Branch:    "main",
 		FilesetID: "fs1",
@@ -169,7 +169,7 @@ func TestCountBlocks_Success(t *testing.T) {
 	_, cfg := tmpRepo(t)
 	r := &fakeRepo{Branches: []string{"main"}}
 
-	commit := repo.Commit{ID: "c1", Branch: "main", FilesetID: "fs1"}
+	commit := meta.Commit{ID: "c1", Branch: "main", FilesetID: "fs1"}
 	b, _ := json.Marshal(commit)
 	os.MkdirAll(cfg.CommitsDir(), 0o755)
 	os.WriteFile(filepath.Join(cfg.CommitsDir(), "c1.json"), b, 0o644)

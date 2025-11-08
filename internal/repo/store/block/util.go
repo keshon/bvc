@@ -1,8 +1,6 @@
 package block
 
 import (
-	"app/internal/config"
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/zeebo/xxh3"
@@ -16,20 +14,9 @@ func ShouldSplitBlock(size int, rh uint32) bool {
 func HashBlock(data []byte, offset int64) BlockRef {
 	var hashStr string
 
-	cfg := config.NewRepoConfig(config.ResolveRepoRoot())
+	hash := xxh3.Hash128(data).Bytes()
+	hashStr = fmt.Sprintf("%x", hash)
 
-	switch cfg.GetHash() {
-	case "xxh3":
-		hash := xxh3.Hash128(data).Bytes()
-		hashStr = fmt.Sprintf("%x", hash)
-	case "sha256":
-		hash := sha256.Sum256(data)
-		hashStr = fmt.Sprintf("%x", hash[:])
-	default:
-		// fallback
-		hash := xxh3.Hash128(data).Bytes()
-		hashStr = fmt.Sprintf("%x", hash)
-	}
 	return BlockRef{
 		Hash:   hashStr,
 		Size:   int64(len(data)),

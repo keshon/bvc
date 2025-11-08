@@ -7,8 +7,8 @@ import (
 )
 
 // CleanupTemp removes orphaned temp files from the block storage directory.
-func (bm *BlockManager) CleanupTemp() error {
-	entries, err := fsio.ReadDir(bm.Root)
+func (bc *BlockContext) CleanupTemp() error {
+	entries, err := fsio.ReadDir(bc.Root)
 	if err != nil {
 		return err
 	}
@@ -19,7 +19,7 @@ func (bm *BlockManager) CleanupTemp() error {
 		}
 		name := e.Name()
 		if strings.HasPrefix(name, "tmp-") || strings.HasPrefix(name, ".tmp-") {
-			p := filepath.Join(bm.Root, name)
+			p := filepath.Join(bc.Root, name)
 			if fi, err := fsio.StatFile(p); err != nil || fi.Size() == 0 {
 				_ = fsio.Remove(p)
 			}

@@ -1,4 +1,4 @@
-package repo
+package meta
 
 import (
 	"app/internal/fsio"
@@ -11,10 +11,10 @@ type HeadRef string
 func (h HeadRef) String() string { return string(h) }
 
 // GetHeadRef reads HEAD for this repository.
-func (r *Repository) GetHeadRef() (HeadRef, error) {
-	data, err := fsio.ReadFile(r.Config.HeadFile())
+func (mc *MetaContext) GetHeadRef() (HeadRef, error) {
+	data, err := fsio.ReadFile(mc.Config.HeadFile())
 	if err != nil {
-		return "", fmt.Errorf("failed to read HEAD %q: %w", r.Config.HeadFile(), err)
+		return "", fmt.Errorf("failed to read HEAD %q: %w", mc.Config.HeadFile(), err)
 	}
 
 	const prefix = "ref: "
@@ -29,15 +29,15 @@ func (r *Repository) GetHeadRef() (HeadRef, error) {
 
 // SetHeadRef sets HEAD to the given branch reference (e.g. "branches/main").
 // Accepts either "branches/<name>" or just "<name>" (interpreted as branch name).
-func (r *Repository) SetHeadRef(branch string) (HeadRef, error) {
+func (mc *MetaContext) SetHeadRef(branch string) (HeadRef, error) {
 	// normalize: if branch doesn't contain '/', treat as branch name
 	refVal := branch
 	if filepath.Base(branch) == branch { // no slash present
 		refVal = "branches/" + branch
 	}
 	content := "ref: " + refVal
-	if err := fsio.WriteFile(r.Config.HeadFile(), []byte(content), 0o644); err != nil {
-		return "", fmt.Errorf("failed to write HEAD %q: %w", r.Config.HeadFile(), err)
+	if err := fsio.WriteFile(mc.Config.HeadFile(), []byte(content), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write HEAD %q: %w", mc.Config.HeadFile(), err)
 	}
 	return HeadRef(refVal), nil
 }

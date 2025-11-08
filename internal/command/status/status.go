@@ -5,7 +5,7 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
-	"app/internal/storage/file"
+	"app/internal/repo/store/file"
 	"flag"
 	"fmt"
 	"os"
@@ -64,13 +64,13 @@ func (c *Command) Run(ctx *command.Context) error {
 
 // status performs the main status logic
 func status(short, showBranch bool, untrackedMode string, showIgnored, quiet bool) error {
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// Branch info
-	currentBranch, err := r.GetCurrentBranch()
+	currentBranch, err := r.Meta.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
@@ -80,8 +80,8 @@ func status(short, showBranch bool, untrackedMode string, showIgnored, quiet boo
 
 	// Load last commit snapshot
 	lastFiles := map[string]file.Entry{}
-	if commitID, err := r.GetLastCommitID(currentBranch.Name); err == nil && commitID != "" {
-		if fs, err := r.GetCommitFileset(commitID); err == nil {
+	if commitID, err := r.Meta.GetLastCommitID(currentBranch.Name); err == nil && commitID != "" {
+		if fs, err := r.Meta.GetCommitFileset(commitID); err == nil {
 			for _, f := range fs.Files {
 				lastFiles[filepath.Clean(f.Path)] = f
 			}
@@ -89,7 +89,7 @@ func status(short, showBranch bool, untrackedMode string, showIgnored, quiet boo
 	}
 
 	// Load current snapshot
-	currFS, err := r.Storage.Snapshots.CreateCurrent()
+	currFS, err := r.Store.Snapshots.CreateCurrent()
 	if err != nil {
 		return err
 	}

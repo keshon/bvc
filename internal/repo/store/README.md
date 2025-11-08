@@ -1,6 +1,6 @@
-# internal/storage
+# internal/store
 
-This package implements the **core storage layer** for BVC.  
+This package implements the **core store layer** for BVC.  
 It abstracts and manages everything under `.bvc/`, including blocks, files, snapshots, and branches.
 
 ---
@@ -9,7 +9,7 @@ It abstracts and manages everything under `.bvc/`, including blocks, files, snap
 
 ```
 
-storage/
+store/
 ├── manager.go       # High-level orchestrator (glues blocks, files, snapshots)
 ├── block/           # Handles low-level deduplicated chunks (.bvc/objects)
 ├── file/            # Maps working files to blocks and manages index
@@ -20,8 +20,8 @@ storage/
 ---
 
 ## 1. `Manager`
-**File:** `storage/manager.go`  
-Entry point for storage ops.
+**File:** `store/manager.go`  
+Entry point for store ops.
 
 - `InitAt(root)` → Creates `.bvc` subdirs and returns a ready `Manager`
 - `NewManager(root)` → Attaches block, file, and snapshot subsystems  
@@ -38,9 +38,9 @@ m.Snapshots   // *snapshot.SnapshotManager
 
 ## 2. `block` — Content Storage
 
-**Path:** `storage/block/`
+**Path:** `store/block/`
 
-Handles all chunked binary storage in `.bvc/objects`.
+Handles all chunked binary store in `.bvc/objects`.
 
 * **SplitFile(path)** → splits file into deduplicated chunks (xxh3)
 * **Write(filePath, blocks)** → saves chunks atomically to disk
@@ -52,7 +52,7 @@ Handles all chunked binary storage in `.bvc/objects`.
 
 ## 3. `file` — Working Tree Abstraction
 
-**Path:** `storage/file/`
+**Path:** `store/file/`
 
 Manages mapping between real files and content blocks.
 
@@ -67,7 +67,7 @@ Manages mapping between real files and content blocks.
 
 ## 4. `snapshot` — Filesets & Commits
 
-**Path:** `storage/snapshot/`
+**Path:** `store/snapshot/`
 
 Immutable snapshots of tracked files.
 
@@ -92,7 +92,7 @@ type Fileset struct {
 
 ```go
 // 1. Init repo
-m, _ := storage.InitAt(".bvc")
+m, _ := store.InitAt(".bvc")
 
 // 2. Create entries from working files
 entries, _ := m.Files.CreateAllEntries()

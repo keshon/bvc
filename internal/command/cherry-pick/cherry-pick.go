@@ -5,6 +5,7 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"app/internal/repo/meta"
 	"fmt"
 	"time"
 )
@@ -30,36 +31,36 @@ func (c *Command) Run(ctx *command.Context) error {
 	commitID := ctx.Args[0]
 
 	// open the repository context
-	r, err := repo.OpenAt(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
 	// get commit and fileset
-	targetCommit, err := r.GetCommit(commitID)
+	targetCommit, err := r.Meta.GetCommit(commitID)
 	if err != nil {
 		return err
 	}
 
-	targetFileset, err := r.Storage.Snapshots.Load(targetCommit.FilesetID)
+	targetFileset, err := r.Store.Snapshots.Load(targetCommit.FilesetID)
 	if err != nil {
 		return err
 	}
 
 	// get current branch
-	targetBranch, err := r.GetCurrentBranch()
+	targetBranch, err := r.Meta.GetCurrentBranch()
 	if err != nil {
 		return err
 	}
 
 	// get parent commit
-	parent, err := r.GetLastCommitID(targetBranch.Name)
+	parent, err := r.Meta.GetLastCommitID(targetBranch.Name)
 	if err != nil {
 		return err
 	}
 
 	// create new commit on current branch referencing the picked commit
-	newCommit := repo.Commit{
+	newCommit := meta.Commit{
 		ID:        fmt.Sprintf("%x", time.Now().UnixNano()),
 		Parents:   []string{parent},
 		Branch:    targetBranch.Name,
@@ -69,18 +70,18 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// create commit
-	_, err = r.CreateCommit(&newCommit)
+	_, err = r.Meta.CreateCommit(&newCommit)
 	if err != nil {
 		return err
 	}
 
 	// update last commit for the branch
-	if err := r.SetLastCommitID(targetBranch.Name, newCommit.ID); err != nil {
+	if err := r.Meta.SetLastCommitID(targetBranch.Name, newCommit.ID); err != nil {
 		return err
 	}
 
 	// restore files from picked commit
-	if err := r.Storage.Files.Restore(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := r.Store.Files.Restore(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

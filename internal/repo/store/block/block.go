@@ -29,7 +29,7 @@ type BlockCheck struct {
 	Branches []string
 }
 
-// BlockManager handles all object-level storage (.bvc/objects)
-type BlockManager struct {
+// BlockContext handles all object-level storage (.bvc/objects)
+type BlockContext struct {
 	Root string
 }
