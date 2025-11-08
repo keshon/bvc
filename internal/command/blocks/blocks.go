@@ -95,14 +95,23 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// print rows
 	fmt.Printf("Blocks overview (sorted by %s)\n", sortMode)
-	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
+	fmt.Println(strings.Repeat("\033[90m─\033[0m", 110))
 	fmt.Printf("\033[90m%-32s %-32s %-32s\033[0m\n", "Block", "Name", "Branch")
-	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
+	fmt.Println(strings.Repeat("\033[90m─\033[0m", 110))
 
-	for _, r := range rows {
-		name := truncateStringInMid(strings.Join(r.Files, ","), 32)
-		branch := truncateStringInMid(strings.Join(r.Branches, ","), 32)
-		fmt.Printf("\033[90m%-32s\033[0m %-32s %-32s\n", r.Hash, name, branch)
+	for _, row := range rows {
+		//
+		// remove repo abs path from file names
+		//
+		var files []string
+		for _, f := range row.Files {
+			files = append(files, strings.TrimPrefix(f, r.Config.WorkingTreeRoot))
+		}
+		row.Files = files
+
+		name := truncateStringInMid(strings.Join(row.Files, ","), 70)
+		branch := truncateStringInMid(strings.Join(row.Branches, ","), 70)
+		fmt.Printf("\033[90m%-32s\033[0m %-32s \033[90m%-32s\033[0m\n", row.Hash, name, branch)
 	}
 
 	return nil

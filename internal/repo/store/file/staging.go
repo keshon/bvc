@@ -10,7 +10,7 @@ import (
 
 // StageFiles writes staged entries (index) to disk.
 func (fc *FileContext) StageFiles(entries []Entry) error {
-	indexPath := filepath.Join(fc.Root, "index.json")
+	indexPath := filepath.Join(fc.RepoRoot, "index.json")
 	data, err := json.Marshal(entries)
 	if err != nil {
 		return fmt.Errorf("marshal index: %w", err)
@@ -23,7 +23,7 @@ func (fc *FileContext) StageFiles(entries []Entry) error {
 
 // ClearIndex removes the staging index.
 func (fc *FileContext) ClearIndex() error {
-	indexPath := filepath.Join(fc.Root, "index.json")
+	indexPath := filepath.Join(fc.RepoRoot, "index.json")
 	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
 		return nil
 	}
@@ -32,7 +32,7 @@ func (fc *FileContext) ClearIndex() error {
 
 // GetIndexFiles loads staged entries from disk.
 func (fc *FileContext) GetIndexFiles() ([]Entry, error) {
-	indexPath := filepath.Join(fc.Root, "index.json")
+	indexPath := filepath.Join(fc.RepoRoot, "index.json")
 	if _, err := fsio.StatFile(indexPath); fsio.IsNotExist(err) {
 		return nil, nil
 	}

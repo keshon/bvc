@@ -34,16 +34,17 @@ func (e *Entry) Equal(other *Entry) bool {
 	return true
 }
 
-// FileContext wraps file-level operations that depend on BlockManager.
+// FileContext wraps file-level operations that depend on BlockContext.
 type FileContext struct {
-	Root   string
-	Blocks *block.BlockContext
+	Root     string
+	RepoRoot string
+	Blocks   *block.BlockContext
 }
 
 // CreateEntry splits a file into block references (content-defined).
 func (fc *FileContext) CreateEntry(path string) (Entry, error) {
 	if fc.Blocks == nil {
-		return Entry{}, fmt.Errorf("no BlockManager attached")
+		return Entry{}, fmt.Errorf("no BlockContext attached")
 	}
 	blocks, err := fc.Blocks.SplitFile(path)
 	if err != nil {
@@ -55,7 +56,7 @@ func (fc *FileContext) CreateEntry(path string) (Entry, error) {
 // Write stores all blocks of an entry into store.
 func (fc *FileContext) Write(e Entry) error {
 	if fc.Blocks == nil {
-		return fmt.Errorf("no BlockManager attached")
+		return fmt.Errorf("no BlockContext attached")
 	}
 	return fc.Blocks.Write(e.Path, e.Blocks)
 }

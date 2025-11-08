@@ -49,7 +49,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// open the repository context
-	repo, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -57,7 +57,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	var toStage []string
 	for _, arg := range args {
 		if arg == "." {
-			all, err := repo.Store.Files.ListAll()
+			all, err := r.Store.Files.ListAll()
 			if err != nil {
 				return err
 			}
@@ -81,11 +81,11 @@ func (c *Command) Run(ctx *command.Context) error {
 	// create staged entries
 	var entries []file.Entry
 	if includeAll {
-		entries, err = repo.Store.Files.CreateAllEntries()
+		entries, err = r.Store.Files.CreateAllEntries()
 	} else if updateOnly {
-		entries, err = repo.Store.Files.CreateChangedEntries()
+		entries, err = r.Store.Files.CreateChangedEntries()
 	} else {
-		entries, err = repo.Store.Files.CreateEntries(toStage)
+		entries, err = r.Store.Files.CreateEntries(toStage)
 	}
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("no changes to stage")
 	}
 
-	if err := repo.Store.Files.StageFiles(entries); err != nil {
+	if err := r.Store.Files.StageFiles(entries); err != nil {
 		return err
 	}
 

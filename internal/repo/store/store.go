@@ -43,8 +43,9 @@ func buildManager(cfg *config.RepoConfig) *StoreContext {
 	}
 
 	st.Files = &file.FileContext{
-		Root:   cfg.WorkingTreeRoot,
-		Blocks: st.Blocks,
+		Root:     cfg.WorkingTreeRoot,
+		RepoRoot: cfg.RepoRoot,
+		Blocks:   st.Blocks,
 	}
 
 	st.Snapshots = &snapshot.SnapshotContext{
