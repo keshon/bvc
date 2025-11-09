@@ -5,6 +5,7 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"flag"
 	"fmt"
 )
 
@@ -24,41 +25,39 @@ Modes:
 If <commit-id> is omitted, the last commit is used (mixed).`
 }
 
-func (c *Command) Run(ctx *command.Context) error {
-	var targetID string
-	mode := "mixed"
-	var modeSet bool
+func (c *Command) Subcommands() []command.Command {
+	return nil
+}
+func (c *Command) Flags(fs *flag.FlagSet) {
+	fs.Bool("soft", false, "move HEAD only")
+	fs.Bool("mixed", false, "move HEAD and reset index (default)")
+	fs.Bool("hard", false, "move HEAD, reset index and working directory")
+}
 
-	for _, arg := range ctx.Args {
-		switch arg {
-		case "--soft":
-			if modeSet && mode != "soft" {
-				return fmt.Errorf("conflicting reset modes: %s and soft", mode)
-			}
-			mode = "soft"
-			modeSet = true
-		case "--mixed":
-			if modeSet && mode != "mixed" {
-				return fmt.Errorf("conflicting reset modes: %s and mixed", mode)
-			}
-			mode = "mixed"
-			modeSet = true
-		case "--hard":
-			if modeSet && mode != "hard" {
-				return fmt.Errorf("conflicting reset modes: %s and hard", mode)
-			}
-			mode = "hard"
-			modeSet = true
-		default:
-			if targetID == "" {
-				targetID = arg
-			} else {
-				return fmt.Errorf("unknown option or duplicate commit-id: %s", arg)
-			}
+// Run executes the reset command
+func (c *Command) Run(ctx *command.Context) error {
+	// extract flags
+	soft := ctx.Flags.Lookup("soft").Value.(flag.Getter).Get().(bool)
+	hard := ctx.Flags.Lookup("hard").Value.(flag.Getter).Get().(bool)
+
+	mode := "mixed"
+	if soft {
+		mode = "soft"
+	}
+	if hard {
+		if mode != "mixed" {
+			return fmt.Errorf("conflicting reset modes: %s and hard", mode)
 		}
+		mode = "hard"
 	}
 
-	// Open the repository context
+	// extract optional commit-id (non-flag args)
+	targetID := ""
+	if len(ctx.Args) > 0 {
+		targetID = ctx.Args[0]
+	}
+
+	// Open repository
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
@@ -69,7 +68,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
-	// If commit-id is not specified, use the last commit
+	// If no commit-id, use last commit
 	if targetID == "" {
 		last, err := r.Meta.GetLastCommitID(branch.Name)
 		if err != nil {
@@ -85,13 +84,11 @@ func (c *Command) Run(ctx *command.Context) error {
 }
 
 func reset(targetID, mode string) error {
-	// Open the repository context
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Load target commit
 	target, err := r.Meta.GetCommit(targetID)
 	if err != nil {
 		return fmt.Errorf("unknown commit: %s", targetID)
@@ -106,22 +103,17 @@ func reset(targetID, mode string) error {
 
 	switch mode {
 	case "soft":
-		// Move HEAD only
 		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
-
 	case "mixed":
-		// Move HEAD and reset index, keep working directory
 		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
 		if err := resetIndex(target.FilesetID); err != nil {
 			return err
 		}
-
 	case "hard":
-		// Move HEAD, reset index and working directory
 		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
 			return err
 		}
@@ -131,7 +123,6 @@ func reset(targetID, mode string) error {
 		if err := resetWorkingDirectory(target.FilesetID); err != nil {
 			return err
 		}
-
 	default:
 		return fmt.Errorf("unsupported reset mode: %s", mode)
 	}
@@ -140,21 +131,17 @@ func reset(targetID, mode string) error {
 	return nil
 }
 
-// resetIndex resets the staging area to the specified fileset
 func resetIndex(filesetID string) error {
-	// Open the repository context
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Load fileset
 	fs, err := r.Store.Snapshots.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	// Clear current staging and stage all files from the fileset
 	if err := r.Store.Files.ClearIndex(); err != nil {
 		return err
 	}
@@ -166,15 +153,12 @@ func resetIndex(filesetID string) error {
 	return nil
 }
 
-// resetWorkingDirectory restores files to the state of the commit
 func resetWorkingDirectory(filesetID string) error {
-	// Open the repository context
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// Load fileset
 	fs, err := r.Store.Snapshots.Load(filesetID)
 	if err != nil {
 		return err

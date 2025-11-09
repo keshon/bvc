@@ -38,32 +38,41 @@ Examples:
   bvc status --ignored
 `
 }
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet) {
+	fs.Bool("short", false, "")
+	fs.Bool("s", false, "alias for --short")
+
+	fs.Bool("branch", false, "")
+	fs.Bool("b", false, "alias for --branch")
+
+	fs.String("untracked-files", "normal", "")
+	fs.String("u", "normal", "alias for --untracked-files")
+
+	fs.Bool("ignored", false, "")
+	fs.Bool("quiet", false, "")
+	fs.Bool("q", false, "alias for --quiet")
+}
 
 func (c *Command) Run(ctx *command.Context) error {
 	fs := flag.NewFlagSet("status", flag.ContinueOnError)
-
-	short := fs.Bool("short", false, "")
-	fs.BoolVar(short, "s", false, "alias for --short")
-
-	branch := fs.Bool("branch", false, "")
-	fs.BoolVar(branch, "b", false, "alias for --branch")
-
-	untracked := fs.String("untracked-files", "normal", "")
-	fs.StringVar(untracked, "u", "normal", "alias for --untracked-files")
-
-	ignored := fs.Bool("ignored", false, "")
-	quiet := fs.Bool("quiet", false, "")
-	fs.BoolVar(quiet, "q", false, "alias for --quiet")
+	c.Flags(fs)
 
 	if err := fs.Parse(ctx.Args); err != nil {
 		return err
 	}
 
-	return status(*short, *branch, *untracked, *ignored, *quiet)
+	short := fs.Lookup("short").Value.(flag.Getter).Get().(bool)
+	branch := fs.Lookup("branch").Value.(flag.Getter).Get().(bool)
+	untracked := fs.Lookup("untracked-files").Value.(flag.Getter).Get().(string)
+	ignored := fs.Lookup("ignored").Value.(flag.Getter).Get().(bool)
+	quiet := fs.Lookup("quiet").Value.(flag.Getter).Get().(bool)
+
+	return c.status(short, branch, untracked, ignored, quiet)
 }
 
 // status performs the main status logic
-func status(short, showBranch bool, untrackedMode string, showIgnored, quiet bool) error {
+func (c *Command) status(short, showBranch bool, untrackedMode string, showIgnored, quiet bool) error {
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)

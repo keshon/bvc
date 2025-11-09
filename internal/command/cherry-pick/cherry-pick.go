@@ -6,25 +6,28 @@ import (
 	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/repo/meta"
+	"flag"
 	"fmt"
 	"time"
 )
 
 type Command struct{}
 
-func (c *Command) Name() string      { return "cherry-pick" }
-func (c *Command) Short() string     { return "C" }
-func (c *Command) Aliases() []string { return []string{"cp"} }
-func (c *Command) Usage() string     { return "cherry-pick <commit-id>" }
-func (c *Command) Brief() string     { return "Apply selected commit to the current branch" }
+func (c *Command) Name() string  { return "cherry-pick" }
+func (c *Command) Brief() string { return "Apply selected commit to the current branch" }
+func (c *Command) Usage() string { return "cherry-pick <commit-id>" }
 func (c *Command) Help() string {
 	return `Apply a specific commit to the current branch.
 
 Usage:
   cherry-pick <commit-id>`
 }
+func (c *Command) Aliases() []string              { return []string{"cp"} }
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
+	// require commit ID
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("commit ID required")
 	}

@@ -1,34 +1,40 @@
 package command
 
-// Command registry
-var registry = map[string]Command{}
+var tree = NewTree()
 
-// RegisterCommand registers a command
+// RegisterCommand adds a command to the global tree
 func RegisterCommand(cmd Command) {
-	names := append([]string{cmd.Name()}, cmd.Aliases()...)
-	for _, n := range names {
-		registry[n] = cmd
-	}
-	if short := cmd.Short(); short != "" {
-		registry[short] = cmd
-	}
+	tree.Register(cmd)
 }
 
-// GetCommand returns a registered command
+// ResolveCommand finds a command from args
+func ResolveCommand(args []string) (*Node, []string, error) {
+	return tree.Resolve(args)
+}
+
+// GetCommand returns a command by name
 func GetCommand(name string) (Command, bool) {
-	cmd, ok := registry[name]
-	return cmd, ok
+	return tree.Get(name)
 }
 
-// AllCommands returns all registered commands
+// AllCommands returns all commands registered in the global tree.
 func AllCommands() []Command {
-	list := make([]Command, 0, len(registry))
-	seen := map[Command]bool{}
-	for _, cmd := range registry {
-		if !seen[cmd] {
-			list = append(list, cmd)
-			seen[cmd] = true
+	cmds := make([]Command, 0)
+	seen := make(map[Command]struct{})
+
+	var walk func(node *Node)
+	walk = func(node *Node) {
+		if node.Cmd != nil {
+			if _, ok := seen[node.Cmd]; !ok {
+				cmds = append(cmds, node.Cmd)
+				seen[node.Cmd] = struct{}{}
+			}
+		}
+		for _, sub := range node.Subcommands {
+			walk(sub)
 		}
 	}
-	return list
+
+	walk(tree.root)
+	return cmds
 }

@@ -1,17 +1,23 @@
 package command
 
-// Command represents a cli command
+import (
+	"flag"
+)
+
+// Command represents a single CLI command or subcommand.
 type Command interface {
 	Name() string
-	Short() string
-	Aliases() []string
-	Usage() string
 	Brief() string
+	Usage() string
 	Help() string
+	Aliases() []string
+	Subcommands() []Command
+	Flags(fs *flag.FlagSet)
 	Run(ctx *Context) error
 }
 
-// Context represents a cli context
+// Context holds runtime info for a command execution.
 type Context struct {
-	Args []string
+	Args  []string
+	Flags *flag.FlagSet
 }

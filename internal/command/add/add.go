@@ -6,6 +6,7 @@ import (
 	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/repo/store/file"
+	"flag"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -13,11 +14,9 @@ import (
 
 type Command struct{}
 
-func (c *Command) Name() string      { return "add" }
-func (c *Command) Short() string     { return "a" }
-func (c *Command) Aliases() []string { return nil }
-func (c *Command) Usage() string     { return "add <file|dir|.>" }
-func (c *Command) Brief() string     { return "Stage files or directories for the next commit" }
+func (c *Command) Name() string  { return "add" }
+func (c *Command) Brief() string { return "Stage files or directories for the next commit" }
+func (c *Command) Usage() string { return "add <file|dir|.> [options]" }
 func (c *Command) Help() string {
 	return `Stage changes for commit.
 
@@ -27,28 +26,23 @@ Usage:
   add -u or --update - stage modifications and deletions (no new files)
   add <path>         - stage a specific file or directory`
 }
+func (c *Command) Aliases() []string              { return nil }
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet) {
+	fs.Bool("all", false, "Stage all changes, including deletions (-A)")
+	fs.Bool("update", false, "Stage modifications and deletions only (-u)")
+}
 
 func (c *Command) Run(ctx *command.Context) error {
-	includeAll := false // -A or --all
-	updateOnly := false // -u or --update
-
-	for _, arg := range ctx.Args {
-		if arg == "--all" || arg == "-A" {
-			includeAll = true
-		}
-		if arg == "--update" || arg == "-u" {
-			updateOnly = true
-		}
-	}
+	includeAll := ctx.Flags.Lookup("all").Value.(flag.Getter).Get().(bool)
+	updateOnly := ctx.Flags.Lookup("update").Value.(flag.Getter).Get().(bool)
 
 	args := filterNonFlags(ctx.Args)
-
-	// if no paths provided, assume "."
 	if len(args) == 0 {
 		args = []string{"."}
 	}
 
-	// open the repository context
+	// open repository
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
@@ -63,7 +57,6 @@ func (c *Command) Run(ctx *command.Context) error {
 			}
 			toStage = append(toStage, all...)
 		} else if strings.ContainsAny(arg, "*?") {
-			// handle glob patterns like *.go
 			matches, err := filepath.Glob(arg)
 			if err != nil {
 				return err
@@ -103,7 +96,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	return nil
 }
 
-// filterNonFlags removes CLI flags starting with "-" or "--"
+// helper: remove flags from args
 func filterNonFlags(args []string) []string {
 	var res []string
 	for _, a := range args {
@@ -119,6 +112,7 @@ func init() {
 	command.RegisterCommand(
 		command.ApplyMiddlewares(
 			&Command{},
+			middleware.WithBlockIntegrityCheck(),
 			middleware.WithDebugArgsPrint(),
 		),
 	)

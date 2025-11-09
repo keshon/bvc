@@ -5,24 +5,27 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"flag"
 	"fmt"
 )
 
 type Command struct{}
 
-func (c *Command) Name() string      { return "checkout" }
-func (c *Command) Short() string     { return "C" }
-func (c *Command) Aliases() []string { return []string{"co"} }
-func (c *Command) Usage() string     { return "checkout <branch-name>" }
-func (c *Command) Brief() string     { return "Switch to another branch" }
+func (c *Command) Name() string  { return "checkout" }
+func (c *Command) Brief() string { return "Switch to another branch" }
+func (c *Command) Usage() string { return "checkout <branch-name>" }
 func (c *Command) Help() string {
 	return `Switch to another branch.
 
 Usage:
   checkout <branch-name>`
 }
+func (c *Command) Aliases() []string              { return []string{"co"} }
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
+	// require branch name
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
@@ -66,7 +69,6 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	fs, err := r.Store.Snapshots.Load(commit.FilesetID)
-
 	if err != nil {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}

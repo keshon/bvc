@@ -8,7 +8,8 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 ## Available Commands
 
 ### add
-`add <file|dir|.>`
+```
+add <file|dir|.> [options]
 Stage changes for commit.
 
 Usage:
@@ -16,68 +17,65 @@ Usage:
   add -A or --all    - stage all changes, including deletions
   add -u or --update - stage modifications and deletions (no new files)
   add <path>         - stage a specific file or directory
+```
 
-### analyze
-`analyze [--detail] [--export]`
-Analyze block reuse across all branches and commits.
-
-Usage:
-  analyze --detail - print detailed shared block list
-  analyze --export - save output to ${config.RepoDir}-analyze
-
-### blocks
-`blocks [branch|name]`
-Show repository blocks list with optional sort mode.
-
-Usage:
-  blocks        - show all blocks
-  blocks branch - sort by branch name
-  blocks name 	- sort by file name
-
-Useful for identifying shared blocks between branches and associated files.
+### block
+```
+block <subcommand> [options]
+Manage repository blocks and analysis
+```
 
 ### branch
-`branch [<branch-name>]`
+```
+branch [options] [<branch-name>]
 List all branches or create a new one.
 
 Usage:
-  branch        - list all branches (current marked with '*')
-  branch <name> - create a new branch from the current one
+  branch           - list all branches (current marked with '*')
+  branch <name>    - create a new branch from the current one
+```
 
 ### checkout
-`checkout <branch-name>`
+```
+checkout <branch-name>
 Switch to another branch.
 
 Usage:
   checkout <branch-name>
+```
 
 ### cherry-pick
-`cherry-pick <commit-id>`
+```
+cherry-pick <commit-id>
 Apply a specific commit to the current branch.
 
 Usage:
   cherry-pick <commit-id>
+```
 
 ### commit
-`commit -m "<message>" [--allow-empty]`
+```
+commit -m "<message>" [--allow-empty]
 Create a new commit with the staged changes.
 
 Usage:
   commit -m "<message>"               - commit with a given message
   commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)
-  
- 
+```
 
 ### help
-`help [command]`
-Display detailed help information for a specific command, or list all commands
+```
+help [command]
+Display help information for commands.
 
 Usage:
-  help - list all commands
-  help [command] - show help for a specific command
+  help          List all commands.
+  help <name>   Show detailed help for a specific command.
+```
 
 ### init
-`init [options]`
+```
+init [options]
 Initialize a new repository in the current directory.
 
 Options:
@@ -94,9 +92,17 @@ Examples:
   bvc init --separate-bvc-dir=~/.bvc
   bvc init --initial-branch=master
 
+```
+
+### list
+```
+block list [branch|name]
+Show repository blocks list
+```
 
 ### log
-`log [options] [branch]`
+```
+log [options] [branch]
 Show commit logs.
 
 Options:
@@ -111,24 +117,47 @@ Usage:
   bvc log -a
   bvc log --oneline -n 10
   bvc log main
-
+```
 
 ### merge
-`merge <branch-name>`
+```
+merge <branch-name>
 Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.
+```
+
+### repair
+```
+block repair
+Repair any missing or damaged blocks automatically.
+```
 
 ### reset
-`reset [<commit-id>] [--soft|--mixed|--hard]`
+```
+reset [<commit-id>] [--soft|--mixed|--hard]
 Reset the current branch.
 Modes:
   --soft  : move HEAD only
   --mixed : move HEAD and reset index (default)
   --hard  : move HEAD, reset index and working directory
 If <commit-id> is omitted, the last commit is used (mixed).
+```
+
+### reuse
+```
+block reuse [--full] [--export]
+Analyze block reuse across branches
+```
+
+### scan
+```
+block scan
+Scan all repository blocks and report missing or damaged ones.
+```
 
 ### status
-`status [options]`
+```
+status [options]
 Show the working tree status.
 
 Options:
@@ -145,14 +174,6 @@ Examples:
   bvc status -u all
   bvc status --ignored
 
-
-### verify
-`verify [--repair|--auto]`
-Verify repository blocks and file integrity.
-
-Usage:
-  verify           - Scan all blocks and report missing/damaged ones.
-  verify --repair  - Attempt to repair any missing or damaged blocks automatically.
-
+```
 
 

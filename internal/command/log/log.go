@@ -34,36 +34,35 @@ Usage:
   bvc log
   bvc log -a
   bvc log --oneline -n 10
-  bvc log main
-`
+  bvc log main`
+}
+
+func (c *Command) Subcommands() []command.Command {
+	return nil
+}
+func (c *Command) Flags(fs *flag.FlagSet) {
+	fs.Bool("all", false, "show commits from all branches")
+	fs.Bool("a", false, "alias for --all")
+	fs.Bool("oneline", false, "show each commit on one line")
+	fs.Int("n", 0, "limit number of commits")
+	fs.String("since", "", "show commits after date YYYY-MM-DD")
+	fs.String("until", "", "show commits before date YYYY-MM-DD")
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	fs := flag.NewFlagSet("log", flag.ContinueOnError)
-
-	showAll := fs.Bool("all", false, "show commits from all branches")
-	fs.BoolVar(showAll, "a", false, "alias for --all")
-
-	oneline := fs.Bool("oneline", false, "show each commit on one line")
-
-	n := fs.Int("n", 0, "limit number of commits")
-	since := fs.String("since", "", "show commits after date YYYY-MM-DD")
-	until := fs.String("until", "", "show commits before date YYYY-MM-DD")
-
-	if err := fs.Parse(ctx.Args); err != nil {
-		return err
-	}
+	showAll := ctx.Flags.Lookup("all").Value.(flag.Getter).Get().(bool) ||
+		ctx.Flags.Lookup("a").Value.(flag.Getter).Get().(bool)
+	oneline := ctx.Flags.Lookup("oneline").Value.(flag.Getter).Get().(bool)
+	n := ctx.Flags.Lookup("n").Value.(flag.Getter).Get().(int)
+	since := ctx.Flags.Lookup("since").Value.(flag.Getter).Get().(string)
+	until := ctx.Flags.Lookup("until").Value.(flag.Getter).Get().(string)
 
 	branchArg := ""
-	args := fs.Args()
+	args := ctx.Flags.Args()
 	if len(args) > 0 {
 		branchArg = args[0]
 	}
 
-	return c.log(*showAll, *oneline, *n, *since, *until, branchArg)
-}
-
-func (c *Command) log(showAll, oneline bool, n int, since, until, branchArg string) error {
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
@@ -103,7 +102,6 @@ func (c *Command) log(showAll, oneline bool, n int, since, until, branchArg stri
 			}
 			seen[cmt.ID] = true
 
-			// Filter by date
 			t, err := time.Parse(time.RFC3339, cmt.Timestamp)
 			if err != nil {
 				continue
@@ -130,12 +128,15 @@ func (c *Command) log(showAll, oneline bool, n int, since, until, branchArg stri
 		return nil
 	}
 
-	// Sort newest first
 	sort.Slice(commits, func(i, j int) bool {
 		ti, _ := time.Parse(time.RFC3339, commits[i].Timestamp)
 		tj, _ := time.Parse(time.RFC3339, commits[j].Timestamp)
 		return ti.After(tj)
 	})
+
+	if n > 0 && n < len(commits) {
+		commits = commits[:n]
+	}
 
 	if oneline {
 		for _, cmt := range commits {

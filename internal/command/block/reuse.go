@@ -1,11 +1,11 @@
-package analyze
+package block
 
 import (
 	"app/internal/command"
 	"app/internal/config"
 	"app/internal/fsio"
-	"app/internal/middleware"
 	"app/internal/repo"
+	"flag"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -13,33 +13,22 @@ import (
 	"strings"
 )
 
-type Command struct{}
+type ReuseCommand struct{}
 
-func (c *Command) Name() string      { return "analyze" }
-func (c *Command) Short() string     { return "a" }
-func (c *Command) Aliases() []string { return []string{"a"} }
-func (c *Command) Usage() string     { return "analyze [--detail] [--export]" }
-func (c *Command) Brief() string     { return "Analyze block reuse across the entire repository" }
-func (c *Command) Help() string {
-	return `Analyze block reuse across all branches and commits.
-
-Usage:
-  analyze --detail - print detailed shared block list
-  analyze --export - save output to ${config.RepoDir}-analyze`
+func (c *ReuseCommand) Name() string                   { return "reuse" }
+func (c *ReuseCommand) Brief() string                  { return "Analyze block reuse across the repo" }
+func (c *ReuseCommand) Usage() string                  { return "block reuse [--full] [--export]" }
+func (c *ReuseCommand) Help() string                   { return "Analyze block reuse across branches" }
+func (c *ReuseCommand) Aliases() []string              { return []string{"a"} }
+func (c *ReuseCommand) Subcommands() []command.Command { return nil }
+func (c *ReuseCommand) Flags(fs *flag.FlagSet) {
+	fs.Bool("full", false, "Print detailed shared block list")
+	fs.Bool("export", false, "Save output to file")
 }
 
-func (c *Command) Run(ctx *command.Context) error {
-	full := false   // --detail
-	export := false // --export
-
-	for _, arg := range ctx.Args {
-		switch arg {
-		case "--full":
-			full = true
-		case "--export":
-			export = true
-		}
-	}
+func (c *ReuseCommand) Run(ctx *command.Context) error {
+	full := ctx.Flags.Lookup("full").Value.(flag.Getter).Get().(bool)
+	export := ctx.Flags.Lookup("export").Value.(flag.Getter).Get().(bool)
 
 	var exportBuf strings.Builder
 	writeOut := func(s string) {
@@ -49,28 +38,22 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
-	// open the repository context
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// list all branches
 	branches, err := r.Meta.ListBranches()
-	if err != nil {
-		return fmt.Errorf("failed to list branches: %w", err)
-	}
-	if len(branches) == 0 {
+	if err != nil || len(branches) == 0 {
 		writeOut("No branches found.\n")
 		return nil
 	}
 
-	blockFiles := map[string]map[string]struct{}{}    // hash -> path -> struct{}
-	blockBranches := map[string]map[string]struct{}{} // hash -> branch -> struct{}
-	blockCounts := map[string]int{}                   // hash -> count
-	fileBlocks := map[string][]string{}               // path -> hashes
+	blockFiles := map[string]map[string]struct{}{}
+	blockBranches := map[string]map[string]struct{}{}
+	blockCounts := map[string]int{}
+	fileBlocks := map[string][]string{}
 
-	// iterate over all branches
 	for _, branch := range branches {
 		lastCommit, err := r.Meta.GetLastCommitForBranch(branch.Name)
 		if err != nil || lastCommit == nil || lastCommit.ID == "" {
@@ -85,7 +68,6 @@ func (c *Command) Run(ctx *command.Context) error {
 		for _, file := range fileset.Files {
 			for _, block := range file.Blocks {
 				blockCounts[block.Hash]++
-
 				if _, ok := blockFiles[block.Hash]; !ok {
 					blockFiles[block.Hash] = map[string]struct{}{}
 				}
@@ -101,6 +83,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
+	// Summary output
 	totalBlocks := len(blockCounts)
 	sharedBlocks := 0
 	for _, count := range blockCounts {
@@ -109,11 +92,9 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
-	// file-level reuse overview
 	totalFiles := len(fileBlocks)
 	filesWithShared := 0
 	totalFileReuseRatio := 0.0
-
 	for _, blockHashes := range fileBlocks {
 		shared := 0
 		for _, h := range blockHashes {
@@ -139,19 +120,16 @@ func (c *Command) Run(ctx *command.Context) error {
 		avgFileReuse = totalFileReuseRatio / float64(totalFiles) * 100
 	}
 
-	// summary output
 	writeOut("\033[96mSummary\033[0m\n\n")
-	writeOut(prettyLine("\033[36mTotal branches\033[0m", fmt.Sprintf("%d", len(branches))) + "\n\n")
+	writeOut(prettyLine("\033[36mTotal branches\033[0m", fmt.Sprintf("%d", len(branches))) + "\n")
 	writeOut(prettyLine("\033[36mTotal blocks\033[0m", fmt.Sprintf("%d", totalBlocks)) + "\n")
 	writeOut(prettyLine("\033[36mUnique blocks\033[0m", fmt.Sprintf("%d", totalBlocks-sharedBlocks)) + "\n")
 	writeOut(prettyLine("\033[36mShared blocks\033[0m", fmt.Sprintf("%d", sharedBlocks)) + "\n")
-	writeOut(prettyLine("\033[36mOverall reuse ratio\033[0m", fmt.Sprintf("%.1f%%", float64(sharedBlocks)/float64(totalBlocks)*100)) + "\n\n")
-	writeOut(prettyLine("\033[36mTotal files\033[0m", fmt.Sprintf("%d", totalFiles)) + "\n")
+	writeOut(prettyLine("\033[36mOverall reuse ratio\033[0m", fmt.Sprintf("%.1f%%", float64(sharedBlocks)/float64(totalBlocks)*100)) + "\n")
 	writeOut(prettyLine("\033[36mFiles with shared blocks\033[0m", fmt.Sprintf("%d", filesWithShared)) + "\n")
 	writeOut(prettyLine("\033[36mFile reuse ratio\033[0m", fmt.Sprintf("%.1f%%", fileSharedPercent)) + "\n")
 	writeOut(prettyLine("\033[36mAvg. file reuse ratio\033[0m", fmt.Sprintf("%.1f%%", avgFileReuse)) + "\n\n")
 
-	// if not full mode, stop here
 	if !full {
 		if export {
 			saveExport(exportBuf.String())
@@ -159,15 +137,13 @@ func (c *Command) Run(ctx *command.Context) error {
 		return nil
 	}
 
-	// struct represents a row in output list
+	// Full detailed output
 	type Row struct {
 		Hash     string
 		Files    []string
 		Branches []string
 		Count    int
 	}
-
-	// sort shared blocks
 	var sharedList []Row
 	for hash, count := range blockCounts {
 		if count <= 1 {
@@ -193,11 +169,8 @@ func (c *Command) Run(ctx *command.Context) error {
 		})
 	}
 
-	sort.Slice(sharedList, func(i, j int) bool {
-		return sharedList[i].Count > sharedList[j].Count
-	})
+	sort.Slice(sharedList, func(i, j int) bool { return sharedList[i].Count > sharedList[j].Count })
 
-	// write shared block list
 	writeOut("\n\033[96mShared Blocks (most reused first):\033[0m\n")
 	if len(sharedList) == 0 {
 		writeOut("  None\n")
@@ -219,7 +192,8 @@ func (c *Command) Run(ctx *command.Context) error {
 	return nil
 }
 
-func prettyLine(label string, value string) string {
+// helpers
+func prettyLine(label, value string) string {
 	const width = 45
 	dots := max(width-len(stripANSI(label)), 2)
 	return fmt.Sprintf("%s\033[90m%s\033[0m %s", label, strings.Repeat(".", dots), value)
@@ -231,16 +205,14 @@ func stripANSI(s string) string {
 }
 
 func saveExport(content string) {
-	filename := config.RepoDir + "-analyze"
+	filename := config.RepoDir + "-reuse"
 	_ = fsio.WriteFile(filepath.Clean(filename), []byte(strings.TrimSpace(content)+"\n"), 0644)
 	fmt.Printf("\n\033[90mExported analysis to %s\033[0m\n", filename)
 }
 
-func init() {
-	command.RegisterCommand(
-		command.ApplyMiddlewares(
-			&Command{},
-			middleware.WithDebugArgsPrint(),
-		),
-	)
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

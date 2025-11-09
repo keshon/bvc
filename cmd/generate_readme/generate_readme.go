@@ -8,8 +8,7 @@ import (
 	"text/template"
 
 	_ "app/internal/command/add"
-	_ "app/internal/command/analyze"
-	_ "app/internal/command/blocks"
+	_ "app/internal/command/block"
 	_ "app/internal/command/branch"
 	_ "app/internal/command/checkout"
 	_ "app/internal/command/cherry-pick"
@@ -20,7 +19,6 @@ import (
 	_ "app/internal/command/merge"
 	_ "app/internal/command/reset"
 	_ "app/internal/command/status"
-	_ "app/internal/command/verify"
 )
 
 func main() {
@@ -44,7 +42,12 @@ func main() {
 
 	sections := ""
 	for _, cmd := range commands {
-		sections += fmt.Sprintf("### %s\n`%s`\n%s\n\n", cmd.Name(), cmd.Usage(), cmd.Help())
+		sections += fmt.Sprintf(
+			"### %s\n```\n%s\n%s\n```\n\n",
+			cmd.Name(),
+			cmd.Usage(),
+			cmd.Help(),
+		)
 	}
 
 	data := map[string]string{

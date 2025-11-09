@@ -5,36 +5,39 @@ import (
 	"app/internal/config"
 	"app/internal/middleware"
 	"app/internal/repo"
+	"flag"
 	"fmt"
 )
 
 type Command struct{}
 
-func (c *Command) Name() string      { return "branch" }
-func (c *Command) Short() string     { return "B" }
-func (c *Command) Aliases() []string { return []string{"br"} }
-func (c *Command) Usage() string     { return "branch [<branch-name>]" }
-func (c *Command) Brief() string     { return "List all branches or create a new one" }
-
+func (c *Command) Name() string  { return "branch" }
+func (c *Command) Brief() string { return "List all branches or create a new one" }
+func (c *Command) Usage() string { return "branch [options] [<branch-name>]" }
 func (c *Command) Help() string {
 	return `List all branches or create a new one.
 
 Usage:
-  branch        - list all branches (current marked with '*')
-  branch <name> - create a new branch from the current one`
+  branch           - list all branches (current marked with '*')
+  branch <name>    - create a new branch from the current one`
 }
+func (c *Command) Aliases() []string              { return []string{"br", "B"} }
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
-	// open the repository context
-	repo, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	// Open the repository
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	// case 1: create new branch
-	if len(ctx.Args) > 0 {
-		name := ctx.Args[0]
-		newBranch, err := repo.Meta.CreateBranch(name)
+	args := ctx.Args
+
+	// If a branch name is given, create a new branch
+	if len(args) > 0 {
+		name := args[0]
+		newBranch, err := r.Meta.CreateBranch(name)
 		if err != nil {
 			return fmt.Errorf("failed to create branch %q: %w", name, err)
 		}
@@ -42,25 +45,24 @@ func (c *Command) Run(ctx *command.Context) error {
 		return nil
 	}
 
-	// case 2: list branches
-	currentBranch, err := repo.Meta.GetCurrentBranch()
+	// Otherwise list all branches
+	current, err := r.Meta.GetCurrentBranch()
 	if err != nil {
-		return fmt.Errorf("failed to determine current branch: %w", err)
+		return fmt.Errorf("failed to get current branch: %w", err)
 	}
 
-	// list all branches
-	fmt.Println("Branches:")
-	allBranches, err := repo.Meta.ListBranches()
+	allBranches, err := r.Meta.ListBranches()
 	if err != nil {
 		return fmt.Errorf("failed to list branches: %w", err)
 	}
 
-	for _, branch := range allBranches {
+	fmt.Println("Branches:")
+	for _, b := range allBranches {
 		prefix := "  "
-		if branch.Name == currentBranch.Name {
+		if b.Name == current.Name {
 			prefix = "* "
 		}
-		fmt.Println(prefix + branch.Name)
+		fmt.Println(prefix + b.Name)
 	}
 
 	return nil

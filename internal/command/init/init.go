@@ -37,6 +37,8 @@ Examples:
   bvc init --initial-branch=master
 `
 }
+func (c *Command) Flags(fs *flag.FlagSet)         {}
+func (c *Command) Subcommands() []command.Command { return nil }
 
 func (c *Command) Run(ctx *command.Context) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)

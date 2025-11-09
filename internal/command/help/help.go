@@ -3,6 +3,7 @@ package help
 import (
 	"app/internal/command"
 	"app/internal/middleware"
+	"flag"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,12 +17,15 @@ func (c *Command) Aliases() []string { return []string{"h", "?"} }
 func (c *Command) Usage() string     { return "help [command]" }
 func (c *Command) Brief() string     { return "Show help for commands" }
 func (c *Command) Help() string {
-	return `Display detailed help information for a specific command, or list all commands
+	return `Display help information for commands.
 
 Usage:
-  help - list all commands
-  help [command] - show help for a specific command`
+  help          List all commands.
+  help <name>   Show detailed help for a specific command.`
 }
+
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
 	if len(ctx.Args) > 0 {
@@ -30,22 +34,21 @@ func (c *Command) Run(ctx *command.Context) error {
 	return runListAllCommands()
 }
 
-// runCommandHelp displays help for a specific command
+// runCommandHelp shows detailed help for a specific command
 func runCommandHelp(name string) error {
-	command, ok := command.GetCommand(name)
+	cmd, ok := command.GetCommand(name)
 	if !ok {
 		fmt.Printf("Unknown command: %s\n", name)
 		return nil
 	}
 
-	if usage := command.Usage(); usage != "" {
+	if usage := cmd.Usage(); usage != "" {
 		fmt.Printf("\033[90mUsage:\033[0m %s\n\n", usage)
 	}
-	fmt.Printf("%s\n\n", command.Help())
+	fmt.Printf("%s\n\n", cmd.Help())
 
-	if aliasesCmd, ok := command.(interface{ Aliases() []string }); ok {
-		aliases := aliasesCmd.Aliases()
-		if len(aliases) > 0 {
+	if aliasesCmd, ok := cmd.(interface{ Aliases() []string }); ok {
+		if aliases := aliasesCmd.Aliases(); len(aliases) > 0 {
 			fmt.Printf("Aliases: %s\n", strings.Join(aliases, ", "))
 		}
 	}
@@ -53,32 +56,33 @@ func runCommandHelp(name string) error {
 	return nil
 }
 
-// runListAllCommands lists all available commands
+// runListAllCommands lists all commands in a Git-style layout
 func runListAllCommands() error {
 	commands := command.AllCommands()
 	sort.Slice(commands, func(i, j int) bool {
 		return commands[i].Name() < commands[j].Name()
 	})
 
-	fmt.Println("Available commands")
-	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
-	fmt.Printf("\033[90m%-10s %-54s %-32s\033[0m\n", "Command", "Description", "Usage")
-	fmt.Println(strings.Repeat("\033[90m─\033[0m", 72))
+	fmt.Print("Available commands:\n\n")
+	longest := 0
+	for _, cmd := range commands {
+		if l := len(cmd.Name()); l > longest {
+			longest = l
+		}
+	}
 
 	for _, cmd := range commands {
-		usage := cmd.Usage()
-		if usage == "" {
-			usage = "-"
-		}
+		name := cmd.Name()
 		desc := cmd.Brief()
 		if desc == "" {
 			desc = "-"
 		}
 
-		fmt.Printf("%-10s \033[90m%-54s\033[0m %-32s\n", cmd.Name(), desc, usage)
+		padding := strings.Repeat(" ", longest-len(name)+2)
+		fmt.Printf("  \033[1m%s\033[0m%s%s\n", name, padding, desc)
 	}
 
-	fmt.Println("\nUse 'help <command>' to see detailed usage of a specific command.")
+	fmt.Println("\nType 'help <command>' to see detailed information about a specific command.")
 	return nil
 }
 

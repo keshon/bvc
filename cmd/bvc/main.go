@@ -5,9 +5,10 @@ import (
 	"os"
 
 	"app/internal/command"
+
+	// Register commands
 	_ "app/internal/command/add"
-	_ "app/internal/command/analyze"
-	_ "app/internal/command/blocks"
+	_ "app/internal/command/block"
 	_ "app/internal/command/branch"
 	_ "app/internal/command/checkout"
 	_ "app/internal/command/cherry-pick"
@@ -18,32 +19,21 @@ import (
 	_ "app/internal/command/merge"
 	_ "app/internal/command/reset"
 	_ "app/internal/command/status"
-	_ "app/internal/command/verify"
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	args := os.Args[1:]
+
+	// No arguments? Print usage and exit
+	if len(args) == 0 {
 		fmt.Println("Usage: bvc <command> [args...]")
 		fmt.Println("Available commands:")
 		for _, cmd := range command.AllCommands() {
-			fmt.Printf("  %s: %s\n", cmd.Name(), cmd.Help())
+			fmt.Printf("  %s: %s\n", cmd.Name(), cmd.Brief())
 		}
 		os.Exit(0)
 	}
 
-	cmdName := os.Args[1]
-	cmd, ok := command.GetCommand(cmdName)
-	if !ok {
-		fmt.Printf("Unknown command: %s\n", cmdName)
-		os.Exit(1)
-	}
-
-	ctx := &command.Context{
-		Args: os.Args[2:],
-	}
-
-	if err := cmd.Run(ctx); err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-	}
+	// Delegate to runner
+	command.RunCLI(args)
 }

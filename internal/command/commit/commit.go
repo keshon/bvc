@@ -6,6 +6,7 @@ import (
 	"app/internal/middleware"
 	"app/internal/repo"
 	"app/internal/repo/meta"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -13,20 +14,19 @@ import (
 
 type Command struct{}
 
-func (c *Command) Name() string      { return "commit" }
-func (c *Command) Short() string     { return "c" }
-func (c *Command) Aliases() []string { return []string{"ci"} }
-func (c *Command) Usage() string     { return `commit -m "<message>" [--allow-empty]` }
-func (c *Command) Brief() string     { return "Commit staged changes to the current branch" }
+func (c *Command) Name() string  { return "commit" }
+func (c *Command) Brief() string { return "Commit staged changes to the current branch" }
+func (c *Command) Usage() string { return `commit -m "<message>" [--allow-empty]` }
 func (c *Command) Help() string {
 	return `Create a new commit with the staged changes.
 
 Usage:
   commit -m "<message>"               - commit with a given message
-  commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)
-  
- `
+  commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)`
 }
+func (c *Command) Aliases() []string              { return []string{"ci"} }
+func (c *Command) Subcommands() []command.Command { return nil }
+func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
 	var messages []string // commit messages
@@ -49,7 +49,6 @@ func (c *Command) Run(ctx *command.Context) error {
 		case arg == "--allow-empty":
 			allowEmpty = true
 		default:
-			// fallback: if no -m given, treat arg as commit message
 			if len(messages) == 0 {
 				messages = append(messages, arg)
 			}
