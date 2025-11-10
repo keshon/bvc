@@ -56,12 +56,12 @@ Handles all chunked binary store in `.bvc/objects`.
 
 Manages mapping between real files and content blocks.
 
-* **CreateEntry(path)** → splits one file into `[]BlockRef`
-* **CreateEntries(paths)** → bulk version (parallel)
+* **BuildEntry(path)** → splits one file into `[]BlockRef`
+* **BuildEntries(paths)** → bulk version (parallel)
 * **Write(entry)** → writes its blocks via BlockManager
 * **Restore(entries)** → rebuilds working files from stored blocks
-* **StageFiles(entries)** → writes index (`index.json`)
-* **GetIndexFiles()** → loads staged entries
+* **SaveIndex(entries)** → writes index (`index.json`)
+* **LoadIndex()** → loads staged entries
 
 ---
 
@@ -75,7 +75,7 @@ Immutable snapshots of tracked files.
 * **Save(fs)** / **Load(id)** → persist or load `.json` snapshot
 * **List()** → list all snapshots in `.bvc/filesets`
 * **WriteAndSave(fs)** → store file data + save snapshot atomically
-* **CreateCurrent()** → snapshot current working tree directly
+* **BuildFilesetFromWorkingTree()** → snapshot current working tree directly
 
 Each `Fileset`:
 
@@ -95,7 +95,7 @@ type Fileset struct {
 m, _ := store.InitAt(".bvc")
 
 // 2. Create entries from working files
-entries, _ := m.Files.CreateAllEntries()
+entries, _ := m.Files.BuildAllEntries()
 
 // 3. Build snapshot
 fs, _ := m.Snapshots.Create(entries)

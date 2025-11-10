@@ -1,13 +1,28 @@
 package file
 
 import (
+	"app/internal/fsio"
 	"app/internal/progress"
 	"app/internal/util"
+	"fmt"
+	"path/filepath"
 	"sync"
 )
 
-// CreateEntries builds entries from a list of paths.
-func (fc *FileContext) CreateEntries(paths []string) ([]Entry, error) {
+// BuildEntry splits a file into block references (content-defined).
+func (fc *FileContext) BuildEntry(path string) (Entry, error) {
+	if fc.Blocks == nil {
+		return Entry{}, fmt.Errorf("no BlockContext attached")
+	}
+	blocks, err := fc.Blocks.SplitFile(path)
+	if err != nil {
+		return Entry{}, fmt.Errorf("split %q: %w", path, err)
+	}
+	return Entry{Path: path, Blocks: blocks}, nil
+}
+
+// BuildEntries builds entries from a list of paths.
+func (fc *FileContext) BuildEntries(paths []string) ([]Entry, error) {
 	bar := progress.NewProgress(len(paths), "Scanning files ")
 	defer bar.Finish()
 
@@ -24,7 +39,7 @@ func (fc *FileContext) CreateEntries(paths []string) ([]Entry, error) {
 		go func() {
 			defer wg.Done()
 			for p := range jobs {
-				entry, err := fc.CreateEntry(p)
+				entry, err := fc.BuildEntry(p)
 				if err != nil {
 					errs <- err
 					continue
@@ -63,18 +78,18 @@ func (fc *FileContext) CreateEntries(paths []string) ([]Entry, error) {
 	return entries, nil
 }
 
-// CreateAllEntries builds entries for all tracked + untracked files.
-func (fc *FileContext) CreateAllEntries() ([]Entry, error) {
-	allFiles, err := fc.ListAll()
+// BuildAllEntries builds entries for all tracked + untracked files.
+func (fc *FileContext) BuildAllEntries() ([]Entry, error) {
+	allFiles, err := fc.ScanFilesInWorkingTree()
 	if err != nil {
 		return nil, err
 	}
-	entries, err := fc.CreateEntries(allFiles)
+	entries, err := fc.BuildEntries(allFiles)
 	if err != nil {
 		return nil, err
 	}
 
-	tracked, _ := fc.GetIndexFiles()
+	tracked, _ := fc.LoadIndex()
 	var deleted []Entry
 	for _, t := range tracked {
 		if !fc.Exists(t.Path) {
@@ -84,9 +99,9 @@ func (fc *FileContext) CreateAllEntries() ([]Entry, error) {
 	return append(entries, deleted...), nil
 }
 
-// CreateChangedEntries builds entries only for modified and deleted files.
-func (fc *FileContext) CreateChangedEntries() ([]Entry, error) {
-	tracked, err := fc.GetIndexFiles()
+// BuildChangedEntries builds entries only for modified and deleted files.
+func (fc *FileContext) BuildChangedEntries() ([]Entry, error) {
+	tracked, err := fc.LoadIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +113,7 @@ func (fc *FileContext) CreateChangedEntries() ([]Entry, error) {
 			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
 			continue
 		}
-		current, err := fc.CreateEntry(t.Path)
+		current, err := fc.BuildEntry(t.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -107,9 +122,23 @@ func (fc *FileContext) CreateChangedEntries() ([]Entry, error) {
 		}
 	}
 
-	modified, err := fc.CreateEntries(toUpdate)
+	modified, err := fc.BuildEntries(toUpdate)
 	if err != nil {
 		return nil, err
 	}
 	return append(modified, deleted...), nil
+}
+
+// Write stores all blocks of an entry into store.
+func (fc *FileContext) Write(e Entry) error {
+	if fc.Blocks == nil {
+		return fmt.Errorf("no BlockContext attached")
+	}
+	return fc.Blocks.Write(e.Path, e.Blocks)
+}
+
+// Exists checks whether a given path exists in the working tree.
+func (fc *FileContext) Exists(path string) bool {
+	_, err := fsio.StatFile(filepath.Clean(path))
+	return err == nil
 }

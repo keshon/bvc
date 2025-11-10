@@ -49,9 +49,11 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
+	fmt.Println(commitID)
+
 	// case 1: handle empty branch
 	if commitID == "" {
-		if err := r.Store.Files.Restore(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
+		if err := r.Store.Files.RestoreFilesToWorkingTree(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
 			return err
 		}
 		if _, err := r.Meta.SetHeadRef(branchName); err != nil {
@@ -74,7 +76,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// restore files
-	if err := r.Store.Files.Restore(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
+	if err := r.Store.Files.RestoreFilesToWorkingTree(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
 		return fmt.Errorf("restore failed: %w", err)
 	}
 

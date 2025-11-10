@@ -113,6 +113,9 @@ Options:
       --until <date>    Show commits before the given date (YYYY-MM-DD).
 
 Usage:
+  bvc log [options]
+
+Examples:
   bvc log
   bvc log -a
   bvc log --oneline -n 10

@@ -10,8 +10,9 @@ var (
 	IsDev               = false
 	RepoDir             = ".bvc"
 	RepoPointerFile     = ".bvc-pointer"
+	IgnoredFilesFile    = ".bvc-ignore"
 	DefaultBranch       = "main"
-	DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir}
+	DefaultIgnoredFiles = []string{RepoPointerFile, RepoDir, IgnoredFilesFile}
 )
 
 // RepoConfig represents a resolved repository configuration and layout.

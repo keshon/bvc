@@ -17,7 +17,7 @@ type Command struct{}
 
 func (c *Command) Name() string      { return "log" }
 func (c *Command) Short() string     { return "l" }
-func (c *Command) Aliases() []string { return []string{"lg"} }
+func (c *Command) Aliases() []string { return []string{"commits"} }
 func (c *Command) Usage() string     { return "log [options] [branch]" }
 func (c *Command) Brief() string     { return "Show commit history (current branch by default)" }
 func (c *Command) Help() string {
@@ -31,6 +31,9 @@ Options:
       --until <date>    Show commits before the given date (YYYY-MM-DD).
 
 Usage:
+  bvc log [options]
+
+Examples:
   bvc log
   bvc log -a
   bvc log --oneline -n 10

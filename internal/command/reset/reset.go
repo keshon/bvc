@@ -145,7 +145,7 @@ func resetIndex(filesetID string) error {
 	if err := r.Store.Files.ClearIndex(); err != nil {
 		return err
 	}
-	if err := r.Store.Files.StageFiles(fs.Files); err != nil {
+	if err := r.Store.Files.SaveIndex(fs.Files); err != nil {
 		return err
 	}
 
@@ -164,7 +164,7 @@ func resetWorkingDirectory(filesetID string) error {
 		return err
 	}
 
-	if err := r.Store.Files.Restore(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
+	if err := r.Store.Files.RestoreFilesToWorkingTree(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
 		return err
 	}
 

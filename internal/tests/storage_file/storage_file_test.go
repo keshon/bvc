@@ -35,8 +35,8 @@ func makeBlockContext(t *testing.T, dir string) *block.BlockContext {
 	return &block.BlockContext{Root: dir}
 }
 
-// --- CreateEntry / Write / Exists --- //
-func TestCreateEntryWriteExists(t *testing.T) {
+// --- BuildEntry / Write / Exists --- //
+func TestBuildEntryWriteExists(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
@@ -51,9 +51,9 @@ func TestCreateEntryWriteExists(t *testing.T) {
 		t.Fatalf("write file failed: %v", err)
 	}
 
-	entry, err := fm.CreateEntry(filePath)
+	entry, err := fm.BuildEntry(filePath)
 	if err != nil {
-		t.Fatalf("CreateEntry failed: %v", err)
+		t.Fatalf("BuildEntry failed: %v", err)
 	}
 
 	if err := fm.Write(entry); err != nil {
@@ -65,8 +65,8 @@ func TestCreateEntryWriteExists(t *testing.T) {
 	}
 }
 
-// --- CreateEntries --- //
-func TestCreateEntries(t *testing.T) {
+// --- BuildEntries --- //
+func TestBuildEntries(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
@@ -82,9 +82,9 @@ func TestCreateEntries(t *testing.T) {
 		files = append(files, path)
 	}
 
-	entries, err := fm.CreateEntries(files)
+	entries, err := fm.BuildEntries(files)
 	if err != nil {
-		t.Fatalf("CreateEntries failed: %v", err)
+		t.Fatalf("BuildEntries failed: %v", err)
 	}
 
 	if len(entries) != len(files) {
@@ -92,7 +92,7 @@ func TestCreateEntries(t *testing.T) {
 	}
 }
 
-// --- StageFiles / GetIndexFiles / ClearIndex --- //
+// --- SaveIndex / LoadIndex / ClearIndex --- //
 func TestStageAndLoadIndex(t *testing.T) {
 	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
@@ -100,13 +100,13 @@ func TestStageAndLoadIndex(t *testing.T) {
 	fm := &file.FileContext{Root: dir}
 
 	entry := file.Entry{Path: "a.txt", Blocks: nil}
-	if err := fm.StageFiles([]file.Entry{entry}); err != nil {
-		t.Fatalf("StageFiles failed: %v", err)
+	if err := fm.SaveIndex([]file.Entry{entry}); err != nil {
+		t.Fatalf("SaveIndex failed: %v", err)
 	}
 
-	loaded, err := fm.GetIndexFiles()
+	loaded, err := fm.LoadIndex()
 	if err != nil {
-		t.Fatalf("GetIndexFiles failed: %v", err)
+		t.Fatalf("LoadIndex failed: %v", err)
 	}
 	if len(loaded) != 1 || loaded[0].Path != "a.txt" {
 		t.Errorf("loaded entries mismatch: %+v", loaded)
@@ -115,7 +115,7 @@ func TestStageAndLoadIndex(t *testing.T) {
 	if err := fm.ClearIndex(); err != nil {
 		t.Fatalf("ClearIndex failed: %v", err)
 	}
-	loaded, _ = fm.GetIndexFiles()
+	loaded, _ = fm.LoadIndex()
 	if loaded != nil {
 		t.Errorf("expected nil after ClearIndex, got %+v", loaded)
 	}
@@ -130,7 +130,7 @@ func TestListAll(t *testing.T) {
 	os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
 	os.WriteFile(filepath.Join(dir, "subdir/b.txt"), []byte("y"), 0o644)
 
-	all, err := fm.ListAll()
+	all, err := fm.ScanFilesInWorkingTree()
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
@@ -143,9 +143,9 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 	tmp := makeTempDir(t)
 	fm := &file.FileContext{Root: tmp}
 
-	// 1. CreateEntry/Write with nil BlockContext
-	if _, err := fm.CreateEntry("a.txt"); err == nil {
-		t.Error("expected error for CreateEntry with nil Blocks")
+	// 1. BuildEntry/Write with nil BlockContext
+	if _, err := fm.BuildEntry("a.txt"); err == nil {
+		t.Error("expected error for BuildEntry with nil Blocks")
 	}
 	if err := fm.Write(file.Entry{Path: "x"}); err == nil {
 		t.Error("expected error for Write with nil Blocks")
@@ -156,7 +156,7 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 		t.Error("expected Exists to return false")
 	}
 
-	// 3. StageFiles marshal error (use circular data to break json.Marshal)
+	// 3. SaveIndex marshal error (use circular data to break json.Marshal)
 	// Inject a self-referential value to cause json.Marshal to fail
 	type loop struct {
 		Next *loop
@@ -170,17 +170,17 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 	}
 	defer func() { fsio.WriteFile = oldWrite }()
 
-	if err := fm.StageFiles([]file.Entry{{Path: "a"}}); err == nil {
-		t.Error("expected StageFiles write failure")
+	if err := fm.SaveIndex([]file.Entry{{Path: "a"}}); err == nil {
+		t.Error("expected SaveIndex write failure")
 	}
 
-	// 4. StageFiles mkdir error — simulate by patching fsio.MkdirAll
+	// 4. SaveIndex mkdir error — simulate by patching fsio.MkdirAll
 	oldMkdir := fsio.MkdirAll
 	fsio.MkdirAll = func(string, os.FileMode) error {
 		return errors.New("fake mkdir error")
 	}
 	defer func() { fsio.MkdirAll = oldMkdir }()
-	if err := fm.StageFiles([]file.Entry{}); err == nil {
+	if err := fm.SaveIndex([]file.Entry{}); err == nil {
 		t.Error("expected mkdir failure")
 	}
 
@@ -189,15 +189,15 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 		t.Error("ClearIndex should not error on missing file")
 	}
 
-	// 6. GetIndexFiles missing index.json
-	if entries, err := fm.GetIndexFiles(); err != nil || entries != nil {
+	// 6. LoadIndex missing index.json
+	if entries, err := fm.LoadIndex(); err != nil || entries != nil {
 		t.Error("expected nil,nil for missing index.json")
 	}
 
-	// 7. GetIndexFiles bad JSON
+	// 7. LoadIndex bad JSON
 	idx := filepath.Join(tmp, "index.json")
 	os.WriteFile(idx, []byte("{ bad json"), 0o644)
-	if _, err := fm.GetIndexFiles(); err == nil {
+	if _, err := fm.LoadIndex(); err == nil {
 		t.Error("expected unmarshal error")
 	}
 
@@ -223,11 +223,11 @@ func TestCreateAllAndChangedEntriesErrors(t *testing.T) {
 		Blocks: makeBlockContext(t, tmp),
 	}
 
-	// CreateAllEntries with no files — should not panic
-	_, _ = fm.CreateAllEntries()
+	// BuildAllEntries with no files — should not panic
+	_, _ = fm.BuildAllEntries()
 
-	// CreateChangedEntries with empty index
-	if _, err := fm.CreateChangedEntries(); err != nil {
+	// BuildChangedEntries with empty index
+	if _, err := fm.BuildChangedEntries(); err != nil {
 		t.Errorf("unexpected error on empty index: %v", err)
 	}
 }
@@ -243,9 +243,9 @@ func TestSplitFileIntegration(t *testing.T) {
 	defer os.Remove(testFile)
 
 	// Create entry
-	entry, err := fm.CreateEntry(testFile)
+	entry, err := fm.BuildEntry(testFile)
 	if err != nil {
-		t.Fatalf("CreateEntry failed: %v", err)
+		t.Fatalf("BuildEntry failed: %v", err)
 	}
 
 	if len(entry.Blocks) == 0 {

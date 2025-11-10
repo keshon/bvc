@@ -31,7 +31,7 @@ func makeSnapshotContext(t *testing.T, root string, fm *file.FileContext, bm *bl
 	return &snapshot.SnapshotContext{Root: root, Files: fm, Blocks: bm}
 }
 
-// --- Test SnapshotContext CreateCurrent + Create + Save/Load/List --- //
+// --- Test SnapshotContext BuildFilesetFromWorkingTree + Create + Save/Load/List --- //
 func TestSnapshotContextWorkflow(t *testing.T) {
 	root := makeTempDir(t)
 
@@ -51,21 +51,21 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
-	// CreateCurrent fileset
-	fs1, err := sm.CreateCurrent()
+	// BuildFilesetFromWorkingTree fileset
+	fs1, err := sm.BuildFilesetFromWorkingTree()
 	if err != nil {
-		t.Fatalf("CreateCurrent failed: %v", err)
+		t.Fatalf("BuildFilesetFromWorkingTree failed: %v", err)
 	}
 	if len(fs1.Files) != 1 {
 		t.Fatalf("expected 1 file in fileset, got %d", len(fs1.Files))
 	}
 
 	// Create fileset explicitly from entries
-	entry, err := fm.CreateEntry(filePath) // full path to file in fm.Root
+	entry, err := fm.BuildEntry(filePath) // full path to file in fm.Root
 	if err != nil {
-		t.Fatalf("CreateEntry failed: %v", err)
+		t.Fatalf("BuildEntry failed: %v", err)
 	}
-	fs2, err := sm.Create([]file.Entry{entry})
+	fs2, err := sm.BuildFilesetFromStaged([]file.Entry{entry})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestSnapshotContext_Errors(t *testing.T) {
 	}
 
 	// 1. Create with no entries
-	_, err := sm.Create(nil)
+	_, err := sm.BuildFilesetFromStaged(nil)
 	if err == nil {
 		t.Error("expected error for Create with empty entries")
 	}

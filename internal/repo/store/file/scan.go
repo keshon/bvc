@@ -7,33 +7,38 @@ import (
 	"sort"
 )
 
-// ListAll returns all user files in the working directory (excluding .bvc).
-func (fc *FileContext) ListAll() ([]string, error) {
+// ScanFilesInWorkingTree returns all user files in the working directory (excluding .bvc).
+func (fc *FileContext) ScanFilesInWorkingTree() ([]string, error) {
 	exe, _ := os.Executable()
-	var paths []string
+	matcher := NewIgnore()
 
+	var paths []string
 	err := filepath.WalkDir(fc.Root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && d.Name() == config.RepoDir {
-			return filepath.SkipDir
-		}
+
+		clean := filepath.Clean(path)
+
+		// Skip ignored directories
 		if d.IsDir() {
+			if d.Name() == config.RepoDir || matcher.Match(clean) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
-		abs, _ := filepath.Abs(path)
-		if abs == exe {
+
+		if matcher.Match(clean) || clean == exe {
 			return nil
 		}
-		paths = append(paths, abs)
+
+		paths = append(paths, clean)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Sort for deterministic order
 	sort.Strings(paths)
 	return paths, nil
 }

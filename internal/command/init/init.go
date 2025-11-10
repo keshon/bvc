@@ -16,7 +16,7 @@ type Command struct{}
 
 func (c *Command) Name() string      { return "init" }
 func (c *Command) Short() string     { return "i" }
-func (c *Command) Aliases() []string { return []string{"i"} }
+func (c *Command) Aliases() []string { return []string{} }
 func (c *Command) Usage() string     { return "init [options]" }
 func (c *Command) Brief() string     { return "Initialize a new repository" }
 func (c *Command) Help() string {
@@ -53,7 +53,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
-	// Determine repoDir respecting existing pointer file
+	// Determine repoDir
 	repoDir := config.ResolveRepoRoot()
 
 	// If --separate-bvc-dir is provided, override pointer
@@ -69,7 +69,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	cfg := config.NewRepoConfig(repoDir)
 	alreadyExists := repo.IsRepoExists(cfg.RepoRoot)
 
-	// Initialize repository + storage
+	// Initialize repository
 	r, err := repo.NewRepositoryByPath(repoDir)
 	if err != nil {
 		return fmt.Errorf("failed to init repository: %w", err)

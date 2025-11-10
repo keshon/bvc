@@ -51,7 +51,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	var toStage []string
 	for _, arg := range args {
 		if arg == "." {
-			all, err := r.Store.Files.ListAll()
+			all, err := r.Store.Files.ScanFilesInWorkingTree()
 			if err != nil {
 				return err
 			}
@@ -74,11 +74,11 @@ func (c *Command) Run(ctx *command.Context) error {
 	// create staged entries
 	var entries []file.Entry
 	if includeAll {
-		entries, err = r.Store.Files.CreateAllEntries()
+		entries, err = r.Store.Files.BuildAllEntries()
 	} else if updateOnly {
-		entries, err = r.Store.Files.CreateChangedEntries()
+		entries, err = r.Store.Files.BuildChangedEntries()
 	} else {
-		entries, err = r.Store.Files.CreateEntries(toStage)
+		entries, err = r.Store.Files.BuildEntries(toStage)
 	}
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("no changes to stage")
 	}
 
-	if err := r.Store.Files.StageFiles(entries); err != nil {
+	if err := r.Store.Files.SaveIndex(entries); err != nil {
 		return err
 	}
 

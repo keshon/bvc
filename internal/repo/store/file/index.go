@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 )
 
-// StageFiles writes staged entries (index) to disk.
-func (fc *FileContext) StageFiles(entries []Entry) error {
+// SaveIndex writes staged entries (index) to disk.
+func (fc *FileContext) SaveIndex(entries []Entry) error {
 	indexPath := filepath.Join(fc.RepoRoot, "index.json")
 	data, err := json.Marshal(entries)
 	if err != nil {
@@ -30,8 +30,8 @@ func (fc *FileContext) ClearIndex() error {
 	return fsio.Remove(indexPath)
 }
 
-// GetIndexFiles loads staged entries from disk.
-func (fc *FileContext) GetIndexFiles() ([]Entry, error) {
+// LoadIndex loads staged entries from disk.
+func (fc *FileContext) LoadIndex() ([]Entry, error) {
 	indexPath := filepath.Join(fc.RepoRoot, "index.json")
 	if _, err := fsio.StatFile(indexPath); fsio.IsNotExist(err) {
 		return nil, nil

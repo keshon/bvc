@@ -68,7 +68,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// get staged files
-	stagedFileentries, err := r.Store.Files.GetIndexFiles()
+	stagedFileentries, err := r.Store.Files.LoadIndex()
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// create fileset from staged files (or empty fileset if --allow-empty)
-	fileset, err := r.Store.Snapshots.Create(stagedFileentries)
+	fileset, err := r.Store.Snapshots.BuildFilesetFromStaged(stagedFileentries)
 	if err != nil {
 		return err
 	}

@@ -84,7 +84,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// restore files from picked commit
-	if err := r.Store.Files.Restore(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := r.Store.Files.RestoreFilesToWorkingTree(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

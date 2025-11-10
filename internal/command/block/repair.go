@@ -78,7 +78,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := r.Store.Files.CreateEntry(currFile)
+			entry, err := r.Store.Files.BuildEntry(currFile)
 			if err != nil {
 				continue
 			}

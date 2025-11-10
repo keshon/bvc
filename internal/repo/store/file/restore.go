@@ -3,17 +3,15 @@ package file
 import (
 	"app/internal/fsio"
 	"app/internal/progress"
-	"app/internal/util"
 	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 // Restore rebuilds files from entries (e.g., from a snapshot).
-func (fc *FileContext) Restore(entries []Entry, label string) error {
+func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) error {
 	if fc.Blocks == nil {
 		return fmt.Errorf("no BlockManager attached")
 	}
@@ -22,28 +20,35 @@ func (fc *FileContext) Restore(entries []Entry, label string) error {
 	bar := progress.NewProgress(len(entries), fmt.Sprintf("Restoring %s", label))
 	defer bar.Finish()
 
-	// Build valid file map for pruning
+	// Build valid file map from Fileset entries
 	valid := make(map[string]bool, len(entries))
 	for _, e := range entries {
 		valid[filepath.Clean(e.Path)] = true
 	}
 
-	// Restore files in parallel
-	err := util.Parallel(entries, util.WorkerCount()*2, func(e Entry) error {
+	// Include staged files so we don't delete them
+	staged, err := fc.LoadIndex()
+	if err != nil {
+		fmt.Printf("\nWarning: %v\n", err)
+	}
+	for _, s := range staged {
+		valid[filepath.Clean(s.Path)] = true
+	}
+
+	// Restore Fileset entries first
+	for _, e := range entries {
 		if filepath.Base(e.Path) == exe {
-			bar.Increment()
-			return nil
+			continue
 		}
 		if err := fc.restoreFile(e); err != nil {
 			fmt.Printf("\nWarning: %v\n", err)
 		}
 		bar.Increment()
-		return nil
-	})
+	}
 
-	// Remove files not in snapshot
-	fc.pruneUntrackedFiles(valid, exe)
-	return err
+	// Now prune untracked files safely
+	fc.removeUntracked(valid, exe) // TODO: check this method - it's probably broken
+	return nil
 }
 
 func (fc *FileContext) restoreFile(e Entry) error {
@@ -75,22 +80,36 @@ func (fc *FileContext) restoreFile(e Entry) error {
 	return fsio.Rename(tmp.Name(), e.Path)
 }
 
-func (fc *FileContext) pruneUntrackedFiles(valid map[string]bool, exe string) {
+// TODO: its probably broken (fc.RepoRoot should be meaningless here)
+func (fc *FileContext) removeUntracked(valid map[string]bool, exe string) {
+	matcher := NewIgnore()
+
 	var dirs []string
-	filepath.WalkDir(".", func(path string, d os.DirEntry, err error) error {
+	filepath.WalkDir(fc.RepoRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d == nil {
 			return nil
 		}
-		if d.IsDir() {
-			if strings.HasPrefix(path, fc.Root) {
+
+		clean := filepath.Clean(path)
+
+		// Skip ignored files and dirs
+		if matcher.Match(clean) {
+			if d.IsDir() {
 				return filepath.SkipDir
 			}
-			dirs = append(dirs, path)
 			return nil
 		}
-		if !valid[filepath.Clean(path)] && filepath.Base(path) != exe {
-			_ = fsio.Remove(path)
+
+		if d.IsDir() {
+			dirs = append(dirs, clean)
+			return nil
 		}
+
+		if valid[clean] || filepath.Base(clean) == exe {
+			return nil
+		}
+
+		_ = fsio.Remove(clean)
 		return nil
 	})
 

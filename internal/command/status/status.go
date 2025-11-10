@@ -98,7 +98,7 @@ func (c *Command) status(short, showBranch bool, untrackedMode string, showIgnor
 	}
 
 	// Load current snapshot
-	currFS, err := r.Store.Snapshots.CreateCurrent()
+	currFS, err := r.Store.Snapshots.BuildFilesetFromWorkingTree()
 	if err != nil {
 		return err
 	}

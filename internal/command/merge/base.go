@@ -267,7 +267,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// apply merged fileset to working directory
-	if err := r.Store.Files.Restore(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
+	if err := r.Store.Files.RestoreFilesToWorkingTree(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
 		return fmt.Errorf("failed to apply merged fileset: %v", err)
 	}
 
