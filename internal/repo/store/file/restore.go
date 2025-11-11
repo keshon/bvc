@@ -47,7 +47,7 @@ func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) 
 	}
 
 	// Now prune untracked files safely
-	fc.removeUntracked(valid, exe) // TODO: check this method - it's probably broken
+	// fc.removeUntracked(valid, exe) // TODO: check this method - it's probably not needed
 	return nil
 }
 

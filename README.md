@@ -164,18 +164,15 @@ status [options]
 Show the working tree status.
 
 Options:
-  -s, --short                    Show short summary (one line per file)
+  -s, --short                    Show short summary (XY path)
+      --porcelain                Machine-readable short output
   -b, --branch                   Show branch info
   -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
       --ignored                  Show ignored files
   -q, --quiet                    Suppress normal output
 
-Examples:
-  bvc status
-  bvc status -s
-  bvc status --branch
-  bvc status -u all
-  bvc status --ignored
+Notes:
+  "porcelain" mode is a stable, machine-readable short output format (like -s).
 
 ```
 

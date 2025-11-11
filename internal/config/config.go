@@ -57,6 +57,3 @@ func (c *RepoConfig) HeadFile() string {
 	return c.RepoPath("HEAD")
 
 }
-func (c *RepoConfig) ConfigFile() string {
-	return c.RepoPath("config.json")
-}

@@ -13,15 +13,16 @@ type Ignore struct {
 	pattern []string
 }
 
+// NewIgnore loads defaults and .bvc-ignore
 func NewIgnore() *Ignore {
 	m := &Ignore{static: make(map[string]bool)}
 
-	// Add default ignored files
+	// Default ignored files
 	for _, s := range config.DefaultIgnoredFiles {
 		m.static[filepath.Clean(s)] = true
 	}
 
-	// Try load .bvc-ignore
+	// Load .bvc-ignore
 	f, err := fsio.Open(config.IgnoredFilesFile)
 	if err == nil {
 		sc := bufio.NewScanner(f)
@@ -38,24 +39,60 @@ func NewIgnore() *Ignore {
 	return m
 }
 
+// Match returns true if the path should be ignored
 func (m *Ignore) Match(path string) bool {
-	clean := filepath.Clean(path)
+	clean := filepath.ToSlash(filepath.Clean(path))
 
-	// Direct static match
+	// static exact match
 	if m.static[clean] {
 		return true
 	}
 
-	// Directory or pattern match
-	base := filepath.Base(clean)
+	// pattern match
 	for _, pat := range m.pattern {
-		if matched, _ := filepath.Match(pat, base); matched {
-			return true
-		}
-		if strings.HasPrefix(clean, pat) {
+		if matchPattern(pat, clean) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// matchPattern handles *, ?, and ** like Git
+func matchPattern(pattern, path string) bool {
+	pattern = filepath.ToSlash(pattern)
+	return matchSegments(strings.Split(pattern, "/"), strings.Split(path, "/"))
+}
+
+// matchSegments matches pattern segments recursively
+func matchSegments(pats, parts []string) bool {
+	for len(pats) > 0 {
+		p := pats[0]
+		pats = pats[1:]
+
+		if p == "**" {
+			if len(pats) == 0 {
+				return true // trailing ** matches anything
+			}
+			for i := 0; i <= len(parts); i++ {
+				if matchSegments(pats, parts[i:]) {
+					return true
+				}
+			}
+			return false
+		}
+
+		if len(parts) == 0 {
+			return false
+		}
+
+		ok, _ := filepath.Match(p, parts[0])
+		if !ok {
+			return false
+		}
+
+		parts = parts[1:]
+	}
+
+	return len(parts) == 0
 }
