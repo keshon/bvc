@@ -9,23 +9,36 @@ import (
 )
 
 // BuildFilesetFromWorkingTree builds a Fileset from the current working tree.
-func (sc *SnapshotContext) BuildFilesetFromWorkingTree() (Fileset, error) {
-	paths, err := sc.Files.ScanFilesInWorkingTree()
+func (sc *SnapshotContext) BuildFilesetFromWorkingTree() (tracked Fileset, ignored Fileset, err error) {
+	trackedPaths, ignoredPaths, err := sc.Files.ScanFilesInWorkingTree()
 	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to list files: %w", err)
+		return Fileset{}, Fileset{}, fmt.Errorf("failed to list files: %w", err)
 	}
 
-	entries, err := sc.Files.BuildEntries(paths)
+	trackedEntries, err := sc.Files.BuildEntries(trackedPaths)
 	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to create entries: %w", err)
+		return Fileset{}, Fileset{}, fmt.Errorf("failed to create tracked entries: %w", err)
 	}
 
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-	return Fileset{ID: HashFileset(entries), Files: entries}, nil
+	ignoredEntries, err := sc.Files.BuildEntries(ignoredPaths)
+	if err != nil {
+		return Fileset{}, Fileset{}, fmt.Errorf("failed to create ignored entries: %w", err)
+	}
+
+	sort.Slice(trackedEntries, func(i, j int) bool { return trackedEntries[i].Path < trackedEntries[j].Path })
+	sort.Slice(ignoredEntries, func(i, j int) bool { return ignoredEntries[i].Path < ignoredEntries[j].Path })
+
+	return Fileset{
+			ID:    HashFileset(trackedEntries),
+			Files: trackedEntries,
+		}, Fileset{
+			ID:    HashFileset(ignoredEntries),
+			Files: ignoredEntries,
+		}, nil
 }
 
-// BuildFilesetFromStaged builds a Fileset from staged entries and stores their blocks.
-func (sc *SnapshotContext) BuildFilesetFromStaged(entries []file.Entry) (Fileset, error) {
+// BuildFilesetFromEntries builds a Fileset from staged entries and stores their blocks.
+func (sc *SnapshotContext) BuildFilesetFromEntries(entries []file.Entry) (Fileset, error) {
 	if len(entries) == 0 {
 		return Fileset{}, fmt.Errorf("no files to commit")
 	}

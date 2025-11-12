@@ -130,12 +130,12 @@ func TestListAll(t *testing.T) {
 	os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
 	os.WriteFile(filepath.Join(dir, "subdir/b.txt"), []byte("y"), 0o644)
 
-	all, err := fm.ScanFilesInWorkingTree()
+	paths, _, err := fm.ScanFilesInWorkingTree()
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}
-	if len(all) != 2 {
-		t.Errorf("expected 2 files, got %d", len(all))
+	if len(paths) != 2 {
+		t.Errorf("expected 2 files, got %d", len(paths))
 	}
 }
 

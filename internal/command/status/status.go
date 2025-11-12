@@ -53,19 +53,15 @@ func (c *Command) Flags(fs *flag.FlagSet) {
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	// parse flags from context
 	short := ctx.Flags.Lookup("short").Value.(flag.Getter).Get().(bool) ||
 		ctx.Flags.Lookup("s").Value.(flag.Getter).Get().(bool)
 	porcelain := ctx.Flags.Lookup("porcelain").Value.(flag.Getter).Get().(bool)
-
 	showBranch := ctx.Flags.Lookup("branch").Value.(flag.Getter).Get().(bool) ||
 		ctx.Flags.Lookup("b").Value.(flag.Getter).Get().(bool)
-
 	untrackedMode := ctx.Flags.Lookup("untracked-files").Value.(flag.Getter).Get().(string)
 	if u := ctx.Flags.Lookup("u"); u != nil {
 		untrackedMode = u.Value.(flag.Getter).Get().(string)
 	}
-
 	showIgnored := ctx.Flags.Lookup("ignored").Value.(flag.Getter).Get().(bool)
 	quiet := ctx.Flags.Lookup("quiet").Value.(flag.Getter).Get().(bool) ||
 		ctx.Flags.Lookup("q").Value.(flag.Getter).Get().(bool)
@@ -105,27 +101,24 @@ func (c *Command) Run(ctx *command.Context) error {
 		indexFiles[filepath.Clean(e.Path)] = e
 	}
 
-	// working tree
-	workFS, err := r.Store.Snapshots.BuildFilesetFromWorkingTree()
+	// working tree (tracked + ignored separated)
+	workFS, ignoredFS, err := r.Store.Snapshots.BuildFilesetFromWorkingTree()
 	if err != nil {
 		return fmt.Errorf("scan working tree: %w", err)
 	}
 
-	// apply ignore rules
-	matcher := file.NewIgnore()
-	filtered := make([]file.Entry, 0, len(workFS.Files))
+	workFiles := make(map[string]file.Entry, len(workFS.Files))
 	for _, e := range workFS.Files {
-		if matcher.Match(e.Path) && !showIgnored {
-			continue
-		}
-		filtered = append(filtered, e)
-	}
-	workFiles := make(map[string]file.Entry, len(filtered))
-	for _, e := range filtered {
 		workFiles[filepath.Clean(e.Path)] = e
 	}
 
-	// collect all paths
+	ignoredFiles := make(map[string]file.Entry, len(ignoredFS.Files))
+	for _, e := range ignoredFS.Files {
+		ignoredFiles[filepath.Clean(e.Path)] = e
+	}
+
+	// collect all paths from HEAD, index, and work (not ignored)
+	// Only tracked files
 	allPaths := map[string]struct{}{}
 	for p := range headFiles {
 		allPaths[p] = struct{}{}
@@ -133,7 +126,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	for p := range indexFiles {
 		allPaths[p] = struct{}{}
 	}
-	for p := range workFiles {
+	for p := range workFiles { // tracked work files only
 		allPaths[p] = struct{}{}
 	}
 	paths := make([]string, 0, len(allPaths))
@@ -148,6 +141,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		untracked, ignored                         []string
 	)
 
+	// diff logic
 	for _, p := range paths {
 		h, inHead := headFiles[p]
 		i, inIndex := indexFiles[p]
@@ -182,12 +176,10 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
-	// ignored files
+	// ignored list
 	if showIgnored {
-		for _, e := range workFS.Files {
-			if matcher.Match(e.Path) {
-				ignored = append(ignored, e.Path)
-			}
+		for _, e := range ignoredFS.Files {
+			ignored = append(ignored, e.Path)
 		}
 	}
 
@@ -274,7 +266,6 @@ func printSection(kind string, items []string) {
 	}
 }
 
-// printShort: short = terminal colors, porcelain = plain output
 func printShort(
 	paths []string,
 	head, index, work map[string]file.Entry,
@@ -289,7 +280,6 @@ func printShort(
 
 		var x, y string
 
-		// index char
 		if inIndex {
 			if !inHead {
 				x = "A"
@@ -300,32 +290,24 @@ func printShort(
 			}
 		}
 
-		// worktree char
-		if inWork {
-			if inIndex {
-				if !i.Equal(&w) {
-					y = "M"
-				}
-			} else if inHead && !h.Equal(&w) {
+		if inWork && inIndex {
+			if !i.Equal(&w) {
 				y = "M"
-			} else if !inHead && !inIndex {
-				x, y = "?", "?"
 			}
-		} else if inHead && !inIndex {
+		} else if inWork && inHead && !inIndex {
+			if !h.Equal(&w) {
+				y = "M"
+			}
+		} else if inWork && !inHead && !inIndex {
+			// do nothing; untracked will be handled in separate loop
+		} else if !inWork && inHead && !inIndex {
 			y = "D"
 		}
 
 		if x != "" || y != "" {
 			line := fmt.Sprintf("%s%s %s", x, y, rel(p))
 			if short {
-				// add simple color: green for added, red for deleted, yellow for modified
-				if x == "A" || y == "A" {
-					line = "\033[32m" + line + "\033[0m"
-				} else if x == "D" || y == "D" {
-					line = "\033[31m" + line + "\033[0m"
-				} else if x == "M" || y == "M" {
-					line = "\033[33m" + line + "\033[0m"
-				}
+				line = colorXY(line, x, y)
 			}
 			fmt.Println(line)
 		}
@@ -334,7 +316,7 @@ func printShort(
 	for _, p := range untracked {
 		line := fmt.Sprintf("?? %s", rel(p))
 		if short {
-			line = "\033[36m" + line + "\033[0m" // cyan
+			line = "\033[36m" + line + "\033[0m"
 		}
 		fmt.Println(line)
 	}
@@ -342,10 +324,21 @@ func printShort(
 	for _, p := range ignored {
 		line := fmt.Sprintf("!! %s", rel(p))
 		if short {
-			line = "\033[90m" + line + "\033[0m" // gray
+			line = "\033[90m" + line + "\033[0m"
 		}
 		fmt.Println(line)
 	}
+}
+
+func colorXY(line, x, y string) string {
+	if x == "A" || y == "A" {
+		return "\033[32m" + line + "\033[0m"
+	} else if x == "D" || y == "D" {
+		return "\033[31m" + line + "\033[0m"
+	} else if x == "M" || y == "M" {
+		return "\033[33m" + line + "\033[0m"
+	}
+	return line
 }
 
 func init() {

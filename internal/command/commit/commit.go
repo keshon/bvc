@@ -78,7 +78,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// create fileset from staged files (or empty fileset if --allow-empty)
-	fileset, err := r.Store.Snapshots.BuildFilesetFromStaged(stagedFileentries)
+	fileset, err := r.Store.Snapshots.BuildFilesetFromEntries(stagedFileentries)
 	if err != nil {
 		return err
 	}

@@ -80,11 +80,11 @@ func (fc *FileContext) BuildEntries(paths []string) ([]Entry, error) {
 
 // BuildAllEntries builds entries for all tracked + untracked files.
 func (fc *FileContext) BuildAllEntries() ([]Entry, error) {
-	allFiles, err := fc.ScanFilesInWorkingTree()
+	paths, _, err := fc.ScanFilesInWorkingTree()
 	if err != nil {
 		return nil, err
 	}
-	entries, err := fc.BuildEntries(allFiles)
+	entries, err := fc.BuildEntries(paths)
 	if err != nil {
 		return nil, err
 	}

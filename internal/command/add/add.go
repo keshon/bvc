@@ -51,11 +51,11 @@ func (c *Command) Run(ctx *command.Context) error {
 	var toStage []string
 	for _, arg := range args {
 		if arg == "." {
-			all, err := r.Store.Files.ScanFilesInWorkingTree()
+			paths, _, err := r.Store.Files.ScanFilesInWorkingTree()
 			if err != nil {
 				return err
 			}
-			toStage = append(toStage, all...)
+			toStage = append(toStage, paths...)
 		} else if strings.ContainsAny(arg, "*?") {
 			matches, err := filepath.Glob(arg)
 			if err != nil {

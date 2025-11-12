@@ -52,7 +52,7 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 	}
 
 	// BuildFilesetFromWorkingTree fileset
-	fs1, err := sm.BuildFilesetFromWorkingTree()
+	fs1, _, err := sm.BuildFilesetFromWorkingTree()
 	if err != nil {
 		t.Fatalf("BuildFilesetFromWorkingTree failed: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildEntry failed: %v", err)
 	}
-	fs2, err := sm.BuildFilesetFromStaged([]file.Entry{entry})
+	fs2, err := sm.BuildFilesetFromEntries([]file.Entry{entry})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestSnapshotContext_Errors(t *testing.T) {
 	}
 
 	// 1. Create with no entries
-	_, err := sm.BuildFilesetFromStaged(nil)
+	_, err := sm.BuildFilesetFromEntries(nil)
 	if err == nil {
 		t.Error("expected error for Create with empty entries")
 	}

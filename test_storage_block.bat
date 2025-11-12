@@ -1,1 +1,0 @@
-go test -coverpkg=./internal/storage/block ./internal/tests/storage_block -v -cover

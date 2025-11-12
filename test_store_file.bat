@@ -1,0 +1,1 @@
+go test -coverpkg=./internal/store/file ./internal/tests/store_file -v -cover

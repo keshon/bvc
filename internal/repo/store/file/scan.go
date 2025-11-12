@@ -7,12 +7,14 @@ import (
 	"sort"
 )
 
-// ScanFilesInWorkingTree returns all user files in the working directory (excluding .bvc).
-func (fc *FileContext) ScanFilesInWorkingTree() ([]string, error) {
+// ScanFilesInWorkingTree returns two slices of file paths: tracked and ignored file paths (.bvc-ignore and .bvc/).
+func (fc *FileContext) ScanFilesInWorkingTree() ([]string, []string, error) {
 	exe, _ := os.Executable()
 	matcher := NewIgnore()
 
-	var paths []string
+	var ignored []string
+	var tracked []string
+
 	err := filepath.WalkDir(fc.Root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -20,25 +22,44 @@ func (fc *FileContext) ScanFilesInWorkingTree() ([]string, error) {
 
 		clean := filepath.Clean(path)
 
-		// Skip ignored directories
+		// skip repo internal dir (.bvc or similar)
 		if d.IsDir() {
-			if d.Name() == config.RepoDir || matcher.Match(clean) {
+			if d.Name() == config.RepoDir {
+				return filepath.SkipDir
+			}
+			if matcher.Match(clean) {
+				ignored = append(ignored, clean)
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		if matcher.Match(clean) || clean == exe {
+		if clean == exe {
 			return nil
 		}
 
-		paths = append(paths, clean)
+		// normalize path to relative to root
+		relPath, err := filepath.Rel(fc.Root, clean)
+		if err != nil {
+			relPath = clean
+		}
+
+		relPath = filepath.ToSlash(relPath)
+
+		// split into tracked and ignored
+		if matcher.Match(relPath) {
+			ignored = append(ignored, clean)
+		} else {
+			tracked = append(tracked, clean)
+		}
+
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	sort.Strings(paths)
-	return paths, nil
+	sort.Strings(tracked)
+	sort.Strings(ignored)
+	return tracked, ignored, nil
 }

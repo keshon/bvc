@@ -35,11 +35,11 @@ func NewIgnore() *Ignore {
 		}
 		f.Close()
 	}
-
 	return m
 }
 
 // Match returns true if the path should be ignored
+// supply only relative paths
 func (m *Ignore) Match(path string) bool {
 	clean := filepath.ToSlash(filepath.Clean(path))
 
@@ -61,18 +61,31 @@ func (m *Ignore) Match(path string) bool {
 // matchPattern handles *, ?, and ** like Git
 func matchPattern(pattern, path string) bool {
 	pattern = filepath.ToSlash(pattern)
+	path = filepath.ToSlash(path)
+
+	// Special case: both empty => match
+	if pattern == "" && path == "" {
+		return true
+	}
+
 	return matchSegments(strings.Split(pattern, "/"), strings.Split(path, "/"))
 }
 
 // matchSegments matches pattern segments recursively
 func matchSegments(pats, parts []string) bool {
+	// remove trailing empty segments from pattern (e.g., "dir/**/" → ["dir", "**"])
+	for len(pats) > 0 && pats[len(pats)-1] == "" {
+		pats = pats[:len(pats)-1]
+	}
+
 	for len(pats) > 0 {
 		p := pats[0]
 		pats = pats[1:]
 
 		if p == "**" {
+			// ** matches any number of path segments (including zero)
 			if len(pats) == 0 {
-				return true // trailing ** matches anything
+				return true
 			}
 			for i := 0; i <= len(parts); i++ {
 				if matchSegments(pats, parts[i:]) {
@@ -94,5 +107,6 @@ func matchSegments(pats, parts []string) bool {
 		parts = parts[1:]
 	}
 
+	// if we've consumed all patterns, match succeeds if no remaining parts
 	return len(parts) == 0
 }
