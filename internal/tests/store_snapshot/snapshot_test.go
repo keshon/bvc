@@ -52,7 +52,7 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 	}
 
 	// BuildFilesetFromWorkingTree fileset
-	fs1, _, err := sm.BuildFilesetFromWorkingTree()
+	fs1, _, _, err := sm.BuildFilesetsFromWorkingTree()
 	if err != nil {
 		t.Fatalf("BuildFilesetFromWorkingTree failed: %v", err)
 	}

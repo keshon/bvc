@@ -51,7 +51,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	var toStage []string
 	for _, arg := range args {
 		if arg == "." {
-			paths, _, err := r.Store.Files.ScanFilesInWorkingTree()
+			paths, _, _, err := r.Store.Files.ScanFilesInWorkingTree()
 			if err != nil {
 				return err
 			}
@@ -71,6 +71,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("no matching files to add")
 	}
 
+	// TODO: need to use snapshot package for that
 	// create staged entries
 	var entries []file.Entry
 	if includeAll {
@@ -78,7 +79,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	} else if updateOnly {
 		entries, err = r.Store.Files.BuildChangedEntries()
 	} else {
-		entries, err = r.Store.Files.BuildEntries(toStage)
+		entries, err = r.Store.Files.BuildEntries(toStage, false)
 	}
 	if err != nil {
 		return err

@@ -82,7 +82,7 @@ func TestBuildEntries(t *testing.T) {
 		files = append(files, path)
 	}
 
-	entries, err := fm.BuildEntries(files)
+	entries, err := fm.BuildEntries(files, false)
 	if err != nil {
 		t.Fatalf("BuildEntries failed: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestListAll(t *testing.T) {
 	os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
 	os.WriteFile(filepath.Join(dir, "subdir/b.txt"), []byte("y"), 0o644)
 
-	paths, _, err := fm.ScanFilesInWorkingTree()
+	paths, _, _, err := fm.ScanFilesInWorkingTree()
 	if err != nil {
 		t.Fatalf("ListAll failed: %v", err)
 	}

@@ -171,9 +171,6 @@ Options:
       --ignored                  Show ignored files
   -q, --quiet                    Suppress normal output
 
-Notes:
-  "porcelain" mode is a stable, machine-readable short output format (like -s).
-
 ```
 
 

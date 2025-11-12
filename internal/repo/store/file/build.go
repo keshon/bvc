@@ -22,9 +22,12 @@ func (fc *FileContext) BuildEntry(path string) (Entry, error) {
 }
 
 // BuildEntries builds entries from a list of paths.
-func (fc *FileContext) BuildEntries(paths []string) ([]Entry, error) {
-	bar := progress.NewProgress(len(paths), "Scanning files ")
-	defer bar.Finish()
+func (fc *FileContext) BuildEntries(paths []string, silent bool) ([]Entry, error) {
+	var bar *progress.ProgressTracker
+	if !silent {
+		bar = progress.NewProgress(len(paths), "Building entries ")
+		defer bar.Finish()
+	}
 
 	jobs := make(chan string, len(paths))
 	results := make(chan Entry, len(paths))
@@ -35,7 +38,7 @@ func (fc *FileContext) BuildEntries(paths []string) ([]Entry, error) {
 	wg.Add(workers)
 
 	// Start workers
-	for range workers {
+	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
 			for p := range jobs {
@@ -45,7 +48,9 @@ func (fc *FileContext) BuildEntries(paths []string) ([]Entry, error) {
 					continue
 				}
 				results <- entry
-				bar.Increment()
+				if !silent {
+					bar.Increment()
+				}
 			}
 		}()
 	}
@@ -78,13 +83,14 @@ func (fc *FileContext) BuildEntries(paths []string) ([]Entry, error) {
 	return entries, nil
 }
 
+// TODO: may not be needed anymore
 // BuildAllEntries builds entries for all tracked + untracked files.
 func (fc *FileContext) BuildAllEntries() ([]Entry, error) {
-	paths, _, err := fc.ScanFilesInWorkingTree()
+	paths, _, _, err := fc.ScanFilesInWorkingTree()
 	if err != nil {
 		return nil, err
 	}
-	entries, err := fc.BuildEntries(paths)
+	entries, err := fc.BuildEntries(paths, false)
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +105,7 @@ func (fc *FileContext) BuildAllEntries() ([]Entry, error) {
 	return append(entries, deleted...), nil
 }
 
+// TODO: may not be needed anymore
 // BuildChangedEntries builds entries only for modified and deleted files.
 func (fc *FileContext) BuildChangedEntries() ([]Entry, error) {
 	tracked, err := fc.LoadIndex()
@@ -122,7 +129,7 @@ func (fc *FileContext) BuildChangedEntries() ([]Entry, error) {
 		}
 	}
 
-	modified, err := fc.BuildEntries(toUpdate)
+	modified, err := fc.BuildEntries(toUpdate, false)
 	if err != nil {
 		return nil, err
 	}

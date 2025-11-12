@@ -8,30 +8,41 @@ import (
 	"sort"
 )
 
+// TODO: split into smaller functions and make one unified
 // BuildFilesetFromWorkingTree builds a Fileset from the current working tree.
-func (sc *SnapshotContext) BuildFilesetFromWorkingTree() (tracked Fileset, ignored Fileset, err error) {
-	trackedPaths, ignoredPaths, err := sc.Files.ScanFilesInWorkingTree()
+func (sc *SnapshotContext) BuildFilesetsFromWorkingTree() (tracked Fileset, staged Fileset, ignored Fileset, err error) {
+	trackedPaths, stagedPaths, ignoredPaths, err := sc.Files.ScanFilesInWorkingTree()
 	if err != nil {
-		return Fileset{}, Fileset{}, fmt.Errorf("failed to list files: %w", err)
+		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to list files: %w", err)
 	}
 
-	trackedEntries, err := sc.Files.BuildEntries(trackedPaths)
+	trackedEntries, err := sc.Files.BuildEntries(trackedPaths, true)
 	if err != nil {
-		return Fileset{}, Fileset{}, fmt.Errorf("failed to create tracked entries: %w", err)
+		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to create tracked entries: %w", err)
 	}
 
-	ignoredEntries, err := sc.Files.BuildEntries(ignoredPaths)
+	stagedEntries, err := sc.Files.BuildEntries(stagedPaths, true)
 	if err != nil {
-		return Fileset{}, Fileset{}, fmt.Errorf("failed to create ignored entries: %w", err)
+		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to create staged entries: %w", err)
+	}
+
+	ignoredEntries, err := sc.Files.BuildEntries(ignoredPaths, true)
+	if err != nil {
+		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to create ignored entries: %w", err)
 	}
 
 	sort.Slice(trackedEntries, func(i, j int) bool { return trackedEntries[i].Path < trackedEntries[j].Path })
+	sort.Slice(stagedEntries, func(i, j int) bool { return stagedEntries[i].Path < stagedEntries[j].Path })
 	sort.Slice(ignoredEntries, func(i, j int) bool { return ignoredEntries[i].Path < ignoredEntries[j].Path })
 
 	return Fileset{
 			ID:    HashFileset(trackedEntries),
 			Files: trackedEntries,
 		}, Fileset{
+			ID:    HashFileset(stagedEntries),
+			Files: stagedEntries,
+		},
+		Fileset{
 			ID:    HashFileset(ignoredEntries),
 			Files: ignoredEntries,
 		}, nil

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 type Command struct{}
@@ -31,9 +30,6 @@ Options:
   -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
       --ignored                  Show ignored files
   -q, --quiet                    Suppress normal output
-
-Notes:
-  "porcelain" mode is a stable, machine-readable short output format (like -s).
 `
 }
 
@@ -50,6 +46,12 @@ func (c *Command) Flags(fs *flag.FlagSet) {
 	fs.Bool("ignored", false, "")
 	fs.Bool("quiet", false, "")
 	fs.Bool("q", false, "alias for --quiet")
+}
+
+type statusItem struct {
+	Path     string
+	Staged   string // "A", "M", "D"
+	Unstaged string // "M", "D"
 }
 
 func (c *Command) Run(ctx *command.Context) error {
@@ -73,18 +75,15 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	branch, err := r.Meta.GetCurrentBranch()
 	if err != nil {
-		if strings.Contains(err.Error(), "HEAD") {
-			if !quiet {
-				fmt.Println("No commits yet on any branch")
-			}
-			return nil
+		if !quiet {
+			fmt.Println("No commits yet on current branch")
 		}
-		return err
+		return nil
 	}
 
-	// HEAD files
+	// head files
 	headFiles := map[string]file.Entry{}
-	if commitID, err := r.Meta.GetLastCommitID(branch.Name); err == nil && commitID != "" {
+	if commitID, _ := r.Meta.GetLastCommitID(branch.Name); commitID != "" {
 		fs, err := r.GetCommitFileset(commitID)
 		if err != nil {
 			return err
@@ -94,251 +93,246 @@ func (c *Command) Run(ctx *command.Context) error {
 		}
 	}
 
-	// index
-	indexEntries, _ := r.Store.Files.LoadIndex()
-	indexFiles := map[string]file.Entry{}
-	for _, e := range indexEntries {
-		indexFiles[filepath.Clean(e.Path)] = e
-	}
-
-	// working tree (tracked + ignored separated)
-	workFS, ignoredFS, err := r.Store.Snapshots.BuildFilesetFromWorkingTree()
+	// work, staged, ignored filesets
+	workFS, stagedFS, ignoredFS, err := r.Store.Snapshots.BuildFilesetsFromWorkingTree()
 	if err != nil {
 		return fmt.Errorf("scan working tree: %w", err)
 	}
 
-	workFiles := make(map[string]file.Entry, len(workFS.Files))
+	workFiles := map[string]file.Entry{}
 	for _, e := range workFS.Files {
 		workFiles[filepath.Clean(e.Path)] = e
 	}
 
-	ignoredFiles := make(map[string]file.Entry, len(ignoredFS.Files))
+	stagedFiles := map[string]file.Entry{}
+	for _, e := range stagedFS.Files {
+		stagedFiles[filepath.Clean(e.Path)] = e
+	}
+
+	ignoredFiles := map[string]file.Entry{}
 	for _, e := range ignoredFS.Files {
 		ignoredFiles[filepath.Clean(e.Path)] = e
 	}
 
-	// collect all paths from HEAD, index, and work (not ignored)
-	// Only tracked files
-	allPaths := map[string]struct{}{}
-	for p := range headFiles {
-		allPaths[p] = struct{}{}
+	// collect all unique paths
+	allPaths := make(map[string]struct{})
+	for k := range headFiles {
+		allPaths[k] = struct{}{}
 	}
-	for p := range indexFiles {
-		allPaths[p] = struct{}{}
+	for k := range stagedFiles {
+		allPaths[k] = struct{}{}
 	}
-	for p := range workFiles { // tracked work files only
-		allPaths[p] = struct{}{}
+	for k := range workFiles {
+		allPaths[k] = struct{}{}
 	}
+
 	paths := make([]string, 0, len(allPaths))
 	for p := range allPaths {
 		paths = append(paths, p)
 	}
 	sort.Strings(paths)
 
-	var (
-		stagedAdded, stagedModified, stagedDeleted []string
-		unstagedModified, unstagedDeleted          []string
-		untracked, ignored                         []string
-	)
+	var statusList []statusItem
+	var untracked []string
 
-	// diff logic
 	for _, p := range paths {
 		h, inHead := headFiles[p]
-		i, inIndex := indexFiles[p]
+		s, inStaged := stagedFiles[p]
 		w, inWork := workFiles[p]
 
-		// staged
-		if inIndex {
-			if !inHead {
-				stagedAdded = append(stagedAdded, p)
-			} else if len(i.Blocks) == 0 {
-				stagedDeleted = append(stagedDeleted, p)
-			} else if !h.Equal(&i) {
-				stagedModified = append(stagedModified, p)
-			}
+		var staged, unstaged string
+
+		// determine staged status
+		switch {
+		case inStaged && !inHead:
+			staged = "A"
+		case inStaged && inHead && !h.Equal(&s):
+			staged = "M"
+		case inHead && !inStaged:
+			staged = "D"
 		}
 
-		// unstaged
-		if inWork {
-			if inIndex {
-				if !i.Equal(&w) {
-					unstagedModified = append(unstagedModified, p)
-				}
-			} else if inHead {
-				if !h.Equal(&w) {
-					unstagedModified = append(unstagedModified, p)
-				}
-			} else if untrackedMode != "no" {
-				untracked = append(untracked, p)
-			}
-		} else if inHead && !inIndex {
-			unstagedDeleted = append(unstagedDeleted, p)
+		// determine unstaged status
+		switch {
+		case inWork && inStaged && !s.Equal(&w):
+			unstaged = "M"
+		case inWork && !inStaged && inHead && !h.Equal(&w):
+			unstaged = "M"
+		case !inWork && inHead && inStaged:
+			unstaged = "D"
+		}
+
+		if staged != "" || unstaged != "" {
+			statusList = append(statusList, statusItem{
+				Path:     p,
+				Staged:   staged,
+				Unstaged: unstaged,
+			})
+			continue
+		}
+
+		// determine untracked
+		if !inStaged && !inHead && inWork && untrackedMode != "no" {
+			untracked = append(untracked, p)
 		}
 	}
 
-	// ignored list
+	// collect ignored list
+	var ignoredList []string
 	if showIgnored {
 		for _, e := range ignoredFS.Files {
-			ignored = append(ignored, e.Path)
+			ignoredList = append(ignoredList, e.Path)
 		}
+		sort.Strings(ignoredList)
 	}
 
 	if quiet {
 		return nil
 	}
 
-	// output
-	if showBranch {
+	if showBranch || (!short && !porcelain) {
 		fmt.Printf("On branch %s\n\n", branch.Name)
 	}
 
+	// render status with colors if not porcelain
 	if short || porcelain {
-		printShort(paths, headFiles, indexFiles, workFiles, untracked, ignored, short)
-		return nil
+		printShortStatus(statusList, untracked, ignoredList, !porcelain)
+	} else {
+		printFullStatus(statusList, untracked, ignoredList, !porcelain)
 	}
 
-	printSectionStaged("new file", stagedAdded)
-	printSectionStaged("modified", stagedModified)
-	printSectionStaged("deleted", stagedDeleted)
-	if len(stagedAdded)+len(stagedModified)+len(stagedDeleted) > 0 {
-		fmt.Println()
-	}
-
-	printSection("modified", unstagedModified)
-	printSection("deleted", unstagedDeleted)
-	if len(unstagedModified)+len(unstagedDeleted) > 0 {
-		fmt.Println()
-	}
-
-	if len(untracked) > 0 {
-		fmt.Println("Untracked files:")
-		fmt.Println("  (use \"bvc add <file>...\" to include in what will be committed)")
-		for _, p := range untracked {
-			fmt.Printf("\t%s\n", rel(p))
-		}
-		fmt.Println()
-	}
-
-	if showIgnored && len(ignored) > 0 {
-		fmt.Println("Ignored files:")
-		for _, p := range ignored {
-			fmt.Printf("    %s\n", rel(p))
-		}
-		fmt.Println()
-	}
-
-	if len(stagedAdded)+len(stagedModified)+len(stagedDeleted)+
-		len(unstagedModified)+len(unstagedDeleted)+len(untracked)+len(ignored) == 0 {
+	// show clean tree message
+	if len(statusList) == 0 && len(untracked) == 0 && len(ignoredList) == 0 {
 		fmt.Println("nothing to commit, working tree clean")
 	}
 
 	return nil
 }
 
-// helpers
+func printShortStatus(items []statusItem, untracked, ignored []string, color bool) {
+	for _, it := range items {
+		line := fmt.Sprintf("%s%s %s", it.Staged, it.Unstaged, rel(it.Path))
+		if color {
+			line = colorLine(it.Staged, it.Unstaged, line)
+		}
+		fmt.Println(line)
+	}
+
+	for _, u := range untracked {
+		line := fmt.Sprintf("?? %s", rel(u))
+		if color {
+			line = "\033[31m" + line + "\033[0m" // red
+		}
+		fmt.Println(line)
+	}
+
+	for _, i := range ignored {
+		line := fmt.Sprintf("!! %s", rel(i))
+		if color {
+			line = "\033[90m" + line + "\033[0m" // gray
+		}
+		fmt.Println(line)
+	}
+}
+
+func printFullStatus(items []statusItem, untracked, ignored []string, color bool) {
+	var staged, unstaged []statusItem
+	for _, it := range items {
+		if it.Staged != "" {
+			staged = append(staged, it)
+		}
+		if it.Unstaged != "" {
+			unstaged = append(unstaged, it)
+		}
+	}
+
+	if len(staged) > 0 {
+		fmt.Println("Changes to be committed:")
+		fmt.Println("  (use \"bvc restore --staged <file>...\" to unstage)")
+		for _, it := range staged {
+			kindStr := kind(it.Staged)
+			line := fmt.Sprintf("\t%-10s %s", kindStr+":", rel(it.Path))
+			if color {
+				line = colorLine(it.Staged, "", line)
+			}
+			fmt.Println(line)
+		}
+		fmt.Println()
+	}
+
+	if len(unstaged) > 0 {
+		fmt.Println("Changes not staged for commit:")
+		fmt.Println("  (use \"bvc add <file>...\" to update what will be committed)")
+		for _, it := range unstaged {
+			kindStr := kind(it.Unstaged)
+			line := fmt.Sprintf("\t%-10s %s", kindStr+":", rel(it.Path))
+			if color {
+				line = colorLine(it.Unstaged, "", line)
+			}
+			fmt.Println(line)
+		}
+		fmt.Println()
+	}
+
+	if len(untracked) > 0 {
+		fmt.Println("Untracked files:")
+		fmt.Println("  (use \"bvc add <file>...\" to include in what will be committed)")
+		for _, u := range untracked {
+			line := fmt.Sprintf("\t%s", rel(u))
+			if color {
+				line = "\033[31m" + line + "\033[0m" // red
+			}
+			fmt.Println(line)
+		}
+		fmt.Println()
+	}
+
+	if len(ignored) > 0 {
+		fmt.Println("Ignored files:")
+		fmt.Println("  (use \"bvc add -f <file>...\" to include in what will be committed)")
+		for _, i := range ignored {
+			line := fmt.Sprintf("\t%s", rel(i))
+			if color {
+				line = "\033[90m" + line + "\033[0m" // gray
+			}
+			fmt.Println(line)
+		}
+		fmt.Println()
+	}
+}
+
+func colorLine(staged, unstaged, line string) string {
+	switch {
+	case staged == "A" || unstaged == "A":
+		return "\033[32m" + line + "\033[0m" // green
+	case staged == "M" || unstaged == "M":
+		return "\033[33m" + line + "\033[0m" // yellow
+	case staged == "D" || unstaged == "D":
+		return "\033[31m" + line + "\033[0m" // red
+	default:
+		return line
+	}
+}
+
+func kind(x string) string {
+	switch x {
+	case "A":
+		return "new file"
+	case "M":
+		return "modified"
+	case "D":
+		return "deleted"
+	default:
+		return x
+	}
+}
+
 func rel(p string) string {
 	wd, _ := filepath.Abs(".")
 	if r, err := filepath.Rel(wd, p); err == nil {
 		return r
 	}
 	return p
-}
-
-func printSectionStaged(kind string, items []string) {
-	if len(items) == 0 {
-		return
-	}
-	fmt.Println("Changes to be committed:")
-	fmt.Println("  (use \"bvc restore --staged <file>...\" to unstage)")
-	for _, p := range items {
-		fmt.Printf("\t%s:   %s\n", kind, rel(p))
-	}
-}
-
-func printSection(kind string, items []string) {
-	if len(items) == 0 {
-		return
-	}
-	fmt.Println("Changes not staged for commit:")
-	fmt.Println("  (use \"bvc add <file>...\" to update what will be committed)")
-	for _, p := range items {
-		fmt.Printf("\t%s:   %s\n", kind, rel(p))
-	}
-}
-
-func printShort(
-	paths []string,
-	head, index, work map[string]file.Entry,
-	untracked []string,
-	ignored []string,
-	short bool,
-) {
-	for _, p := range paths {
-		h, inHead := head[p]
-		i, inIndex := index[p]
-		w, inWork := work[p]
-
-		var x, y string
-
-		if inIndex {
-			if !inHead {
-				x = "A"
-			} else if len(i.Blocks) == 0 {
-				x = "D"
-			} else if !h.Equal(&i) {
-				x = "M"
-			}
-		}
-
-		if inWork && inIndex {
-			if !i.Equal(&w) {
-				y = "M"
-			}
-		} else if inWork && inHead && !inIndex {
-			if !h.Equal(&w) {
-				y = "M"
-			}
-		} else if inWork && !inHead && !inIndex {
-			// do nothing; untracked will be handled in separate loop
-		} else if !inWork && inHead && !inIndex {
-			y = "D"
-		}
-
-		if x != "" || y != "" {
-			line := fmt.Sprintf("%s%s %s", x, y, rel(p))
-			if short {
-				line = colorXY(line, x, y)
-			}
-			fmt.Println(line)
-		}
-	}
-
-	for _, p := range untracked {
-		line := fmt.Sprintf("?? %s", rel(p))
-		if short {
-			line = "\033[36m" + line + "\033[0m"
-		}
-		fmt.Println(line)
-	}
-
-	for _, p := range ignored {
-		line := fmt.Sprintf("!! %s", rel(p))
-		if short {
-			line = "\033[90m" + line + "\033[0m"
-		}
-		fmt.Println(line)
-	}
-}
-
-func colorXY(line, x, y string) string {
-	if x == "A" || y == "A" {
-		return "\033[32m" + line + "\033[0m"
-	} else if x == "D" || y == "D" {
-		return "\033[31m" + line + "\033[0m"
-	} else if x == "M" || y == "M" {
-		return "\033[33m" + line + "\033[0m"
-	}
-	return line
 }
 
 func init() {
