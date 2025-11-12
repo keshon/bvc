@@ -2,11 +2,12 @@ package file
 
 import "app/internal/repo/store/block"
 
-// FileContext wraps file-level operations that depend on BlockContext.
+// FileContext manages file-level operations (staging, restore, scan) with abstracted dependencies.
 type FileContext struct {
 	Root     string
 	RepoRoot string
-	Blocks   *block.BlockContext
+	FS       FS
+	Blocks   BlockStore
 }
 
 // Entry represents a tracked file and its content blocks.
@@ -15,7 +16,7 @@ type Entry struct {
 	Blocks []block.BlockRef
 }
 
-// Equal compares two entries by their block lists.
+// Equal compares two entries by their blocks.
 func (e *Entry) Equal(other *Entry) bool {
 	if e == nil && other == nil {
 		return true
@@ -27,8 +28,7 @@ func (e *Entry) Equal(other *Entry) bool {
 		return false
 	}
 	for i := range e.Blocks {
-		if e.Blocks[i].Hash != other.Blocks[i].Hash ||
-			e.Blocks[i].Size != other.Blocks[i].Size {
+		if e.Blocks[i].Hash != other.Blocks[i].Hash || e.Blocks[i].Size != other.Blocks[i].Size {
 			return false
 		}
 	}

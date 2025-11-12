@@ -24,7 +24,7 @@ func NewRepository(cfg *config.RepoConfig) (*Repository, error) {
 		return nil, err
 	}
 
-	st, err := store.NewStore(cfg)
+	st, err := store.NewStoreDefault(cfg)
 	if err != nil {
 		return nil, err
 	}

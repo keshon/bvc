@@ -1,7 +1,6 @@
 package file
 
 import (
-	"app/internal/fsio"
 	"app/internal/progress"
 	"bufio"
 	"fmt"
@@ -50,15 +49,15 @@ func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) 
 }
 
 func (fc *FileContext) restoreFile(e Entry) error {
-	if err := fsio.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
+	if err := fc.FS.MkdirAll(filepath.Dir(e.Path), 0o755); err != nil {
 		return err
 	}
 
-	tmp, err := fsio.CreateTempFile(filepath.Dir(e.Path), "tmp-*")
+	tmp, err := fc.FS.CreateTempFile(filepath.Dir(e.Path), "tmp-*")
 	if err != nil {
 		return err
 	}
-	defer fsio.Remove(tmp.Name())
+	defer fc.FS.Remove(tmp.Name())
 	defer tmp.Close()
 
 	writer := bufio.NewWriterSize(tmp, 4*1024*1024)
@@ -75,5 +74,5 @@ func (fc *FileContext) restoreFile(e Entry) error {
 	tmp.Sync()
 	tmp.Close()
 
-	return fsio.Rename(tmp.Name(), e.Path)
+	return fc.FS.Rename(tmp.Name(), e.Path)
 }

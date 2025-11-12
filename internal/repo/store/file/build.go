@@ -1,7 +1,6 @@
 package file
 
 import (
-	"app/internal/fsio"
 	"app/internal/progress"
 	"app/internal/util"
 	"fmt"
@@ -83,6 +82,6 @@ func (fc *FileContext) Write(e Entry) error {
 
 // Exists checks whether a given path exists in the working tree.
 func (fc *FileContext) Exists(path string) bool {
-	_, err := fsio.StatFile(filepath.Clean(path))
+	_, err := fc.FS.Stat(filepath.Clean(path))
 	return err == nil
 }

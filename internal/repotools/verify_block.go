@@ -65,7 +65,7 @@ func VerifyBlocksStream(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommi
 			hashes[h] = struct{}{}
 		}
 
-		st, err := store.NewStore(cfg)
+		st, err := store.NewStoreDefault(cfg)
 		if err != nil {
 			errCh <- fmt.Errorf("failed to init store: %w", err)
 			return

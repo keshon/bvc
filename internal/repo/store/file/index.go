@@ -1,7 +1,6 @@
 package file
 
 import (
-	"app/internal/fsio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,10 +14,10 @@ func (fc *FileContext) SaveIndexReplace(entries []Entry) error {
 	if err != nil {
 		return fmt.Errorf("marshal index: %w", err)
 	}
-	if err := fsio.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+	if err := fc.FS.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
 		return fmt.Errorf("mkdir index dir: %w", err)
 	}
-	return fsio.WriteFile(indexPath, data, 0o644)
+	return fc.FS.WriteFile(indexPath, data, 0o644)
 }
 
 // SaveIndexMerge merges the given entries with any existing index on disk.
@@ -53,16 +52,16 @@ func (fc *FileContext) ClearIndex() error {
 	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
 		return nil
 	}
-	return fsio.Remove(indexPath)
+	return fc.FS.Remove(indexPath)
 }
 
 // LoadIndex loads staged entries from disk.
 func (fc *FileContext) LoadIndex() ([]Entry, error) {
 	indexPath := filepath.Join(fc.RepoRoot, "index.json")
-	if _, err := fsio.StatFile(indexPath); fsio.IsNotExist(err) {
+	if _, err := fc.FS.Stat(indexPath); fc.FS.IsNotExist(err) {
 		return nil, nil
 	}
-	data, err := fsio.ReadFile(indexPath)
+	data, err := fc.FS.ReadFile(indexPath)
 	if err != nil {
 		return nil, fmt.Errorf("read index: %w", err)
 	}

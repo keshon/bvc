@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"app/internal/config"
-	"app/internal/fsio"
 	"app/internal/repo/store/block"
 	"app/internal/repo/store/file"
 	"app/internal/repo/store/snapshot"
@@ -18,47 +17,61 @@ type StoreContext struct {
 	Snapshots *snapshot.SnapshotContext
 }
 
-// NewStore ensures that the store layout exists for the given repository config.
-// It creates missing directories if necessary and returns a ready-to-use manager.
-func NewStore(cfg *config.RepoConfig) (*StoreContext, error) {
+// NewStoreOptions allows optional dependency injection (FS, BlockStore)
+type NewStoreOptions struct {
+	FS     file.FS
+	Blocks *block.BlockContext
+}
+
+// NewStoreDefault creates a store with default dependencies (FS, BlockStore)
+func NewStoreDefault(cfg *config.RepoConfig) (*StoreContext, error) {
+	return NewStore(cfg, nil)
+}
+
+// NewStore creates a store with optional dependencies (FS, BlockStore)
+func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("nil RepoConfig provided")
 	}
 
-	if !isStoreExists(cfg) {
-		if err := createStoreStructure(cfg); err != nil {
+	fs := file.FS(&file.OSFS{}) // default FS
+	if opts != nil && opts.FS != nil {
+		fs = opts.FS
+	}
+
+	blocks := &block.BlockContext{
+		Root: cfg.ObjectsDir(),
+	}
+	if opts != nil && opts.Blocks != nil {
+		blocks = opts.Blocks
+	}
+
+	// Ensure store layout
+	if !isStoreExists(cfg, fs) {
+		if err := createStoreStructure(cfg, fs); err != nil {
 			return nil, err
 		}
 	}
 
-	return buildManager(cfg), nil
+	return &StoreContext{
+		Config: cfg,
+		Blocks: blocks,
+		Files: &file.FileContext{
+			Root:     cfg.WorkingTreeRoot,
+			RepoRoot: cfg.RepoRoot,
+			Blocks:   blocks,
+			FS:       fs,
+		},
+		Snapshots: &snapshot.SnapshotContext{
+			Root:   cfg.FilesetsDir(),
+			Files:  &file.FileContext{Root: cfg.WorkingTreeRoot, RepoRoot: cfg.RepoRoot, Blocks: blocks, FS: fs},
+			Blocks: blocks,
+		},
+	}, nil
 }
 
-// buildManager wires up the store subsystems.
-func buildManager(cfg *config.RepoConfig) *StoreContext {
-	st := &StoreContext{Config: cfg}
-
-	st.Blocks = &block.BlockContext{
-		Root: cfg.ObjectsDir(),
-	}
-
-	st.Files = &file.FileContext{
-		Root:     cfg.WorkingTreeRoot,
-		RepoRoot: cfg.RepoRoot,
-		Blocks:   st.Blocks,
-	}
-
-	st.Snapshots = &snapshot.SnapshotContext{
-		Root:   cfg.FilesetsDir(),
-		Files:  st.Files,
-		Blocks: st.Blocks,
-	}
-
-	return st
-}
-
-// createRepoStructure builds the required directory structure if missing.
-func createStoreStructure(cfg *config.RepoConfig) error {
+// createStoreStructure builds required dirs via injected FS
+func createStoreStructure(cfg *config.RepoConfig, fs file.FS) error {
 	dirs := []string{
 		cfg.CommitsDir(),
 		cfg.FilesetsDir(),
@@ -67,15 +80,19 @@ func createStoreStructure(cfg *config.RepoConfig) error {
 	}
 
 	for _, d := range dirs {
-		if err := fsio.MkdirAll(d, 0o755); err != nil {
+		if err := fs.MkdirAll(d, 0o755); err != nil {
 			return fmt.Errorf("create store dir %q: %w", d, err)
 		}
 	}
 	return nil
 }
 
-// isStoreExists verifies whether store directories exist.
-func isStoreExists(cfg *config.RepoConfig) bool {
-	// Minimal check: objects and commits dirs should exist
-	return fsio.Exists(cfg.ObjectsDir()) && fsio.Exists(cfg.CommitsDir())
+// isStoreExists uses FS to verify directories
+func isStoreExists(cfg *config.RepoConfig, fs file.FS) bool {
+	return exists(fs, cfg.ObjectsDir()) && exists(fs, cfg.CommitsDir())
+}
+
+func exists(fs file.FS, path string) bool {
+	info, err := fs.Stat(path)
+	return err == nil && info.IsDir()
 }
