@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 )
 
 // Restore rebuilds files from entries (e.g., from a snapshot).
@@ -47,7 +46,6 @@ func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) 
 	}
 
 	// Now prune untracked files safely
-	// fc.removeUntracked(valid, exe) // TODO: check this method - it's probably not needed
 	return nil
 }
 
@@ -78,45 +76,4 @@ func (fc *FileContext) restoreFile(e Entry) error {
 	tmp.Close()
 
 	return fsio.Rename(tmp.Name(), e.Path)
-}
-
-// TODO: its probably broken (fc.RepoRoot should be meaningless here)
-func (fc *FileContext) removeUntracked(valid map[string]bool, exe string) {
-	matcher := NewIgnore()
-
-	var dirs []string
-	filepath.WalkDir(fc.RepoRoot, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d == nil {
-			return nil
-		}
-
-		clean := filepath.Clean(path)
-
-		// Skip ignored files and dirs
-		if matcher.Match(clean) {
-			if d.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if d.IsDir() {
-			dirs = append(dirs, clean)
-			return nil
-		}
-
-		if valid[clean] || filepath.Base(clean) == exe {
-			return nil
-		}
-
-		_ = fsio.Remove(clean)
-		return nil
-	})
-
-	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
-	for _, d := range dirs {
-		if entries, _ := fsio.ReadDir(d); len(entries) == 0 {
-			_ = fsio.Remove(d)
-		}
-	}
 }

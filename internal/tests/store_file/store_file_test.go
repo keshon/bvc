@@ -100,7 +100,7 @@ func TestStageAndLoadIndex(t *testing.T) {
 	fm := &file.FileContext{Root: dir}
 
 	entry := file.Entry{Path: "a.txt", Blocks: nil}
-	if err := fm.SaveIndex([]file.Entry{entry}); err != nil {
+	if err := fm.SaveIndexMerge([]file.Entry{entry}); err != nil {
 		t.Fatalf("SaveIndex failed: %v", err)
 	}
 
@@ -170,7 +170,7 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 	}
 	defer func() { fsio.WriteFile = oldWrite }()
 
-	if err := fm.SaveIndex([]file.Entry{{Path: "a"}}); err == nil {
+	if err := fm.SaveIndexMerge([]file.Entry{{Path: "a"}}); err == nil {
 		t.Error("expected SaveIndex write failure")
 	}
 
@@ -180,7 +180,7 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 		return errors.New("fake mkdir error")
 	}
 	defer func() { fsio.MkdirAll = oldMkdir }()
-	if err := fm.SaveIndex([]file.Entry{}); err == nil {
+	if err := fm.SaveIndexMerge([]file.Entry{}); err == nil {
 		t.Error("expected mkdir failure")
 	}
 
@@ -213,22 +213,6 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 	e2.Blocks = []block.BlockRef{{Hash: "b"}}
 	if e1.Equal(&e2) {
 		t.Error("different hash should be false")
-	}
-}
-
-func TestCreateAllAndChangedEntriesErrors(t *testing.T) {
-	tmp := makeTempDir(t)
-	fm := &file.FileContext{
-		Root:   tmp,
-		Blocks: makeBlockContext(t, tmp),
-	}
-
-	// BuildAllEntries with no files — should not panic
-	_, _ = fm.BuildAllEntries()
-
-	// BuildChangedEntries with empty index
-	if _, err := fm.BuildChangedEntries(); err != nil {
-		t.Errorf("unexpected error on empty index: %v", err)
 	}
 }
 

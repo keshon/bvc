@@ -94,7 +94,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// work, staged, ignored filesets
-	workFS, stagedFS, ignoredFS, err := r.Store.Snapshots.BuildFilesetsFromWorkingTree()
+	workFS, stagedFS, ignoredFS, err := r.Store.Snapshots.BuildAllRepositoryFilesets()
 	if err != nil {
 		return fmt.Errorf("scan working tree: %w", err)
 	}

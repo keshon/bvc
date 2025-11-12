@@ -14,126 +14,63 @@ func (fc *FileContext) BuildEntry(path string) (Entry, error) {
 	if fc.Blocks == nil {
 		return Entry{}, fmt.Errorf("no BlockContext attached")
 	}
-	blocks, err := fc.Blocks.SplitFile(path)
+
+	// Normalize to repository-relative path for consistency.
+	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return Entry{}, fmt.Errorf("split %q: %w", path, err)
+		return Entry{}, fmt.Errorf("resolve absolute path: %w", err)
 	}
-	return Entry{Path: path, Blocks: blocks}, nil
+
+	relPath, err := filepath.Rel(fc.Root, absPath)
+	if err != nil {
+		return Entry{}, fmt.Errorf("resolve relative path: %w", err)
+	}
+	relPath = filepath.ToSlash(relPath)
+
+	blocks, err := fc.Blocks.SplitFile(absPath)
+	if err != nil {
+		return Entry{}, fmt.Errorf("split %q: %w", relPath, err)
+	}
+
+	return Entry{Path: relPath, Blocks: blocks}, nil
 }
 
 // BuildEntries builds entries from a list of paths.
 func (fc *FileContext) BuildEntries(paths []string, silent bool) ([]Entry, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
 	var bar *progress.ProgressTracker
 	if !silent {
 		bar = progress.NewProgress(len(paths), "Building entries ")
 		defer bar.Finish()
 	}
 
-	jobs := make(chan string, len(paths))
-	results := make(chan Entry, len(paths))
-	errs := make(chan error, len(paths))
-	workers := util.WorkerCount()
+	var mu sync.Mutex
+	entries := make([]Entry, 0, len(paths))
 
-	var wg sync.WaitGroup
-	wg.Add(workers)
+	err := util.Parallel(paths, util.WorkerCount(), func(p string) error {
+		entry, err := fc.BuildEntry(p)
+		if err != nil {
+			return err
+		}
 
-	// Start workers
-	for i := 0; i < workers; i++ {
-		go func() {
-			defer wg.Done()
-			for p := range jobs {
-				entry, err := fc.BuildEntry(p)
-				if err != nil {
-					errs <- err
-					continue
-				}
-				results <- entry
-				if !silent {
-					bar.Increment()
-				}
-			}
-		}()
-	}
+		mu.Lock()
+		entries = append(entries, entry)
+		mu.Unlock()
 
-	// Send jobs
-	for _, p := range paths {
-		jobs <- p
-	}
-	close(jobs)
+		if !silent {
+			bar.Increment()
+		}
+		return nil
+	})
 
-	// Wait for workers to finish, then close channels
-	go func() {
-		wg.Wait()
-		close(results)
-		close(errs)
-	}()
-
-	var entries []Entry
-	for e := range results {
-		entries = append(entries, e)
-	}
-
-	// Collect one error if any
-	select {
-	case err := <-errs:
+	if err != nil {
 		return entries, err
-	default:
 	}
 
 	return entries, nil
-}
-
-// TODO: may not be needed anymore
-// BuildAllEntries builds entries for all tracked + untracked files.
-func (fc *FileContext) BuildAllEntries() ([]Entry, error) {
-	paths, _, _, err := fc.ScanFilesInWorkingTree()
-	if err != nil {
-		return nil, err
-	}
-	entries, err := fc.BuildEntries(paths, false)
-	if err != nil {
-		return nil, err
-	}
-
-	tracked, _ := fc.LoadIndex()
-	var deleted []Entry
-	for _, t := range tracked {
-		if !fc.Exists(t.Path) {
-			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
-		}
-	}
-	return append(entries, deleted...), nil
-}
-
-// TODO: may not be needed anymore
-// BuildChangedEntries builds entries only for modified and deleted files.
-func (fc *FileContext) BuildChangedEntries() ([]Entry, error) {
-	tracked, err := fc.LoadIndex()
-	if err != nil {
-		return nil, err
-	}
-
-	var toUpdate []string
-	var deleted []Entry
-	for _, t := range tracked {
-		if !fc.Exists(t.Path) {
-			deleted = append(deleted, Entry{Path: t.Path, Blocks: nil})
-			continue
-		}
-		current, err := fc.BuildEntry(t.Path)
-		if err != nil {
-			return nil, err
-		}
-		if !t.Equal(&current) {
-			toUpdate = append(toUpdate, t.Path)
-		}
-	}
-
-	modified, err := fc.BuildEntries(toUpdate, false)
-	if err != nil {
-		return nil, err
-	}
-	return append(modified, deleted...), nil
 }
 
 // Write stores all blocks of an entry into store.

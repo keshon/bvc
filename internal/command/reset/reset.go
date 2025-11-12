@@ -145,7 +145,7 @@ func resetIndex(filesetID string) error {
 	if err := r.Store.Files.ClearIndex(); err != nil {
 		return err
 	}
-	if err := r.Store.Files.SaveIndex(fs.Files); err != nil {
+	if err := r.Store.Files.SaveIndexReplace(fs.Files); err != nil {
 		return err
 	}
 

@@ -42,55 +42,52 @@ func (c *Command) Run(ctx *command.Context) error {
 		args = []string{"."}
 	}
 
-	// open repository
+	// Open repository
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	var toStage []string
-	for _, arg := range args {
-		if arg == "." {
-			paths, _, _, err := r.Store.Files.ScanFilesInWorkingTree()
-			if err != nil {
-				return err
-			}
-			toStage = append(toStage, paths...)
-		} else if strings.ContainsAny(arg, "*?") {
-			matches, err := filepath.Glob(arg)
-			if err != nil {
-				return err
-			}
-			toStage = append(toStage, matches...)
-		} else {
-			toStage = append(toStage, arg)
-		}
-	}
-
-	if len(toStage) == 0 {
-		return fmt.Errorf("no matching files to add")
-	}
-
-	// TODO: need to use snapshot package for that
-	// create staged entries
-	var entries []file.Entry
-	if includeAll {
-		entries, err = r.Store.Files.BuildAllEntries()
-	} else if updateOnly {
-		entries, err = r.Store.Files.BuildChangedEntries()
-	} else {
-		entries, err = r.Store.Files.BuildEntries(toStage, false)
-	}
+	// Collect repo filesets (working, staged, ignored)
+	trackedFS, stagedFS, _, err := r.Store.Snapshots.BuildAllRepositoryFilesets()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to scan repository files: %w", err)
+	}
+
+	var entries []file.Entry
+
+	switch {
+	case includeAll:
+		// Stage all tracked changes (new, modified, deleted)
+		entries = trackedFS.Files
+
+	case updateOnly:
+		// Stage only modifications and deletions for already-staged files
+		stagedMap := make(map[string]file.Entry, len(stagedFS.Files))
+		for _, e := range stagedFS.Files {
+			stagedMap[e.Path] = e
+		}
+		for _, e := range trackedFS.Files {
+			if _, exists := stagedMap[e.Path]; exists {
+				entries = append(entries, e)
+			}
+		}
+
+	default:
+		// Stage specific paths or globs
+		for _, arg := range args {
+			matches := filterMatchingEntries(trackedFS.Files, arg)
+			entries = append(entries, matches...)
+		}
 	}
 
 	if len(entries) == 0 {
 		return fmt.Errorf("no changes to stage")
 	}
 
-	if err := r.Store.Files.SaveIndex(entries); err != nil {
-		return err
+	// Write staged entries to index
+	if err := r.Store.Files.SaveIndexMerge(entries); err != nil {
+		return fmt.Errorf("failed to update index: %w", err)
 	}
 
 	fmt.Printf("Staged %d file(s)\n", len(entries))
@@ -107,6 +104,22 @@ func filterNonFlags(args []string) []string {
 		res = append(res, a)
 	}
 	return res
+}
+
+func filterMatchingEntries(entries []file.Entry, pattern string) []file.Entry {
+	var matched []file.Entry
+
+	if pattern == "." {
+		return entries
+	}
+
+	for _, e := range entries {
+		ok, _ := filepath.Match(pattern, filepath.Base(e.Path))
+		if ok || strings.HasPrefix(e.Path, pattern) {
+			matched = append(matched, e)
+		}
+	}
+	return matched
 }
 
 func init() {

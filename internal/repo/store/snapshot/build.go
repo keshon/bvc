@@ -8,44 +8,80 @@ import (
 	"sort"
 )
 
-// TODO: split into smaller functions and make one unified
-// BuildFilesetFromWorkingTree builds a Fileset from the current working tree.
-func (sc *SnapshotContext) BuildFilesetsFromWorkingTree() (tracked Fileset, staged Fileset, ignored Fileset, err error) {
-	trackedPaths, stagedPaths, ignoredPaths, err := sc.Files.ScanFilesInWorkingTree()
+// BuildWorkingTreeFileset builds a Fileset of tracked (working tree) files.
+func (sc *SnapshotContext) BuildWorkingTreeFileset() (Fileset, error) {
+	trackedPaths, _, _, err := sc.Files.ScanFilesInWorkingTree()
 	if err != nil {
-		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to list files: %w", err)
+		return Fileset{}, fmt.Errorf("failed to list tracked files: %w", err)
+	}
+	return sc.buildFilesetFromPaths(trackedPaths, "tracked")
+}
+
+// BuildStagedFileset builds a Fileset of staged files.
+func (sc *SnapshotContext) BuildStagedFileset() (Fileset, error) {
+	_, stagedPaths, _, err := sc.Files.ScanFilesInWorkingTree()
+	if err != nil {
+		return Fileset{}, fmt.Errorf("failed to list staged files: %w", err)
+	}
+	return sc.buildFilesetFromPaths(stagedPaths, "staged")
+}
+
+// BuildIgnoredFileset builds a Fileset of ignored files.
+func (sc *SnapshotContext) BuildIgnoredFileset() (Fileset, error) {
+	_, _, ignoredPaths, err := sc.Files.ScanFilesInWorkingTree()
+	if err != nil {
+		return Fileset{}, fmt.Errorf("failed to list ignored files: %w", err)
+	}
+	return sc.buildFilesetFromPaths(ignoredPaths, "ignored")
+}
+
+// BuildAllRepositoryFilesets builds working, staged and ignored filesets in parallel
+// and returns them.
+func (sc *SnapshotContext) BuildAllRepositoryFilesets() (tracked Fileset, staged Fileset, ignored Fileset, err error) {
+	type task struct {
+		id  int
+		run func() (Fileset, error)
 	}
 
-	trackedEntries, err := sc.Files.BuildEntries(trackedPaths, true)
-	if err != nil {
-		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to create tracked entries: %w", err)
+	results := make([]Fileset, 3)
+	tasks := []task{
+		{0, sc.BuildWorkingTreeFileset},
+		{1, sc.BuildStagedFileset},
+		{2, sc.BuildIgnoredFileset},
 	}
 
-	stagedEntries, err := sc.Files.BuildEntries(stagedPaths, true)
+	err = util.Parallel(tasks, len(tasks), func(t task) error {
+		fs, e := t.run()
+		if e != nil {
+			return e
+		}
+		results[t.id] = fs
+		return nil
+	})
 	if err != nil {
-		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to create staged entries: %w", err)
+		return Fileset{}, Fileset{}, Fileset{}, err
 	}
 
-	ignoredEntries, err := sc.Files.BuildEntries(ignoredPaths, true)
-	if err != nil {
-		return Fileset{}, Fileset{}, Fileset{}, fmt.Errorf("failed to create ignored entries: %w", err)
+	return results[0], results[1], results[2], nil
+}
+
+// buildFilesetFromPaths is a small helper to avoid duplication.
+func (sc *SnapshotContext) buildFilesetFromPaths(paths []string, label string) (Fileset, error) {
+	if len(paths) == 0 {
+		return Fileset{Files: nil}, nil
 	}
 
-	sort.Slice(trackedEntries, func(i, j int) bool { return trackedEntries[i].Path < trackedEntries[j].Path })
-	sort.Slice(stagedEntries, func(i, j int) bool { return stagedEntries[i].Path < stagedEntries[j].Path })
-	sort.Slice(ignoredEntries, func(i, j int) bool { return ignoredEntries[i].Path < ignoredEntries[j].Path })
+	entries, err := sc.Files.BuildEntries(paths, true)
+	if err != nil {
+		return Fileset{}, fmt.Errorf("failed to build %s entries: %w", label, err)
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
 
 	return Fileset{
-			ID:    HashFileset(trackedEntries),
-			Files: trackedEntries,
-		}, Fileset{
-			ID:    HashFileset(stagedEntries),
-			Files: stagedEntries,
-		},
-		Fileset{
-			ID:    HashFileset(ignoredEntries),
-			Files: ignoredEntries,
-		}, nil
+		ID:    HashFileset(entries),
+		Files: entries,
+	}, nil
 }
 
 // BuildFilesetFromEntries builds a Fileset from staged entries and stores their blocks.
@@ -60,7 +96,10 @@ func (sc *SnapshotContext) BuildFilesetFromEntries(entries []file.Entry) (Filese
 		}
 	}
 
-	return Fileset{ID: HashFileset(entries), Files: entries}, nil
+	return Fileset{
+		ID:    HashFileset(entries),
+		Files: entries,
+	}, nil
 }
 
 // WriteAndSave stores all file blocks and saves the Fileset metadata.
@@ -79,8 +118,6 @@ func (sc *SnapshotContext) WriteAndSave(fs *Fileset) error {
 
 // writeFiles stores each file’s blocks to disk with progress display.
 func (sc *SnapshotContext) writeFiles(fs *Fileset) error {
-	// Let BlockManager attempt cleanup of temp files if it provides it.
-	// If not present, ignore error (non-fatal).
 	if sc.Blocks != nil {
 		_ = sc.Blocks.CleanupTemp()
 	}
