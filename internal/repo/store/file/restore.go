@@ -11,7 +11,7 @@ import (
 // Restore rebuilds files from entries (e.g., from a snapshot).
 func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) error {
 	if fc.Blocks == nil {
-		return fmt.Errorf("no BlockManager attached")
+		return fmt.Errorf("no BlockContext attached")
 	}
 
 	exe := filepath.Base(os.Args[0])
@@ -27,7 +27,7 @@ func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) 
 	// Include staged files so we don't delete them
 	staged, err := fc.LoadIndex()
 	if err != nil {
-		fmt.Printf("\nWarning: %v\n", err)
+		return fmt.Errorf("failed to load index: %w", err) //fmt.Printf("\nWarning: %v\n", err)
 	}
 	for _, s := range staged {
 		valid[filepath.Clean(s.Path)] = true
@@ -39,7 +39,7 @@ func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) 
 			continue
 		}
 		if err := fc.restoreFile(e); err != nil {
-			fmt.Printf("\nWarning: %v\n", err)
+			return fmt.Errorf("restoring file %s: %w", e.Path, err) //fmt.Printf("\nWarning: %v\n", err)
 		}
 		bar.Increment()
 	}

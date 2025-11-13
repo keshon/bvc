@@ -13,7 +13,7 @@ import (
 // - ignored: files matched by .bvc-ignore or defaults
 func (fc *FileContext) ScanFilesInWorkingTree() (tracked []string, staged []string, ignored []string, err error) {
 	exe, _ := os.Executable()
-	matcher := NewIgnore()
+	matcher := NewIgnore(fc.Root)
 
 	// Load staged entries (index)
 	indexEntries, _ := fc.LoadIndex()

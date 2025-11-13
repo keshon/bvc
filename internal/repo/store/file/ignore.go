@@ -13,8 +13,8 @@ type Ignore struct {
 	pattern []string
 }
 
-// NewIgnore loads defaults and .bvc-ignore
-func NewIgnore() *Ignore {
+// NewIgnore loads defaults and .bvc-ignore from the given repo root.
+func NewIgnore(repoRoot string) *Ignore {
 	m := &Ignore{static: make(map[string]bool)}
 
 	// Default ignored files
@@ -22,8 +22,8 @@ func NewIgnore() *Ignore {
 		m.static[filepath.Clean(s)] = true
 	}
 
-	// Load .bvc-ignore
-	f, err := fsio.Open(config.IgnoredFilesFile)
+	ignorePath := filepath.Join(repoRoot, config.IgnoredFilesFile)
+	f, err := fsio.Open(ignorePath)
 	if err == nil {
 		sc := bufio.NewScanner(f)
 		for sc.Scan() {

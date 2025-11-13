@@ -113,6 +113,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	if err != nil {
 		return err
 	}
+
 	if err := r.Meta.SetLastCommitID(currentBranch.Name, newCommitID); err != nil {
 		return err
 	}

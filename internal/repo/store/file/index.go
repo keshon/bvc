@@ -49,7 +49,7 @@ func (fc *FileContext) SaveIndexMerge(newEntries []Entry) error {
 // ClearIndex removes the staging index.
 func (fc *FileContext) ClearIndex() error {
 	indexPath := filepath.Join(fc.RepoRoot, "index.json")
-	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+	if _, err := fc.FS.Stat(indexPath); os.IsNotExist(err) {
 		return nil
 	}
 	return fc.FS.Remove(indexPath)

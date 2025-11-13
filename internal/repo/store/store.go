@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"app/internal/config"
+	"app/internal/fsio"
 	"app/internal/repo/store/block"
 	"app/internal/repo/store/file"
 	"app/internal/repo/store/snapshot"
@@ -34,7 +35,7 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 		return nil, fmt.Errorf("nil RepoConfig provided")
 	}
 
-	fs := file.FS(&file.OSFS{}) // default FS
+	fs := file.FS(&fsio.FSIO{}) // default FS
 	if opts != nil && opts.FS != nil {
 		fs = opts.FS
 	}
