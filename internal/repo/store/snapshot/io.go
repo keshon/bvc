@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"app/internal/fsio"
 	"app/internal/util"
 )
 
@@ -14,7 +13,7 @@ func (sc *SnapshotContext) Save(fs Fileset) error {
 		return fmt.Errorf("invalid fileset: missing ID")
 	}
 
-	if err := fsio.MkdirAll(sc.Root, 0o755); err != nil {
+	if err := sc.FS.MkdirAll(sc.Root, 0o755); err != nil {
 		return fmt.Errorf("create snapshots dir: %w", err)
 	}
 

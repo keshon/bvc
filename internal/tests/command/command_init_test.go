@@ -4,7 +4,8 @@ import (
 	"app/internal/command"
 	initcmd "app/internal/command/init"
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
+
 	"app/internal/repo"
 	"os"
 	"path/filepath"
@@ -63,6 +64,7 @@ func TestInit_CustomInitialBranch(t *testing.T) {
 func TestInit_SeparateDir(t *testing.T) {
 	dir := t.TempDir()
 	sep := filepath.Join(dir, "myrepo")
+	fs := fs.NewOSFS()
 
 	if err := runInitAt(t, dir, "--separate-bvc-dir", sep); err != nil {
 		t.Fatalf("init failed: %v", err)
@@ -70,7 +72,7 @@ func TestInit_SeparateDir(t *testing.T) {
 
 	// pointer file
 	pointerFile := filepath.Join(dir, config.RepoPointerFile)
-	data, err := fsio.ReadFile(pointerFile)
+	data, err := fs.ReadFile(pointerFile)
 	if err != nil {
 		t.Fatalf("expected pointer file, got error: %v", err)
 	}

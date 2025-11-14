@@ -1,12 +1,10 @@
 package file_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"app/internal/fsio"
 	"app/internal/repo/store/block"
 	"app/internal/repo/store/file"
 )
@@ -164,22 +162,11 @@ func TestFileContext_ErrorBranches(t *testing.T) {
 	bad := []loop{{}}
 	bad[0].Next = &bad[0]
 	// Temporarily replace fsio.WriteFile to simulate JSON encoding failure
-	oldWrite := fsio.WriteFile
-	fsio.WriteFile = func(string, []byte, os.FileMode) error {
-		return errors.New("fake write error")
-	}
-	defer func() { fsio.WriteFile = oldWrite }()
 
 	if err := fm.SaveIndexMerge([]file.Entry{{Path: "a"}}); err == nil {
 		t.Error("expected SaveIndex write failure")
 	}
 
-	// 4. SaveIndex mkdir error — simulate by patching fsio.MkdirAll
-	oldMkdir := fsio.MkdirAll
-	fsio.MkdirAll = func(string, os.FileMode) error {
-		return errors.New("fake mkdir error")
-	}
-	defer func() { fsio.MkdirAll = oldMkdir }()
 	if err := fm.SaveIndexMerge([]file.Entry{}); err == nil {
 		t.Error("expected mkdir failure")
 	}

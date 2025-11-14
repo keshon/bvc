@@ -1,8 +1,8 @@
 package file
 
 import (
+	"app/internal/fs"
 	"app/internal/repo/store/block"
-	"os"
 )
 
 // Entry represents a tracked file and its content blocks.
@@ -30,18 +30,6 @@ func (e *Entry) Equal(other *Entry) bool {
 	return true
 }
 
-// FS abstracts filesystem operations.
-type FS interface {
-	Stat(path string) (os.FileInfo, error)
-	ReadFile(path string) ([]byte, error)
-	WriteFile(path string, data []byte, perm os.FileMode) error
-	MkdirAll(path string, perm os.FileMode) error
-	Remove(path string) error
-	Rename(oldPath, newPath string) error
-	CreateTempFile(dir, pattern string) (*os.File, error)
-	IsNotExist(err error) bool
-}
-
 // BlockContext abstracts block operations.
 type BlockContext interface {
 	SplitFile(path string) ([]block.BlockRef, error)
@@ -53,6 +41,6 @@ type BlockContext interface {
 type FileContext struct {
 	Root     string
 	RepoRoot string
-	FS       FS
 	Blocks   BlockContext
+	FS       fs.FS
 }

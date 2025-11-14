@@ -1,7 +1,6 @@
 package meta
 
 import (
-	"app/internal/fsio"
 	"errors"
 	"fmt"
 	"os"
@@ -41,7 +40,7 @@ func (mc *MetaContext) GetBranch(name string) (Branch, error) {
 
 // ListBranches returns all branches sorted by name.
 func (mc *MetaContext) ListBranches() ([]Branch, error) {
-	dirEntries, err := fsio.ReadDir(mc.Config.BranchesDir())
+	dirEntries, err := mc.FS.ReadDir(mc.Config.BranchesDir())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read branches directory %q: %w", mc.Config.BranchesDir(), err)
 	}
@@ -65,13 +64,13 @@ func (mc *MetaContext) CreateBranch(name string) (Branch, error) {
 	}
 
 	path := filepath.Join(mc.Config.BranchesDir(), name)
-	if _, err := fsio.StatFile(path); err == nil {
+	if _, err := mc.FS.Stat(path); err == nil {
 		return Branch{}, fmt.Errorf("branch %q already exists: %w", name, os.ErrExist)
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return Branch{}, fmt.Errorf("failed to check branch file %q: %w", path, err)
 	}
 
-	if err := fsio.WriteFile(path, []byte(lastID), 0o644); err != nil {
+	if err := mc.FS.WriteFile(path, []byte(lastID), 0o644); err != nil {
 		return Branch{}, fmt.Errorf("failed to write branch file %q: %w", path, err)
 	}
 	return Branch{Name: name}, nil
@@ -79,7 +78,7 @@ func (mc *MetaContext) CreateBranch(name string) (Branch, error) {
 
 // BranchExists checks for branch existence (fast).
 func (mc *MetaContext) BranchExists(name string) (bool, error) {
-	_, err := fsio.StatFile(filepath.Join(mc.Config.BranchesDir(), name))
+	_, err := mc.FS.Stat(filepath.Join(mc.Config.BranchesDir(), name))
 	if err == nil {
 		return true, nil
 	}

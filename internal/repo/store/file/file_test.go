@@ -30,6 +30,10 @@ func (m *mockFS) Stat(path string) (os.FileInfo, error) {
 	return nil, os.ErrNotExist
 }
 
+func (m *mockFS) Open(path string) (*os.File, error) {
+	return os.Open(path)
+}
+
 func (m *mockFS) ReadFile(path string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -45,6 +49,10 @@ func (m *mockFS) ReadFile(path string) ([]byte, error) {
 		return nil, os.ErrNotExist
 	}
 	return data, nil
+}
+
+func (m *mockFS) ReadDir(path string) ([]os.DirEntry, error) {
+	return nil, nil
 }
 
 func (m *mockFS) CreateTempFile(dir, pattern string) (*os.File, error) {
@@ -97,6 +105,15 @@ func (m *mockFS) Remove(path string) error {
 }
 
 func (m *mockFS) IsNotExist(err error) bool { return errors.Is(err, os.ErrNotExist) }
+
+func (m *mockFS) IsDir(path string) bool { return false }
+
+func (m *mockFS) Exists(path string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	_, ok := m.files[path]
+	return ok
+}
 
 type mockBlock struct {
 	files map[string][]byte

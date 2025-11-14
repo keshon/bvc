@@ -19,7 +19,7 @@ func NewRepositoryByPath(path string) (*Repository, error) {
 }
 
 func NewRepository(cfg *config.RepoConfig) (*Repository, error) {
-	mt, err := meta.NewMeta(cfg)
+	mt, err := meta.NewMetaDefault(cfg)
 	if err != nil {
 		return nil, err
 	}

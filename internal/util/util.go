@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"app/internal/fsio"
+	"app/internal/fs"
 )
 
 // WriteJSON writes a JSON file atomically to prevent corruption.
@@ -18,12 +18,13 @@ var WriteJSON = func(path string, v any) error {
 	}
 
 	dir := filepath.Dir(path)
-	tmpFile, err := fsio.CreateTempFile(dir, "tmp-*.json")
+	fs := fs.NewOSFS()
+	tmpFile, err := fs.CreateTempFile(dir, "tmp-*.json")
 	if err != nil {
 		return err
 	}
 	tmpPath := tmpFile.Name()
-	defer fsio.Remove(tmpPath)
+	defer fs.Remove(tmpPath)
 
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
@@ -37,12 +38,12 @@ var WriteJSON = func(path string, v any) error {
 		return err
 	}
 
-	return fsio.Rename(tmpPath, path)
+	return fs.Rename(tmpPath, path)
 }
 
 // ReadJSON reads a JSON file and unmarshals it into v
 var ReadJSON = func(path string, v any) error {
-	data, err := fsio.ReadFile(path)
+	data, err := fs.NewOSFS().ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -97,4 +98,20 @@ func Parallel[T any](inputs []T, workerLimit int, fn func(T) error) error {
 		return err
 	}
 	return nil
+}
+
+func AbsToRelPath(absPath string, rootPath string) string {
+	rel, err := filepath.Rel(rootPath, absPath)
+	if err != nil {
+		return absPath
+	}
+	return rel
+}
+
+func RelToAbsPath(relPath string, rootPath string) string {
+	abs, err := filepath.Abs(filepath.Join(rootPath, relPath))
+	if err != nil {
+		return relPath
+	}
+	return abs
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
 	"app/internal/repo/store/block"
 	"app/internal/repo/store/file"
 	"app/internal/repo/store/snapshot"
@@ -20,7 +20,7 @@ type StoreContext struct {
 
 // NewStoreOptions allows optional dependency injection (FS, BlockStore)
 type NewStoreOptions struct {
-	FS     file.FS
+	FS     fs.FS
 	Blocks *block.BlockContext
 }
 
@@ -35,13 +35,16 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 		return nil, fmt.Errorf("nil RepoConfig provided")
 	}
 
-	fs := file.FS(&fsio.FSIO{}) // default FS
+	// Resolve FS
+	fs := fs.FS(&fs.OSFS{})
 	if opts != nil && opts.FS != nil {
 		fs = opts.FS
 	}
 
+	// Resolve BlockContext
 	blocks := &block.BlockContext{
 		Root: cfg.ObjectsDir(),
+		FS:   fs,
 	}
 	if opts != nil && opts.Blocks != nil {
 		blocks = opts.Blocks
@@ -54,25 +57,24 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 		}
 	}
 
+	// Build store
+	files := &file.FileContext{
+		Root:     cfg.WorkingTreeRoot,
+		RepoRoot: cfg.RepoRoot,
+		Blocks:   blocks,
+		FS:       fs,
+	}
+
 	return &StoreContext{
-		Config: cfg,
-		Blocks: blocks,
-		Files: &file.FileContext{
-			Root:     cfg.WorkingTreeRoot,
-			RepoRoot: cfg.RepoRoot,
-			Blocks:   blocks,
-			FS:       fs,
-		},
-		Snapshots: &snapshot.SnapshotContext{
-			Root:   cfg.FilesetsDir(),
-			Files:  &file.FileContext{Root: cfg.WorkingTreeRoot, RepoRoot: cfg.RepoRoot, Blocks: blocks, FS: fs},
-			Blocks: blocks,
-		},
+		Config:    cfg,
+		Blocks:    blocks,
+		Files:     files,
+		Snapshots: &snapshot.SnapshotContext{Root: cfg.FilesetsDir(), Files: files, Blocks: blocks},
 	}, nil
 }
 
 // createStoreStructure builds required dirs via injected FS
-func createStoreStructure(cfg *config.RepoConfig, fs file.FS) error {
+func createStoreStructure(cfg *config.RepoConfig, fs fs.FS) error {
 	dirs := []string{
 		cfg.CommitsDir(),
 		cfg.FilesetsDir(),
@@ -89,11 +91,11 @@ func createStoreStructure(cfg *config.RepoConfig, fs file.FS) error {
 }
 
 // isStoreExists uses FS to verify directories
-func isStoreExists(cfg *config.RepoConfig, fs file.FS) bool {
+func isStoreExists(cfg *config.RepoConfig, fs fs.FS) bool {
 	return exists(fs, cfg.ObjectsDir()) && exists(fs, cfg.CommitsDir())
 }
 
-func exists(fs file.FS, path string) bool {
+func exists(fs fs.FS, path string) bool {
 	info, err := fs.Stat(path)
 	return err == nil && info.IsDir()
 }

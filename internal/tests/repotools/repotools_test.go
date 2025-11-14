@@ -2,7 +2,7 @@ package repotools_test
 
 import (
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
 	"app/internal/repo/meta"
 	"app/internal/repo/store/block"
 	"app/internal/repotools"
@@ -229,7 +229,8 @@ func TestCountBlocks_ErrorCases(t *testing.T) {
 
 func TestVerifyBlocksStream(t *testing.T) {
 	dir, cfg := tmpRepo(t)
-	fsio.MkdirAll(dir, 0o755)
+	fs := fs.NewOSFS()
+	fs.MkdirAll(dir, 0o755)
 
 	r := &fakeRepo{Branches: []string{"main"}}
 	patchReadJSON(t, func(path string, v any) error {

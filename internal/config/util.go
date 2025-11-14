@@ -1,7 +1,7 @@
 package config
 
 import (
-	"app/internal/fsio"
+	"app/internal/fs"
 	"os"
 	"path/filepath"
 )
@@ -10,9 +10,10 @@ import (
 // It respects the .bvc-pointer file, if it exists.
 func ResolveRepoRoot() string {
 	root := RepoDir
+	fs := fs.NewOSFS()
 
-	if fi, err := fsio.StatFile(RepoPointerFile); err == nil && !fi.IsDir() {
-		if data, err := fsio.ReadFile(RepoPointerFile); err == nil {
+	if fi, err := fs.Stat(RepoPointerFile); err == nil && !fi.IsDir() {
+		if data, err := fs.ReadFile(RepoPointerFile); err == nil {
 			target := filepath.Clean(string(data))
 			if filepath.IsAbs(target) {
 				root = target
@@ -29,11 +30,13 @@ func ResolveRepoRoot() string {
 // It traverses up the directory tree until it finds a .bvc directory or a .bvc-pointer file.
 func ResolveWorkingTreeRoot() string {
 	cwd, _ := os.Getwd()
+	fs := fs.NewOSFS()
+
 	for {
 		bvcDir := filepath.Join(cwd, RepoDir)
 		ptrFile := filepath.Join(cwd, RepoPointerFile)
 
-		if fsio.IsDir(bvcDir) || fsio.Exists(ptrFile) {
+		if fs.IsDir(bvcDir) || fs.Exists(ptrFile) {
 			return cwd
 		}
 

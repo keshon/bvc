@@ -2,7 +2,7 @@ package file
 
 import (
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
 	"bufio"
 	"path/filepath"
 	"strings"
@@ -15,6 +15,7 @@ type Ignore struct {
 
 // NewIgnore loads defaults and .bvc-ignore from the given repo root.
 func NewIgnore(repoRoot string) *Ignore {
+	fs := fs.NewOSFS()
 	m := &Ignore{static: make(map[string]bool)}
 
 	// Default ignored files
@@ -23,7 +24,7 @@ func NewIgnore(repoRoot string) *Ignore {
 	}
 
 	ignorePath := filepath.Join(repoRoot, config.IgnoredFilesFile)
-	f, err := fsio.Open(ignorePath)
+	f, err := fs.Open(ignorePath)
 	if err == nil {
 		sc := bufio.NewScanner(f)
 		for sc.Scan() {

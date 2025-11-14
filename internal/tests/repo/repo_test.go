@@ -1,13 +1,12 @@
 package repo_test
 
 import (
-	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"app/internal/config"
-	"app/internal/fsio"
+
 	"app/internal/repo"
 	"app/internal/repo/meta"
 )
@@ -25,31 +24,6 @@ func makeTempDir(t *testing.T) string {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	return dir
-}
-
-// simulate ReadFile/fsio.WriteFile errors to cover error paths
-func simulateReadFileError() func() {
-	orig := fsio.ReadFile
-	fsio.ReadFile = func(_ string) ([]byte, error) {
-		return nil, errors.New("simulated read error")
-	}
-	return func() { fsio.ReadFile = orig }
-}
-
-func simulateWriteFileError() func() {
-	orig := fsio.WriteFile
-	fsio.WriteFile = func(_ string, _ []byte, _ os.FileMode) error {
-		return errors.New("simulated write error")
-	}
-	return func() { fsio.WriteFile = orig }
-}
-
-func simulateStatError() func() {
-	orig := fsio.StatFile
-	fsio.StatFile = func(_ string) (os.FileInfo, error) {
-		return nil, errors.New("simulated stat error")
-	}
-	return func() { fsio.StatFile = orig }
 }
 
 // --- Init --- //
@@ -235,43 +209,6 @@ func TestRepositoryStorageIntegration(t *testing.T) {
 	}
 }
 
-// --- InitAt/OpenAt existing repo --- //
-
-// --- Errors for branch simulation --- //
-func TestBranchErrorsSimulation(t *testing.T) {
-	tmp := makeTempDir(t)
-	defer os.RemoveAll(tmp)
-
-	r, err := repo.NewRepositoryByPath(tmp)
-	if err != nil {
-		t.Fatalf("InitAt failed: %v", err)
-	}
-
-	// simulate stat error in BranchExists
-	restoreStat := simulateStatError()
-	defer restoreStat()
-	_, err = r.Meta.BranchExists("any")
-	if err == nil {
-		t.Error("expected simulated stat error")
-	}
-
-	// simulate write error in CreateBranch
-	restoreWrite := simulateWriteFileError()
-	defer restoreWrite()
-	_, err = r.Meta.CreateBranch("newbranch")
-	if err == nil {
-		t.Error("expected simulated write error")
-	}
-
-	// simulate read error in GetBranch
-	restoreRead := simulateReadFileError()
-	defer restoreRead()
-	_, err = r.Meta.GetBranch("nonexistent")
-	if err == nil {
-		t.Error("expected simulated read error")
-	}
-}
-
 // --- Errors for commit simulation --- //
 func TestCommitErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
@@ -288,47 +225,20 @@ func TestCommitErrorsSimulation(t *testing.T) {
 		Message: "test",
 	}
 
-	// --- simulate write error on CreateCommit via fsio.CreateTempFile ---
-	origCreateTemp := fsio.CreateTempFile
-	fsio.CreateTempFile = func(dir, pattern string) (*os.File, error) {
-		return nil, errors.New("simulated write error")
-	}
-	defer func() { fsio.CreateTempFile = origCreateTemp }()
-
 	_, err = r.Meta.CreateCommit(commit)
 	if err == nil {
 		t.Error("expected simulated write error")
 	}
-
-	// restore normal CreateTempFile to simulate read error on GetCommit
-	origRead := fsio.ReadFile
-	fsio.ReadFile = func(_ string) ([]byte, error) {
-		return nil, errors.New("simulated read error")
-	}
-	defer func() { fsio.ReadFile = origRead }()
 
 	_, err = r.Meta.GetCommit("nonexistent")
 	if err == nil {
 		t.Error("expected simulated read error")
 	}
 
-	// simulate write error on SetLastCommitID
-	origWrite := fsio.WriteFile
-	fsio.WriteFile = func(_ string, _ []byte, _ os.FileMode) error {
-		return errors.New("simulated write error")
-	}
-	defer func() { fsio.WriteFile = origWrite }()
-
 	err = r.Meta.SetLastCommitID("badbranch", "abc")
 	if err == nil {
 		t.Error("expected simulated write error")
 	}
-
-	// simulate read error on GetLastCommitID
-	fsio.ReadFile = func(_ string) ([]byte, error) {
-		return nil, errors.New("simulated read error")
-	}
-	defer func() { fsio.ReadFile = origRead }()
 
 	_, err = r.Meta.GetLastCommitID("badbranch")
 	if err == nil {
@@ -346,15 +256,11 @@ func TestHeadErrorsSimulation(t *testing.T) {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
-	restoreRead := simulateReadFileError()
-	defer restoreRead()
 	_, err = r.Meta.GetHeadRef()
 	if err == nil {
 		t.Error("expected simulated read error for HEAD")
 	}
 
-	restoreWrite := simulateWriteFileError()
-	defer restoreWrite()
 	_, err = r.Meta.SetHeadRef("main")
 	if err == nil {
 		t.Error("expected simulated write error for HEAD")

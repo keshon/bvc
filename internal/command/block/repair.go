@@ -3,7 +3,8 @@ package block
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
+
 	"app/internal/repo"
 	"app/internal/repo/store/block"
 	"app/internal/repotools"
@@ -27,6 +28,7 @@ func (c *RepairCommand) Subcommands() []command.Command { return nil }
 func (c *RepairCommand) Flags(fs *flag.FlagSet)         {}
 
 func (c *RepairCommand) Run(ctx *command.Context) error {
+	fs := fs.NewOSFS()
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
@@ -73,7 +75,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 
 	for _, bc := range toFix {
 		targetPath := filepath.Join(r.Config.ObjectsDir(), bc.Hash+".bin")
-		_ = fsio.Remove(targetPath)
+		_ = fs.Remove(targetPath)
 
 		fixed := false
 
@@ -95,7 +97,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 					repaired++
 					break
 				} else {
-					_ = fsio.Remove(targetPath)
+					_ = fs.Remove(targetPath)
 				}
 			}
 			if fixed {

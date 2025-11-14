@@ -3,7 +3,7 @@ package block
 import (
 	"app/internal/command"
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
 	"app/internal/repo"
 	"flag"
 	"fmt"
@@ -205,8 +205,9 @@ func stripANSI(s string) string {
 }
 
 func saveExport(content string) {
+	fs := fs.NewOSFS()
 	filename := config.RepoDir + "-reuse"
-	_ = fsio.WriteFile(filepath.Clean(filename), []byte(strings.TrimSpace(content)+"\n"), 0644)
+	_ = fs.WriteFile(filepath.Clean(filename), []byte(strings.TrimSpace(content)+"\n"), 0644)
 	fmt.Printf("\n\033[90mExported analysis to %s\033[0m\n", filename)
 }
 

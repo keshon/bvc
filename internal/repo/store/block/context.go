@@ -1,5 +1,7 @@
 package block
 
+import "app/internal/fs"
+
 const (
 	minChunkSize = 2 * 1024 * 1024 // 2 MiB
 	maxChunkSize = 8 * 1024 * 1024 // 8 MiB
@@ -32,4 +34,5 @@ type BlockCheck struct {
 // BlockContext handles all object-level storage (.bvc/objects)
 type BlockContext struct {
 	Root string
+	FS   fs.FS
 }

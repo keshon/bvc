@@ -2,7 +2,8 @@ package block
 
 import (
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
+
 	"app/internal/repo/store/block"
 	"fmt"
 	"path/filepath"
@@ -30,7 +31,8 @@ func verifyRepairedBlocks(toFix []block.BlockCheck) int {
 }
 
 func verifyBlockHash(path, expected string) (bool, error) {
-	data, err := fsio.ReadFile(path)
+	fs := fs.NewOSFS()
+	data, err := fs.ReadFile(path)
 	if err != nil {
 		return false, err
 	}

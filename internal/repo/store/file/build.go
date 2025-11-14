@@ -14,6 +14,8 @@ func (fc *FileContext) BuildEntry(path string) (Entry, error) {
 		return Entry{}, fmt.Errorf("no BlockContext attached")
 	}
 
+	// TODO: fix this abs/rel logic mess
+	// TODO: fix zero length files support
 	// Normalize to repository-relative path for consistency.
 	absPath, err := filepath.Abs(path)
 	if err != nil {

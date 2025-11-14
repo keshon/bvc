@@ -2,7 +2,8 @@ package repotools
 
 import (
 	"app/internal/config"
-	"app/internal/fsio"
+	"app/internal/fs"
+
 	"app/internal/progress"
 
 	"app/internal/repo/store"
@@ -42,6 +43,7 @@ func VerifyBlocks(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool
 // If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
 func VerifyBlocksStream(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
+	fs := fs.NewOSFS()
 	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
@@ -49,7 +51,7 @@ func VerifyBlocksStream(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommi
 		defer close(out)
 		defer close(errCh)
 
-		if _, err := fsio.StatFile(cfg.RepoRoot); os.IsNotExist(err) {
+		if _, err := fs.Stat(cfg.RepoRoot); os.IsNotExist(err) {
 			errCh <- fmt.Errorf("repository not initialized (missing %s)", cfg.RepoRoot)
 			return
 		}
