@@ -1,58 +1,61 @@
 package fs
 
-import "os"
+import (
+	"io"
+	"os"
+)
 
-// OSFS is a production implementation of FS using the standard library.
+// OSFS is a production FS implementation using the standard library.
 type OSFS struct{}
 
 func NewOSFS() *OSFS {
 	return &OSFS{}
 }
 
-func (r *OSFS) Open(path string) (*os.File, error) {
+func (fsys *OSFS) Open(path string) (io.ReadSeekCloser, error) {
 	return open(path)
 }
 
-func (r *OSFS) Stat(path string) (os.FileInfo, error) {
+func (fsys *OSFS) Stat(path string) (os.FileInfo, error) {
 	return stat(path)
 }
 
-func (r *OSFS) ReadFile(path string) ([]byte, error) {
+func (fsys *OSFS) ReadFile(path string) ([]byte, error) {
 	return readFile(path)
 }
 
-func (r *OSFS) ReadDir(path string) ([]os.DirEntry, error) {
+func (fsys *OSFS) ReadDir(path string) ([]os.DirEntry, error) {
 	return readDir(path)
 }
 
-func (r *OSFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+func (fsys *OSFS) WriteFile(path string, data []byte, perm os.FileMode) error {
 	return writeFile(path, data, perm)
 }
 
-func (r *OSFS) MkdirAll(path string, perm os.FileMode) error {
+func (fsys *OSFS) MkdirAll(path string, perm os.FileMode) error {
 	return mkdirAll(path, perm)
 }
 
-func (r *OSFS) Remove(path string) error {
+func (fsys *OSFS) Remove(path string) error {
 	return remove(path)
 }
 
-func (r *OSFS) Rename(oldPath, newPath string) error {
+func (fsys *OSFS) Rename(oldPath, newPath string) error {
 	return rename(oldPath, newPath)
 }
 
-func (r *OSFS) CreateTempFile(dir, pattern string) (*os.File, error) {
+func (fsys *OSFS) CreateTempFile(dir, pattern string) (io.WriteCloser, string, error) {
 	return createTemp(dir, pattern)
 }
 
-func (r *OSFS) IsNotExist(err error) bool {
+func (fsys *OSFS) IsNotExist(err error) bool {
 	return isNotExist(err)
 }
 
-func (r *OSFS) IsDir(path string) bool {
+func (fsys *OSFS) IsDir(path string) bool {
 	return IsDir(path)
 }
 
-func (r *OSFS) Exists(path string) bool {
+func (fsys *OSFS) Exists(path string) bool {
 	return exists(path)
 }

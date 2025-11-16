@@ -1,1 +1,0 @@
-go test -coverpkg=./internal/repotools ./internal/tests/repotools -v -cover

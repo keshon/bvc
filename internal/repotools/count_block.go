@@ -42,7 +42,7 @@ func CountBlocks(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit bool)
 				continue
 			}
 
-			filesetPath := filepath.Join(cfg.FilesetsDir(), commit.FilesetID+".json")
+			filesetPath := filepath.Join(cfg.SnapshotsDir(), commit.FilesetID+".json")
 			var fs snapshot.Fileset
 			if err := util.ReadJSON(filesetPath, &fs); err != nil {
 				continue

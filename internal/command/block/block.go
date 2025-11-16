@@ -29,8 +29,9 @@ func (c *BlockCommand) Flags(fs *flag.FlagSet) {}
 
 // Run prints usage if no subcommand is provided
 func (c *BlockCommand) Run(ctx *command.Context) error {
-	fmt.Println("Usage: block <subcommand> [options]\n")
-	fmt.Println("Available subcommands:\n")
+	fmt.Println("Usage: block <subcommand> [options]")
+	fmt.Println("Available subcommands:")
+	fmt.Println()
 
 	subcmds := c.Subcommands()
 	longest := 0

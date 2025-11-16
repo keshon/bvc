@@ -9,7 +9,7 @@ import (
 
 // SaveIndexReplace overwrites the index completely (for hard resets or clean writes).
 func (fc *FileContext) SaveIndexReplace(entries []Entry) error {
-	indexPath := filepath.Join(fc.RepoRoot, "index.json")
+	indexPath := filepath.Join(fc.RepoDir, "index.json")
 	data, err := json.Marshal(entries)
 	if err != nil {
 		return fmt.Errorf("marshal index: %w", err)
@@ -48,7 +48,7 @@ func (fc *FileContext) SaveIndexMerge(newEntries []Entry) error {
 
 // ClearIndex removes the staging index.
 func (fc *FileContext) ClearIndex() error {
-	indexPath := filepath.Join(fc.RepoRoot, "index.json")
+	indexPath := filepath.Join(fc.RepoDir, "index.json")
 	if _, err := fc.FS.Stat(indexPath); os.IsNotExist(err) {
 		return nil
 	}
@@ -57,7 +57,7 @@ func (fc *FileContext) ClearIndex() error {
 
 // LoadIndex loads staged entries from disk.
 func (fc *FileContext) LoadIndex() ([]Entry, error) {
-	indexPath := filepath.Join(fc.RepoRoot, "index.json")
+	indexPath := filepath.Join(fc.RepoDir, "index.json")
 	if _, err := fc.FS.Stat(indexPath); fc.FS.IsNotExist(err) {
 		return nil, nil
 	}

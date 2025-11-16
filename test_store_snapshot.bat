@@ -1,1 +1,0 @@
-go test -coverpkg=./internal/store/snapshot ./internal/tests/store_snapshot -v -cover

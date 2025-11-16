@@ -10,7 +10,7 @@ import (
 
 // Restore rebuilds files from entries (e.g., from a snapshot).
 func (fc *FileContext) RestoreFilesToWorkingTree(entries []Entry, label string) error {
-	if fc.Blocks == nil {
+	if fc.BlockCtx == nil {
 		return fmt.Errorf("no BlockContext attached")
 	}
 
@@ -53,16 +53,16 @@ func (fc *FileContext) restoreFile(e Entry) error {
 		return err
 	}
 
-	tmp, err := fc.FS.CreateTempFile(filepath.Dir(e.Path), "tmp-*")
+	tmp, tmpPath, err := fc.FS.CreateTempFile(filepath.Dir(e.Path), "tmp-*")
 	if err != nil {
 		return err
 	}
-	defer fc.FS.Remove(tmp.Name())
+	defer fc.FS.Remove(tmpPath)
 	defer tmp.Close()
 
 	writer := bufio.NewWriterSize(tmp, 4*1024*1024)
 	for _, b := range e.Blocks {
-		data, err := fc.Blocks.Read(b.Hash)
+		data, err := fc.BlockCtx.Read(b.Hash)
 		if err != nil {
 			return fmt.Errorf("missing block %s for %s", b.Hash, e.Path)
 		}
@@ -70,9 +70,14 @@ func (fc *FileContext) restoreFile(e Entry) error {
 			return err
 		}
 	}
-	writer.Flush()
-	tmp.Sync()
-	tmp.Close()
+	if err := writer.Flush(); err != nil {
+		return err
+	}
 
-	return fc.FS.Rename(tmp.Name(), e.Path)
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	// Rename temp file to final path
+	return fc.FS.Rename(tmpPath, e.Path)
 }

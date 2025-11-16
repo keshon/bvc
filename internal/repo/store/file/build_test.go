@@ -1,6 +1,7 @@
 package file_test
 
 import (
+	"app/internal/fs"
 	"app/internal/repo/store/block"
 	"app/internal/repo/store/file"
 	"path/filepath"
@@ -8,21 +9,11 @@ import (
 )
 
 func TestBuildEntryAndEntries(t *testing.T) {
-	tmpDir := t.TempDir()
-	fs := newMockFS()
-	blocks := newMockBlock()
-
-	// pretend this is the repo’s working tree
-	fc := &file.FileContext{
-		Root:     tmpDir,
-		RepoRoot: tmpDir,
-		FS:       fs,
-		Blocks:   blocks,
-	}
+	fc, tmpDir := newTestFC(t)
 
 	// create a file inside the working tree
 	f := filepath.Join(tmpDir, "foo.txt")
-	fs.WriteFile(f, []byte("hello"), 0o644)
+	fc.FS.WriteFile(f, []byte("hello"), 0o644)
 
 	// test BuildEntry
 	entry, err := fc.BuildEntry(f)
@@ -44,12 +35,10 @@ func TestBuildEntryAndEntries(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	fs := newMockFS()
-	fc := &file.FileContext{FS: fs, Root: tmpDir}
+	fc, tmpDir := newTestFC(t)
 
 	existing := filepath.Join(tmpDir, "exists.txt")
-	fs.WriteFile(existing, []byte("ok"), 0o644)
+	fc.FS.WriteFile(existing, []byte("ok"), 0o644)
 
 	if !fc.Exists(existing) {
 		t.Error("Exists should return true")
@@ -61,13 +50,13 @@ func TestExists(t *testing.T) {
 
 func TestBuildEntryErrors(t *testing.T) {
 	tmpDir := t.TempDir()
-	fs := newMockFS()
+	fs := fs.NewMemoryFS()
 	blocks := newMockBlock()
 	blocks.files = nil // simulate block read missing
 	fc := &file.FileContext{
-		Root:   tmpDir,
-		FS:     fs,
-		Blocks: blocks,
+		WorkingTreeDir: tmpDir,
+		FS:             fs,
+		BlockCtx:       blocks,
 	}
 
 	// missing file
@@ -88,7 +77,7 @@ func TestBuildEntryErrors(t *testing.T) {
 }
 
 func TestBuildEntryNilBlocks(t *testing.T) {
-	fc := &file.FileContext{FS: newMockFS(), Root: "/"}
+	fc, _ := newTestFC(t)
 	_, err := fc.BuildEntry("foo.txt")
 	if err == nil {
 		t.Error("expected error when Blocks is nil")
@@ -96,7 +85,7 @@ func TestBuildEntryNilBlocks(t *testing.T) {
 }
 
 func TestWriteNilBlocks(t *testing.T) {
-	fc := &file.FileContext{FS: newMockFS(), Root: "/"}
+	fc, _ := newTestFC(t)
 	entry := file.Entry{Path: "x.txt"}
 	if err := fc.Write(entry); err == nil {
 		t.Error("expected error when writing with nil Blocks")

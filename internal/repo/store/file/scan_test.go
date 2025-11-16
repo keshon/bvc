@@ -1,6 +1,7 @@
 package file_test
 
 import (
+	"app/internal/fs"
 	"app/internal/repo/store/file"
 	"os"
 	"path/filepath"
@@ -18,10 +19,10 @@ func TestScanFiles(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(tmp, ".bvc-ignore"), []byte("ignore.me\n"), 0o644)
 
 	// configure fc to point at tmp dir and to use a mock FS for index loads
-	fs := newMockFS()
-	fc := &file.FileContext{FS: fs, Root: tmp, RepoRoot: tmp}
+	fs := fs.NewMemoryFS()
+	fc := &file.FileContext{FS: fs, WorkingTreeDir: tmp, RepoDir: tmp}
 
-	tracked, _, ignored, err := fc.ScanFilesInWorkingTree()
+	tracked, _, ignored, err := fc.ScanAllRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,10 +36,10 @@ func TestScanFiles(t *testing.T) {
 
 func TestScanEmptyRepo(t *testing.T) {
 	tmp := t.TempDir()
-	fs := newMockFS()
-	fc := &file.FileContext{FS: fs, Root: tmp, RepoRoot: tmp}
+	fs := fs.NewMemoryFS()
+	fc := &file.FileContext{FS: fs, WorkingTreeDir: tmp, RepoDir: tmp}
 
-	tracked, staged, ignored, err := fc.ScanFilesInWorkingTree()
+	tracked, staged, ignored, err := fc.ScanAllRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,10 +61,10 @@ func TestScanNestedDirs(t *testing.T) {
 	os.WriteFile(filepath.Join(tmp, "sub/dir/a.txt"), []byte("x"), 0o644)
 	os.WriteFile(filepath.Join(tmp, "sub/b.txt"), []byte("y"), 0o644)
 
-	fs := newMockFS()
-	fc := &file.FileContext{FS: fs, Root: tmp, RepoRoot: tmp}
+	fs := fs.NewMemoryFS()
+	fc := &file.FileContext{FS: fs, WorkingTreeDir: tmp, RepoDir: tmp}
 
-	tracked, _, _, err := fc.ScanFilesInWorkingTree()
+	tracked, _, _, err := fc.ScanAllRepository()
 	if err != nil {
 		t.Fatal(err)
 	}

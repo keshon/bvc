@@ -41,16 +41,16 @@ func (c *RepoConfig) CommitsDir() string {
 	return c.RepoPath("commits")
 }
 
-func (c *RepoConfig) FilesetsDir() string {
-	return c.RepoPath("filesets")
+func (c *RepoConfig) SnapshotsDir() string {
+	return c.RepoPath("snapshots")
 }
 
 func (c *RepoConfig) BranchesDir() string {
 	return c.RepoPath("branches")
 }
 
-func (c *RepoConfig) ObjectsDir() string {
-	return c.RepoPath("objects")
+func (c *RepoConfig) BlocksDir() string {
+	return c.RepoPath("blocks")
 }
 
 func (c *RepoConfig) HeadFile() string {

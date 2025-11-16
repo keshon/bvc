@@ -18,17 +18,17 @@ func makeTempDir(t *testing.T) string {
 
 func makeBlockContext(t *testing.T, dir string) *block.BlockContext {
 	t.Helper()
-	return &block.BlockContext{Root: dir}
+	return &block.BlockContext{BlocksDir: dir}
 }
 
 func makeFileContext(t *testing.T, root string, bm *block.BlockContext) *file.FileContext {
 	t.Helper()
-	return &file.FileContext{Root: root, Blocks: bm}
+	return &file.FileContext{WorkingTreeDir: root, BlockCtx: bm}
 }
 
 func makeSnapshotContext(t *testing.T, root string, fm *file.FileContext, bm *block.BlockContext) *snapshot.SnapshotContext {
 	t.Helper()
-	return &snapshot.SnapshotContext{Root: root, Files: fm, Blocks: bm}
+	return &snapshot.SnapshotContext{SnapshotDir: root, FileCtx: fm, BlockCtx: bm}
 }
 
 // --- Test SnapshotContext BuildFilesetFromWorkingTree + Create + Save/Load/List --- //
@@ -41,7 +41,7 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 	sm := makeSnapshotContext(t, filepath.Join(root, "snapshots"), fm, bm)
 
 	// create test file INSIDE fm.Root
-	filePath := filepath.Join(fm.Root, "test.txt")
+	filePath := filepath.Join(fm.WorkingTreeDir, "test.txt")
 	// ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 		t.Fatalf("failed to create parent directories: %v", err)
@@ -105,7 +105,7 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 
 	// verify blocks exist
 	for _, b := range entry.Blocks {
-		path := filepath.Join(bm.Root, b.Hash+".bin")
+		path := filepath.Join(bm.BlocksDir, b.Hash+".bin")
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("expected block file %s to exist: %v", path, err)
@@ -145,9 +145,9 @@ func TestHashFilesetDeterminism(t *testing.T) {
 func TestSnapshotContext_Errors(t *testing.T) {
 	dir := makeTempDir(t)
 	sm := &snapshot.SnapshotContext{
-		Root:   dir,
-		Files:  nil, // purposely nil
-		Blocks: nil,
+		SnapshotDir: dir,
+		FileCtx:     nil, // purposely nil
+		BlockCtx:    nil,
 	}
 
 	// 1. Create with no entries

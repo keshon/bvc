@@ -7,9 +7,7 @@ import (
 )
 
 func TestIndexCRUD(t *testing.T) {
-	tmp := t.TempDir()
-	fs := newMockFS()
-	fc := &file.FileContext{RepoRoot: tmp, FS: fs}
+	fc, _ := newTestFC(t)
 
 	entries := []file.Entry{{Path: "a.txt"}}
 	if err := fc.SaveIndexReplace(entries); err != nil {
@@ -31,9 +29,7 @@ func TestIndexCRUD(t *testing.T) {
 }
 
 func TestSaveIndexMerge(t *testing.T) {
-	tmp := t.TempDir()
-	fs := newMockFS()
-	fc := &file.FileContext{RepoRoot: tmp, FS: fs}
+	fc, _ := newTestFC(t)
 
 	initial := []file.Entry{{Path: "a.txt"}}
 	if err := fc.SaveIndexReplace(initial); err != nil {
@@ -56,8 +52,7 @@ func TestSaveIndexMerge(t *testing.T) {
 }
 
 func TestLoadIndexMissingAndInvalid(t *testing.T) {
-	tmp := t.TempDir()
-	fc := &file.FileContext{FS: newMockFS(), RepoRoot: tmp}
+	fc, _ := newTestFC(t)
 
 	// missing index.json
 	entries, err := fc.LoadIndex()
@@ -66,10 +61,11 @@ func TestLoadIndexMissingAndInvalid(t *testing.T) {
 	}
 
 	// invalid JSON
-	idx := filepath.Join(tmp, "index.json")
-	fs := newMockFS()
-	fs.WriteFile(idx, []byte("{ bad json"), 0o644) // write into mockFS
-	fc = &file.FileContext{FS: fs, RepoRoot: tmp}
+	idx := filepath.Join(fc.RepoDir, "index.json")
+	err = fc.FS.WriteFile(idx, []byte("{ bad json"), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := fc.LoadIndex(); err == nil {
 		t.Error("expected unmarshal error for bad JSON")
@@ -77,8 +73,8 @@ func TestLoadIndexMissingAndInvalid(t *testing.T) {
 }
 
 func TestClearIndexMissingFile(t *testing.T) {
-	tmp := t.TempDir()
-	fc := &file.FileContext{FS: newMockFS(), RepoRoot: tmp}
+	fc, _ := newTestFC(t)
+
 	// should not fail even if index.json doesn't exist
 	if err := fc.ClearIndex(); err != nil {
 		t.Error("ClearIndex should succeed on missing file")

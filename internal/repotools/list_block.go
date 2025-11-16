@@ -45,7 +45,7 @@ func ListAllBlocks(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommit boo
 				continue
 			}
 
-			filesetPath := filepath.Join(cfg.FilesetsDir(), commit.FilesetID+".json")
+			filesetPath := filepath.Join(cfg.SnapshotsDir(), commit.FilesetID+".json")
 			var fs snapshot.Fileset
 			if err := util.ReadJSON(filesetPath, &fs); err != nil {
 				continue

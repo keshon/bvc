@@ -7,13 +7,13 @@ import (
 	"sort"
 )
 
-// ScanFilesInWorkingTree returns three slices of file paths: tracked, staged, and ignored.
+// ScanAllRepository returns three slices of file paths: tracked, staged, and ignored.
 // - tracked: files not ignored and not internal
 // - staged: files already present in index.json
 // - ignored: files matched by .bvc-ignore or defaults
-func (fc *FileContext) ScanFilesInWorkingTree() (tracked []string, staged []string, ignored []string, err error) {
+func (fc *FileContext) ScanAllRepository() (tracked []string, staged []string, ignored []string, err error) {
 	exe, _ := os.Executable()
-	matcher := NewIgnore(fc.Root)
+	matcher := NewIgnore(fc.WorkingTreeDir)
 
 	// Load staged entries (index)
 	indexEntries, _ := fc.LoadIndex()
@@ -22,7 +22,7 @@ func (fc *FileContext) ScanFilesInWorkingTree() (tracked []string, staged []stri
 		indexSet[filepath.ToSlash(filepath.Clean(e.Path))] = struct{}{}
 	}
 
-	err = filepath.WalkDir(fc.Root, func(path string, d os.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(fc.WorkingTreeDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -47,7 +47,7 @@ func (fc *FileContext) ScanFilesInWorkingTree() (tracked []string, staged []stri
 		}
 
 		// Normalize to relative to repo root
-		relPath, err := filepath.Rel(fc.Root, clean)
+		relPath, err := filepath.Rel(fc.WorkingTreeDir, clean)
 		if err != nil {
 			relPath = clean
 		}

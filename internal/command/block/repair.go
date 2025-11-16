@@ -74,7 +74,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 	var fixedList, failedList []block.BlockCheck
 
 	for _, bc := range toFix {
-		targetPath := filepath.Join(r.Config.ObjectsDir(), bc.Hash+".bin")
+		targetPath := filepath.Join(r.Config.BlocksDir(), bc.Hash+".bin")
 		_ = fs.Remove(targetPath)
 
 		fixed := false

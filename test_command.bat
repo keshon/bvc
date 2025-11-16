@@ -1,1 +1,0 @@
-go test -coverpkg=./internal/command ./internal/tests/command -v -cover

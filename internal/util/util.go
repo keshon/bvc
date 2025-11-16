@@ -1,16 +1,15 @@
 package util
 
 import (
+	"app/internal/fs"
 	"encoding/json"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"sync"
-
-	"app/internal/fs"
 )
 
-// WriteJSON writes a JSON file atomically to prevent corruption.
+// WriteJSON writes a JSON file atomically using the FS interface.
 var WriteJSON = func(path string, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -18,27 +17,26 @@ var WriteJSON = func(path string, v any) error {
 	}
 
 	dir := filepath.Dir(path)
-	fs := fs.NewOSFS()
-	tmpFile, err := fs.CreateTempFile(dir, "tmp-*.json")
+	fsys := fs.NewOSFS() // can be replaced with any FS implementation
+
+	tmpFile, tmpPath, err := fsys.CreateTempFile(dir, "tmp-*.json")
 	if err != nil {
 		return err
 	}
-	tmpPath := tmpFile.Name()
-	defer fs.Remove(tmpPath)
+	defer fsys.Remove(tmpPath) // ensure cleanup on error
 
+	// Write JSON
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
 		return err
 	}
-	if err := tmpFile.Sync(); err != nil {
-		tmpFile.Close()
-		return err
-	}
+
 	if err := tmpFile.Close(); err != nil {
 		return err
 	}
 
-	return fs.Rename(tmpPath, path)
+	// Atomically rename
+	return fsys.Rename(tmpPath, path)
 }
 
 // ReadJSON reads a JSON file and unmarshals it into v

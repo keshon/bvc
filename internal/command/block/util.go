@@ -18,7 +18,7 @@ func verifyRepairedBlocks(toFix []block.BlockCheck) int {
 	cfg := config.NewRepoConfig(config.ResolveRepoRoot())
 
 	for _, bc := range toFix {
-		path := filepath.Join(cfg.ObjectsDir(), bc.Hash+".bin")
+		path := filepath.Join(cfg.BlocksDir(), bc.Hash+".bin")
 		ok, _ := verifyBlockHash(path, bc.Hash)
 		if !ok {
 			failed++

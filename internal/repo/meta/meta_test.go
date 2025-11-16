@@ -1,4 +1,4 @@
-package repo_test
+package meta_test
 
 import (
 	"os"
@@ -26,7 +26,7 @@ func makeTempDir(t *testing.T) string {
 	return dir
 }
 
-// --- Init --- //
+// Init
 func TestInitAndOpenRepository(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -51,7 +51,7 @@ func TestInitAndOpenRepository(t *testing.T) {
 
 }
 
-// --- Branches --- //
+// Branches
 func TestBranchCreationAndListing(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -98,7 +98,7 @@ func TestBranchCreationAndListing(t *testing.T) {
 	}
 }
 
-// --- Commits --- //
+// Commits
 func TestCommitsLifecycle(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -167,7 +167,7 @@ func TestCommitsLifecycle(t *testing.T) {
 	}
 }
 
-// --- HeadRef --- //
+// HeadRef
 func TestHeadRefSetAndGet(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -194,7 +194,7 @@ func TestHeadRefSetAndGet(t *testing.T) {
 	}
 }
 
-// --- Storage --- //
+// Storage
 func TestRepositoryStorageIntegration(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -209,7 +209,7 @@ func TestRepositoryStorageIntegration(t *testing.T) {
 	}
 }
 
-// --- Errors for commit simulation --- //
+// Errors for commit simulation
 func TestCommitErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -246,7 +246,7 @@ func TestCommitErrorsSimulation(t *testing.T) {
 	}
 }
 
-// --- Errors for HEAD simulation --- //
+// Errors for HEAD simulation
 func TestHeadErrorsSimulation(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)
@@ -267,7 +267,7 @@ func TestHeadErrorsSimulation(t *testing.T) {
 	}
 }
 
-// --- AllCommitIDs cycles --- //
+// AllCommitIDs cycles
 func TestAllCommitIDsCycles(t *testing.T) {
 	tmp := makeTempDir(t)
 	defer os.RemoveAll(tmp)

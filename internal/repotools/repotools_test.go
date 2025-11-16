@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// --- helpers ---
+// Helpers
 
 // tmpRepo creates a temporary repo and returns (dir, cfg)
 func tmpRepo(t *testing.T) (string, *config.RepoConfig) {
@@ -36,7 +36,7 @@ func mustJSON(v any) []byte {
 	return data
 }
 
-// --- Fake repo for testing ---
+// Fake repo for testing
 type fakeRepo struct {
 	Branches []string
 }
@@ -70,8 +70,7 @@ func (r *fakeRepo) GetLastCommitID(branch string) (string, error) {
 	return "c1", nil
 }
 
-// --- Tests ---
-
+// Tests
 func TestListAllBlocks_Success(t *testing.T) {
 	_, cfg := tmpRepo(t)
 
@@ -116,8 +115,8 @@ func TestListAllBlocks_Success(t *testing.T) {
 		},
 	}
 	b, _ = json.Marshal(fileset)
-	os.MkdirAll(cfg.FilesetsDir(), 0o755)
-	os.WriteFile(filepath.Join(cfg.FilesetsDir(), "fs1.json"), b, 0o644)
+	os.MkdirAll(cfg.SnapshotsDir(), 0o755)
+	os.WriteFile(filepath.Join(cfg.SnapshotsDir(), "fs1.json"), b, 0o644)
 
 	got, err := repotools.ListAllBlocks(r, cfg, true)
 	if err != nil {
@@ -133,19 +132,19 @@ func TestListAllBlocks_Success(t *testing.T) {
 func TestListAllBlocks_ErrorBranches(t *testing.T) {
 	_, cfg := tmpRepo(t)
 
-	// --- ListBranches fails ---
+	// ListBranches fails
 	r := &fakeRepo{Branches: nil} // triggers ListBranches error
 	if _, err := repotools.ListAllBlocks(r, cfg, true); err == nil {
 		t.Error("expected error from ListBranches")
 	}
 
-	// --- AllCommitIDs fails ---
+	// AllCommitIDs fails
 	r = &fakeRepo{Branches: []string{"badall"}}
 	if _, err := repotools.ListAllBlocks(r, cfg, false); err == nil {
 		t.Error("expected error from AllCommitIDs")
 	}
 
-	// --- GetLastCommitID fails ---
+	// GetLastCommitID fails
 	r = &fakeRepo{Branches: []string{"badlast"}}
 
 	// ensure commits dir exists
@@ -202,8 +201,8 @@ func TestCountBlocks_Success(t *testing.T) {
 		},
 	}
 	b, _ = json.Marshal(fileset)
-	os.MkdirAll(cfg.FilesetsDir(), 0o755)
-	os.WriteFile(filepath.Join(cfg.FilesetsDir(), "fs1.json"), b, 0o644)
+	os.MkdirAll(cfg.SnapshotsDir(), 0o755)
+	os.WriteFile(filepath.Join(cfg.SnapshotsDir(), "fs1.json"), b, 0o644)
 
 	n, err := repotools.CountBlocks(r, cfg, true)
 	if err != nil {

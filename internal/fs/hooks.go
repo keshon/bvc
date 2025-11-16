@@ -1,8 +1,11 @@
 package fs
 
-import "os"
+import (
+	"io"
+	"os"
+)
 
-// Hooks used for testing (overridable)
+// Overridable hooks for testing.
 var (
 	open       = os.Open
 	readFile   = os.ReadFile
@@ -11,47 +14,55 @@ var (
 	readDir    = os.ReadDir
 	remove     = os.Remove
 	rename     = os.Rename
-	createTemp = os.CreateTemp
 	mkdirAll   = os.MkdirAll
 	isNotExist = os.IsNotExist
+
+	createTemp = func(dir, pattern string) (io.WriteCloser, string, error) {
+		f, err := os.CreateTemp(dir, pattern)
+		return f, f.Name(), err
+	}
 )
 
+// Exists returns true if a path exists (file or directory)
 var exists = func(path string) bool {
 	_, err := stat(path)
 	return err == nil
 }
 
+// IsDir returns true if a path exists and is a directory
 var IsDir = func(path string) bool {
 	fi, err := stat(path)
 	return err == nil && fi.IsDir()
 }
 
-// getters and setters for test override
-func GetOpen() func(string) (*os.File, error)    { return open }
-func SetOpen(f func(string) (*os.File, error))   { open = f }
+// --- Getter/Setter helpers for testing ---
+
+func GetOpen() func(string) (*os.File, error)  { return open }
+func SetOpen(f func(string) (*os.File, error)) { open = f }
+
 func GetReadFile() func(string) ([]byte, error)  { return readFile }
 func SetReadFile(f func(string) ([]byte, error)) { readFile = f }
-func GetWriteFile() func(string, []byte, os.FileMode) error {
-	return writeFile
-}
-func SetWriteFile(f func(string, []byte, os.FileMode) error) {
-	writeFile = f
-}
-func GetStat() func(string) (os.FileInfo, error)       { return stat }
-func SetStat(f func(string) (os.FileInfo, error))      { stat = f }
+
+func GetWriteFile() func(string, []byte, os.FileMode) error  { return writeFile }
+func SetWriteFile(f func(string, []byte, os.FileMode) error) { writeFile = f }
+
+func GetStat() func(string) (os.FileInfo, error)  { return stat }
+func SetStat(f func(string) (os.FileInfo, error)) { stat = f }
+
 func GetReadDir() func(string) ([]os.DirEntry, error)  { return readDir }
 func SetReadDir(f func(string) ([]os.DirEntry, error)) { readDir = f }
-func GetRemove() func(string) error                    { return remove }
-func SetRemove(f func(string) error)                   { remove = f }
-func GetRename() func(string, string) error            { return rename }
-func SetRename(f func(string, string) error)           { rename = f }
-func GetCreateTemp() func(string, string) (*os.File, error) {
-	return createTemp
-}
-func SetCreateTemp(f func(string, string) (*os.File, error)) {
-	createTemp = f
-}
+
+func GetRemove() func(string) error  { return remove }
+func SetRemove(f func(string) error) { remove = f }
+
+func GetRename() func(string, string) error  { return rename }
+func SetRename(f func(string, string) error) { rename = f }
+
 func GetMkdirAll() func(string, os.FileMode) error  { return mkdirAll }
 func SetMkdirAll(f func(string, os.FileMode) error) { mkdirAll = f }
-func GetIsNotExist() func(error) bool               { return isNotExist }
-func SetIsNotExist(f func(error) bool)              { isNotExist = f }
+
+func GetIsNotExist() func(error) bool  { return isNotExist }
+func SetIsNotExist(f func(error) bool) { isNotExist = f }
+
+func GetCreateTemp() func(string, string) (io.WriteCloser, string, error)  { return createTemp }
+func SetCreateTemp(f func(string, string) (io.WriteCloser, string, error)) { createTemp = f }

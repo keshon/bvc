@@ -39,8 +39,13 @@ type BlockContext interface {
 
 // FileContext manages file-level operations (staging, restore, scan) with abstracted dependencies.
 type FileContext struct {
-	Root     string
-	RepoRoot string
-	Blocks   BlockContext
-	FS       fs.FS
+	WorkingTreeDir string
+	RepoDir        string
+	BlockCtx       BlockContext
+	FS             fs.FS
+}
+
+// NewFileContext creates a new FileContext.
+func NewFileContext(workingTreeDir, repoDir string, blocks BlockContext, fs fs.FS) *FileContext {
+	return &FileContext{WorkingTreeDir: workingTreeDir, RepoDir: repoDir, BlockCtx: blocks, FS: fs}
 }

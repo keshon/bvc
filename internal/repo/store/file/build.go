@@ -10,7 +10,7 @@ import (
 
 // BuildEntry splits a file into block references (content-defined).
 func (fc *FileContext) BuildEntry(path string) (Entry, error) {
-	if fc.Blocks == nil {
+	if fc.BlockCtx == nil {
 		return Entry{}, fmt.Errorf("no BlockContext attached")
 	}
 
@@ -22,13 +22,13 @@ func (fc *FileContext) BuildEntry(path string) (Entry, error) {
 		return Entry{}, fmt.Errorf("resolve absolute path: %w", err)
 	}
 
-	relPath, err := filepath.Rel(fc.Root, absPath)
+	relPath, err := filepath.Rel(fc.WorkingTreeDir, absPath)
 	if err != nil {
 		return Entry{}, fmt.Errorf("resolve relative path: %w", err)
 	}
 	relPath = filepath.ToSlash(relPath)
 
-	blocks, err := fc.Blocks.SplitFile(absPath)
+	blocks, err := fc.BlockCtx.SplitFile(absPath)
 	if err != nil {
 		return Entry{}, fmt.Errorf("split %q: %w", relPath, err)
 	}
@@ -76,10 +76,10 @@ func (fc *FileContext) BuildEntries(paths []string, silent bool) ([]Entry, error
 
 // Write stores all blocks of an entry into store.
 func (fc *FileContext) Write(e Entry) error {
-	if fc.Blocks == nil {
+	if fc.BlockCtx == nil {
 		return fmt.Errorf("no BlockContext attached")
 	}
-	return fc.Blocks.Write(e.Path, e.Blocks)
+	return fc.BlockCtx.Write(e.Path, e.Blocks)
 }
 
 // Exists checks whether a given path exists in the working tree.

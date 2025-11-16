@@ -20,8 +20,10 @@ type StoreContext struct {
 
 // NewStoreOptions allows optional dependency injection (FS, BlockStore)
 type NewStoreOptions struct {
-	FS     fs.FS
-	Blocks *block.BlockContext
+	FS        fs.FS
+	Blocks    *block.BlockContext
+	Files     *file.FileContext
+	Snapshots *snapshot.SnapshotContext
 }
 
 // NewStoreDefault creates a store with default dependencies (FS, BlockStore)
@@ -42,12 +44,21 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 	}
 
 	// Resolve BlockContext
-	blocks := &block.BlockContext{
-		Root: cfg.ObjectsDir(),
-		FS:   fs,
-	}
+	blockCtx := block.NewBlockContext(cfg.BlocksDir(), fs)
 	if opts != nil && opts.Blocks != nil {
-		blocks = opts.Blocks
+		blockCtx = opts.Blocks
+	}
+
+	// Resolve FileContext
+	fileCtx := file.NewFileContext(cfg.WorkingTreeRoot, cfg.RepoRoot, blockCtx, fs)
+	if opts != nil && opts.Files != nil {
+		fileCtx = opts.Files
+	}
+
+	// Resolve SnapshotContext
+	snapshotCtx := snapshot.NewSnapshotContext(cfg.SnapshotsDir(), fileCtx, blockCtx, fs)
+	if opts != nil && opts.Snapshots != nil {
+		snapshotCtx = opts.Snapshots
 	}
 
 	// Ensure store layout
@@ -57,19 +68,11 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 		}
 	}
 
-	// Build store
-	files := &file.FileContext{
-		Root:     cfg.WorkingTreeRoot,
-		RepoRoot: cfg.RepoRoot,
-		Blocks:   blocks,
-		FS:       fs,
-	}
-
 	return &StoreContext{
 		Config:    cfg,
-		Blocks:    blocks,
-		Files:     files,
-		Snapshots: &snapshot.SnapshotContext{Root: cfg.FilesetsDir(), Files: files, Blocks: blocks},
+		Blocks:    blockCtx,
+		Files:     fileCtx,
+		Snapshots: snapshotCtx,
 	}, nil
 }
 
@@ -77,9 +80,9 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 func createStoreStructure(cfg *config.RepoConfig, fs fs.FS) error {
 	dirs := []string{
 		cfg.CommitsDir(),
-		cfg.FilesetsDir(),
+		cfg.SnapshotsDir(),
 		cfg.BranchesDir(),
-		cfg.ObjectsDir(),
+		cfg.BlocksDir(),
 	}
 
 	for _, d := range dirs {
@@ -92,7 +95,7 @@ func createStoreStructure(cfg *config.RepoConfig, fs fs.FS) error {
 
 // isStoreExists uses FS to verify directories
 func isStoreExists(cfg *config.RepoConfig, fs fs.FS) bool {
-	return exists(fs, cfg.ObjectsDir()) && exists(fs, cfg.CommitsDir())
+	return exists(fs, cfg.BlocksDir()) && exists(fs, cfg.CommitsDir())
 }
 
 func exists(fs fs.FS, path string) bool {

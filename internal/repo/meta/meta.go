@@ -57,9 +57,9 @@ func createMetaStructure(cfg *config.RepoConfig) error {
 	dirs := []string{
 		cfg.RepoRoot,
 		cfg.CommitsDir(),
-		cfg.FilesetsDir(),
+		cfg.SnapshotsDir(),
 		cfg.BranchesDir(),
-		cfg.ObjectsDir(),
+		cfg.BlocksDir(),
 	}
 	for _, d := range dirs {
 		if err := fs.MkdirAll(d, 0o755); err != nil {
