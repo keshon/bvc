@@ -32,6 +32,7 @@ func (e *Entry) Equal(other *Entry) bool {
 
 // BlockContext abstracts block operations.
 type BlockContext interface {
+	GetBlocksDir() string
 	SplitFile(path string) ([]block.BlockRef, error)
 	Write(path string, blocks []block.BlockRef) error
 	Read(hash string) ([]byte, error)

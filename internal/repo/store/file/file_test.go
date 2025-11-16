@@ -36,33 +36,27 @@ func (b *mockBlock) Read(hash string) ([]byte, error) {
 	return append([]byte(nil), data...), nil
 }
 
+func (b *mockBlock) GetBlocksDir() string { return "" }
+
 // Helper to create FileContext with in-memory FS.
-func newTestBC(t *testing.T) (*block.BlockContext, string) {
-	t.Helper()
-	tmpDir := t.TempDir()
-	fs := fs.NewMemoryFS()
-	err := fs.MkdirAll(filepath.Join(tmpDir, "blocks"), 0o755)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	blockCtx := block.NewBlockContext(filepath.Join(tmpDir, "blocks"), fs)
-
-	return blockCtx, tmpDir
-}
-
 func newTestFC(t *testing.T) (*file.FileContext, string) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	fs := fs.NewMemoryFS()
-	blockCtx, _ := newTestBC(t)
 
-	tmpRepoRoot := filepath.Join(t.TempDir(), ".bvc")
-	err := fs.MkdirAll(tmpRepoRoot, 0o755)
-	if err != nil {
+	// ONE shared MemoryFS
+	mem := fs.NewMemoryFS()
+
+	// create blocks dir inside repo
+	repoRoot := filepath.Join(tmpDir, ".bvc")
+	if err := mem.MkdirAll(filepath.Join(repoRoot, "blocks"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	fc := file.NewFileContext(tmpDir, tmpRepoRoot, blockCtx, fs)
+	// create BlockContext using the SAME FS
+	blockCtx := block.NewBlockContext(filepath.Join(repoRoot, "blocks"), mem)
+
+	// FileContext using the same FS + same BlockCtx
+	fc := file.NewFileContext(tmpDir, repoRoot, blockCtx, mem)
+
 	return fc, tmpDir
 }

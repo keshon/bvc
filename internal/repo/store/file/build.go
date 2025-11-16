@@ -14,21 +14,18 @@ func (fc *FileContext) BuildEntry(path string) (Entry, error) {
 		return Entry{}, fmt.Errorf("no BlockContext attached")
 	}
 
-	// TODO: fix this abs/rel logic mess
-	// TODO: fix zero length files support
-	// Normalize to repository-relative path for consistency.
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return Entry{}, fmt.Errorf("resolve absolute path: %w", err)
-	}
+	// Normalize just the slashes and cleanliness, not absolute pathing
+	cleanPath := filepath.ToSlash(filepath.Clean(path))
 
-	relPath, err := filepath.Rel(fc.WorkingTreeDir, absPath)
+	// Compute repository-relative path using the same cleaned value
+	relPath, err := filepath.Rel(fc.WorkingTreeDir, cleanPath)
 	if err != nil {
 		return Entry{}, fmt.Errorf("resolve relative path: %w", err)
 	}
 	relPath = filepath.ToSlash(relPath)
 
-	blocks, err := fc.BlockCtx.SplitFile(absPath)
+	// Split based on FS path, not OS absolute path
+	blocks, err := fc.BlockCtx.SplitFile(cleanPath)
 	if err != nil {
 		return Entry{}, fmt.Errorf("split %q: %w", relPath, err)
 	}

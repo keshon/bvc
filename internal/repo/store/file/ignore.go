@@ -14,8 +14,7 @@ type Ignore struct {
 }
 
 // NewIgnore loads defaults and .bvc-ignore from the given repo root.
-func NewIgnore(repoRoot string) *Ignore {
-	fs := fs.NewOSFS()
+func NewIgnore(repoRoot string, fs fs.FS) *Ignore {
 	m := &Ignore{static: make(map[string]bool)}
 
 	// Default ignored files

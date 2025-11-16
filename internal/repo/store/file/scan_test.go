@@ -1,31 +1,25 @@
 package file_test
 
 import (
-	"app/internal/fs"
-	"app/internal/repo/store/file"
-	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestScanFiles(t *testing.T) {
-	tmp := t.TempDir()
+	fc, tmpDir := newTestFC(t)
 
-	// write real files on disk
-	_ = os.WriteFile(filepath.Join(tmp, "foo.txt"), []byte("ok"), 0o644)
-	_ = os.WriteFile(filepath.Join(tmp, "ignore.me"), []byte("ok"), 0o644)
+	// create working tree files using fc.FS
+	fc.FS.WriteFile(filepath.Join(tmpDir, "foo.txt"), []byte("ok"), 0o644)
+	fc.FS.WriteFile(filepath.Join(tmpDir, "ignore.me"), []byte("ok"), 0o644)
 
 	// create .bvc-ignore
-	_ = os.WriteFile(filepath.Join(tmp, ".bvc-ignore"), []byte("ignore.me\n"), 0o644)
-
-	// configure fc to point at tmp dir and to use a mock FS for index loads
-	fs := fs.NewMemoryFS()
-	fc := &file.FileContext{FS: fs, WorkingTreeDir: tmp, RepoDir: tmp}
+	fc.FS.WriteFile(filepath.Join(tmpDir, ".bvc-ignore"), []byte("ignore.me\n"), 0o644)
 
 	tracked, _, ignored, err := fc.ScanAllRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(tracked) == 0 {
 		t.Error("expected tracked files, got none")
 	}
@@ -35,9 +29,9 @@ func TestScanFiles(t *testing.T) {
 }
 
 func TestScanEmptyRepo(t *testing.T) {
-	tmp := t.TempDir()
-	fs := fs.NewMemoryFS()
-	fc := &file.FileContext{FS: fs, WorkingTreeDir: tmp, RepoDir: tmp}
+	fc, _ := newTestFC(t)
+
+	// no files created at all; just scan empty repo
 
 	tracked, staged, ignored, err := fc.ScanAllRepository()
 	if err != nil {
@@ -56,18 +50,18 @@ func TestScanEmptyRepo(t *testing.T) {
 }
 
 func TestScanNestedDirs(t *testing.T) {
-	tmp := t.TempDir()
-	os.MkdirAll(filepath.Join(tmp, "sub/dir"), 0o755)
-	os.WriteFile(filepath.Join(tmp, "sub/dir/a.txt"), []byte("x"), 0o644)
-	os.WriteFile(filepath.Join(tmp, "sub/b.txt"), []byte("y"), 0o644)
+	fc, tmpDir := newTestFC(t)
 
-	fs := fs.NewMemoryFS()
-	fc := &file.FileContext{FS: fs, WorkingTreeDir: tmp, RepoDir: tmp}
+	// create nested directories and files in the MemoryFS via fc.FS
+	fc.FS.MkdirAll(filepath.Join(tmpDir, "sub/dir"), 0o755)
+	fc.FS.WriteFile(filepath.Join(tmpDir, "sub/dir/a.txt"), []byte("x"), 0o644)
+	fc.FS.WriteFile(filepath.Join(tmpDir, "sub/b.txt"), []byte("y"), 0o644)
 
 	tracked, _, _, err := fc.ScanAllRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(tracked) != 2 {
 		t.Errorf("expected 2 tracked files, got %d", len(tracked))
 	}

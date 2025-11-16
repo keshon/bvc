@@ -55,6 +55,10 @@ func NewBlockContext(root string, fs fs.FS) *BlockContext {
 	return &BlockContext{BlocksDir: root, FS: fs}
 }
 
+func (bc *BlockContext) GetBlocksDir() string {
+	return bc.BlocksDir
+}
+
 // Read retrieves a block by its hash.
 func (bc *BlockContext) Read(hash string) ([]byte, error) {
 	path := filepath.Join(bc.BlocksDir, hash+".bin")

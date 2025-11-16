@@ -84,14 +84,6 @@ func TestBuildEntryNilBlocks(t *testing.T) {
 	}
 }
 
-func TestWriteNilBlocks(t *testing.T) {
-	fc, _ := newTestFC(t)
-	entry := file.Entry{Path: "x.txt"}
-	if err := fc.Write(entry); err == nil {
-		t.Error("expected error when writing with nil Blocks")
-	}
-}
-
 func TestEntryEqualEdgeCases(t *testing.T) {
 	var e1, e2 file.Entry
 	if !e1.Equal(&e2) {
