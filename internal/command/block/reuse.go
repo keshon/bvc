@@ -38,7 +38,7 @@ func (c *ReuseCommand) Run(ctx *command.Context) error {
 		}
 	}
 
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -60,7 +60,7 @@ func (c *ReuseCommand) Run(ctx *command.Context) error {
 			continue
 		}
 
-		fileset, err := r.GetCommitFileset(lastCommit.FilesetID)
+		fileset, err := r.GetCommittedFileset(lastCommit.FilesetID)
 		if err != nil {
 			continue
 		}

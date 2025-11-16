@@ -58,7 +58,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Open repository
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -84,7 +84,7 @@ func (c *Command) Run(ctx *command.Context) error {
 }
 
 func reset(targetID, mode string) error {
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -132,7 +132,7 @@ func reset(targetID, mode string) error {
 }
 
 func resetIndex(filesetID string) error {
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -154,7 +154,7 @@ func resetIndex(filesetID string) error {
 }
 
 func resetWorkingDirectory(filesetID string) error {
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

@@ -27,7 +27,7 @@ func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
 	// Open the repository
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

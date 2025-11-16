@@ -68,7 +68,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	quiet := ctx.Flags.Lookup("quiet").Value.(flag.Getter).Get().(bool) ||
 		ctx.Flags.Lookup("q").Value.(flag.Getter).Get().(bool)
 
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("open repo: %w", err)
 	}
@@ -84,7 +84,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	// head files
 	headFiles := map[string]file.Entry{}
 	if commitID, _ := r.Meta.GetLastCommitID(branch.Name); commitID != "" {
-		fs, err := r.GetCommitFileset(commitID)
+		fs, err := r.GetCommittedFileset(commitID)
 		if err != nil {
 			return err
 		}

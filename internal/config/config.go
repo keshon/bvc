@@ -22,10 +22,10 @@ type RepoConfig struct {
 }
 
 // NewRepoConfig creates a RepoConfig for a given root path.
-// If root == "", it automatically resolves it using ResolveRepoRoot().
+// If root == "", it automatically resolves it using ResolveRepoDir().
 func NewRepoConfig(root string) *RepoConfig {
 	if root == "" {
-		root = ResolveRepoRoot()
+		root = ResolveRepoDir()
 	}
 	cfg := &RepoConfig{RepoRoot: root}
 	cfg.WorkingTreeRoot = ResolveWorkingTreeRoot()

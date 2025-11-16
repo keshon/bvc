@@ -55,7 +55,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// determine repoDir
-	repoDir := config.ResolveRepoRoot()
+	repoDir := config.ResolveRepoDir()
 
 	// initialize FS
 	fs := fs.NewOSFS()

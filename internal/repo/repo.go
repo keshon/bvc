@@ -37,7 +37,7 @@ func NewRepository(cfg *config.RepoConfig) (*Repository, error) {
 	return r, nil
 }
 
-func (r *Repository) GetCommitFileset(commitID string) (*snapshot.Fileset, error) {
+func (r *Repository) GetCommittedFileset(commitID string) (*snapshot.Fileset, error) {
 	commit, err := r.Meta.GetCommit(commitID)
 	if err != nil {
 		return nil, err

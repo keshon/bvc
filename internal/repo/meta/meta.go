@@ -29,19 +29,16 @@ func NewMeta(cfg *config.RepoConfig, targetFS fs.FS) (*MetaContext, error) {
 		return nil, fmt.Errorf("nil MetaConfig provided")
 	}
 
-	// open existing meta if valid
-	if IsMetaExists(cfg) {
-		return &MetaContext{Config: cfg}, nil
-	}
-
-	// create new meta structure if missing
-	if err := createMetaStructure(cfg); err != nil {
-		return nil, err
-	}
-
 	// init fs
 	if targetFS == nil {
 		targetFS = fs.NewOSFS()
+	}
+
+	// open existing meta if valid
+	if !IsMetaExists(cfg) {
+		if err := createMetaStructure(cfg, targetFS); err != nil {
+			return nil, err
+		}
 	}
 
 	return &MetaContext{
@@ -51,9 +48,7 @@ func NewMeta(cfg *config.RepoConfig, targetFS fs.FS) (*MetaContext, error) {
 }
 
 // createMetaStructure builds a fresh meta layout and writes defaults.
-func createMetaStructure(cfg *config.RepoConfig) error {
-	fs := fs.NewOSFS()
-
+func createMetaStructure(cfg *config.RepoConfig, fs fs.FS) error {
 	dirs := []string{
 		cfg.RepoRoot,
 		cfg.CommitsDir(),

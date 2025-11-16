@@ -29,7 +29,7 @@ func (c *RepairCommand) Flags(fs *flag.FlagSet)         {}
 
 func (c *RepairCommand) Run(ctx *command.Context) error {
 	fs := fs.NewOSFS()
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}

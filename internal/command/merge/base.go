@@ -22,7 +22,7 @@ func findCommonAncestor(aCommitID, bCommitID string) (string, error) {
 	}
 
 	// Open the repository context
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return "", fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -196,7 +196,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// Open the repository context
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoRoot())
+	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
@@ -221,15 +221,15 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// load filesets
-	baseFS, err := r.GetCommitFileset(baseID)
+	baseFS, err := r.GetCommittedFileset(baseID)
 	if err != nil {
 		return fmt.Errorf("failed to load base fileset: %v", err)
 	}
-	oursFS, err := r.GetCommitFileset(currentCommitID)
+	oursFS, err := r.GetCommittedFileset(currentCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load our fileset: %v", err)
 	}
-	theirsFS, err := r.GetCommitFileset(targetCommitID)
+	theirsFS, err := r.GetCommittedFileset(targetCommitID)
 	if err != nil {
 		return fmt.Errorf("failed to load their fileset: %v", err)
 	}

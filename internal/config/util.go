@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 )
 
-// ResolveRepoRoot determines the actual repository root.
+// ResolveRepoDir determines the actual repository root.
 // It respects the .bvc-pointer file, if it exists.
-func ResolveRepoRoot() string {
+func ResolveRepoDir() string {
 	root := RepoDir
 	fs := fs.NewOSFS()
 

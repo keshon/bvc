@@ -1,6 +1,7 @@
 package file
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 )
@@ -11,16 +12,16 @@ import (
 // - staged: files already present in index.json
 // - ignored: files matched by .bvc-ignore or defaults
 func (fc *FileContext) ScanAllRepository() (tracked []string, staged []string, ignored []string, err error) {
+	exe, _ := os.Executable() // skip current binary
 	matcher := NewIgnore(fc.WorkingTreeDir, fc.FS)
 
-	// Load staged entries from index
+	// Load staged entries (index)
 	indexEntries, _ := fc.LoadIndex()
 	indexSet := make(map[string]struct{}, len(indexEntries))
 	for _, e := range indexEntries {
 		indexSet[filepath.ToSlash(filepath.Clean(e.Path))] = struct{}{}
 	}
 
-	// Internal helper: recursive FS walk
 	var walk func(path string) error
 	walk = func(path string) error {
 		entries, err := fc.FS.ReadDir(path)
@@ -32,13 +33,20 @@ func (fc *FileContext) ScanAllRepository() (tracked []string, staged []string, i
 			p := filepath.Join(path, e.Name())
 			info, _ := e.Info()
 
-			// Skip internal repo directory
+			// Skip internal repo directory completely
 			if info.IsDir() && filepath.Clean(p) == filepath.Clean(fc.RepoDir) {
 				continue
 			}
 
-			// Skip ignored directories
-			if info.IsDir() && matcher.Match(p) {
+			// Normalize relative path
+			relPath, err := filepath.Rel(fc.WorkingTreeDir, p)
+			if err != nil {
+				relPath = p
+			}
+			relPath = filepath.ToSlash(relPath)
+
+			// Skip ignored dirs entirely
+			if info.IsDir() && matcher.Match(relPath) {
 				ignored = append(ignored, p)
 				continue
 			}
@@ -51,14 +59,12 @@ func (fc *FileContext) ScanAllRepository() (tracked []string, staged []string, i
 				continue
 			}
 
-			// File: normalize path relative to working tree
-			relPath, err := filepath.Rel(fc.WorkingTreeDir, p)
-			if err != nil {
-				relPath = p
+			// Skip executable binary
+			if p == exe {
+				continue
 			}
-			relPath = filepath.ToSlash(relPath)
 
-			// Decide tracked/staged/ignored
+			// Decide where to put file
 			if matcher.Match(relPath) {
 				ignored = append(ignored, p)
 			} else if _, ok := indexSet[relPath]; ok {
@@ -67,7 +73,6 @@ func (fc *FileContext) ScanAllRepository() (tracked []string, staged []string, i
 				tracked = append(tracked, p)
 			}
 		}
-
 		return nil
 	}
 
