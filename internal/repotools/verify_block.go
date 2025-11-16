@@ -1,16 +1,17 @@
 package repotools
 
 import (
-	"app/internal/config"
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 
-	"app/internal/progress"
+	"github.com/keshon/bvc/internal/progress"
 
-	"app/internal/repo/store"
-	"app/internal/repo/store/block"
-	"app/internal/util"
 	"fmt"
 	"os"
+
+	"github.com/keshon/bvc/internal/repo/store"
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/util"
 )
 
 // VerifyBlocks checks all blocks in repository and shows a progress bar.

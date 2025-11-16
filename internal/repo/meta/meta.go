@@ -5,8 +5,8 @@ import (
 
 	"path/filepath"
 
-	"app/internal/config"
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 )
 
 // MetaContext represents an initialized repository.

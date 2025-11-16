@@ -3,11 +3,11 @@ package repotools
 import (
 	"path/filepath"
 
-	"app/internal/config"
-	"app/internal/repo/meta"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/repo/meta"
 
-	"app/internal/repo/store/snapshot"
-	"app/internal/util"
+	"github.com/keshon/bvc/internal/repo/store/snapshot"
+	"github.com/keshon/bvc/internal/util"
 )
 
 // ListAllBlocks returns a map[hash]*BlockInfo for all blocks in all branches.

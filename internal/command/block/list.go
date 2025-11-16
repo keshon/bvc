@@ -1,16 +1,17 @@
 package block
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/middleware"
-	"app/internal/repo"
-	"app/internal/repotools"
-	"app/internal/util"
 	"flag"
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/middleware"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repotools"
+	"github.com/keshon/bvc/internal/util"
 )
 
 type ListCommand struct{}

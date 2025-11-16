@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/fs"
 )
 
 // Swaps hooks helpers

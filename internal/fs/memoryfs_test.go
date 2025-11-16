@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/fs"
 )
 
 func TestMemoryFS_WriteReadFile(t *testing.T) {

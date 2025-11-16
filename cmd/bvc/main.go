@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"os"
 
-	"app/internal/command"
+	"github.com/keshon/bvc/internal/command"
 
 	// Register commands
-	_ "app/internal/command/add"
-	_ "app/internal/command/block"
-	_ "app/internal/command/branch"
-	_ "app/internal/command/checkout"
-	_ "app/internal/command/cherry-pick"
-	_ "app/internal/command/commit"
-	_ "app/internal/command/help"
-	_ "app/internal/command/init"
-	_ "app/internal/command/log"
-	_ "app/internal/command/merge"
-	_ "app/internal/command/reset"
-	_ "app/internal/command/status"
+	_ "github.com/keshon/bvc/internal/command/add"
+	_ "github.com/keshon/bvc/internal/command/block"
+	_ "github.com/keshon/bvc/internal/command/branch"
+	_ "github.com/keshon/bvc/internal/command/checkout"
+	_ "github.com/keshon/bvc/internal/command/cherry-pick"
+	_ "github.com/keshon/bvc/internal/command/commit"
+	_ "github.com/keshon/bvc/internal/command/help"
+	_ "github.com/keshon/bvc/internal/command/init"
+	_ "github.com/keshon/bvc/internal/command/log"
+	_ "github.com/keshon/bvc/internal/command/merge"
+	_ "github.com/keshon/bvc/internal/command/reset"
+	_ "github.com/keshon/bvc/internal/command/status"
 )
 
 func main() {

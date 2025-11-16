@@ -1,15 +1,16 @@
 package merge
 
 import (
-	"app/internal/config"
-	"app/internal/repo"
-	"app/internal/repo/meta"
-	"app/internal/repo/store/file"
-	"app/internal/repo/store/snapshot"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repo/meta"
+	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/store/snapshot"
 
 	"github.com/zeebo/xxh3"
 )

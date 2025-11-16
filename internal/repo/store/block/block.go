@@ -1,14 +1,15 @@
 package block
 
 import (
-	"app/internal/fs"
-	"app/internal/util"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
+
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/util"
 
 	"github.com/zeebo/xxh3"
 )

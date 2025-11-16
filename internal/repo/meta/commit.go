@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"app/internal/util"
+	"github.com/keshon/bvc/internal/util"
 )
 
 type Commit struct {

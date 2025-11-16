@@ -1,15 +1,16 @@
 package status
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/middleware"
-	"app/internal/repo"
-	"app/internal/repo/store/file"
 	"flag"
 	"fmt"
 	"path/filepath"
 	"sort"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/middleware"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repo/store/file"
 )
 
 type Command struct{}

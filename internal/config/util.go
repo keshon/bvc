@@ -1,9 +1,10 @@
 package config
 
 import (
-	"app/internal/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/keshon/bvc/internal/fs"
 )
 
 // ResolveRepoDir determines the actual repository root.

@@ -1,16 +1,17 @@
 package block
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/fs"
-	"app/internal/repo"
 	"flag"
 	"fmt"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/repo"
 )
 
 type ReuseCommand struct{}

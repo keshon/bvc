@@ -1,11 +1,12 @@
 package middleware
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/repo"
-	"app/internal/repotools"
 	"fmt"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repotools"
 )
 
 // WithBlockIntegrityCheck is a middleware that checks the integrity of the repository blocks

@@ -1,13 +1,14 @@
 package file_test
 
 import (
-	"app/internal/fs"
-	"app/internal/repo/store/block"
-	"app/internal/repo/store/file"
 	"fmt"
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/store/file"
 )
 
 type mockBlock struct {

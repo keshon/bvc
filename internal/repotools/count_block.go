@@ -1,11 +1,12 @@
 package repotools
 
 import (
-	"app/internal/config"
-	"app/internal/repo/meta"
-	"app/internal/repo/store/snapshot"
-	"app/internal/util"
 	"path/filepath"
+
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/repo/meta"
+	"github.com/keshon/bvc/internal/repo/store/snapshot"
+	"github.com/keshon/bvc/internal/util"
 )
 
 // CountBlocks returns the total number of blocks in all branches.

@@ -1,12 +1,13 @@
 package help
 
 import (
-	"app/internal/command"
-	"app/internal/middleware"
 	"flag"
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/middleware"
 )
 
 type Command struct{}

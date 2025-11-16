@@ -1,11 +1,12 @@
 package file
 
 import (
-	"app/internal/config"
-	"app/internal/fs"
 	"bufio"
 	"path/filepath"
 	"strings"
+
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 )
 
 type Ignore struct {

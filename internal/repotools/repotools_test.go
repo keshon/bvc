@@ -1,17 +1,18 @@
 package repotools_test
 
 import (
-	"app/internal/config"
-	"app/internal/fs"
-	"app/internal/repo/meta"
-	"app/internal/repo/store/block"
-	"app/internal/repotools"
-	"app/internal/util"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/repo/meta"
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repotools"
+	"github.com/keshon/bvc/internal/util"
 )
 
 // Helpers

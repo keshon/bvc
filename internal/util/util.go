@@ -1,12 +1,13 @@
 package util
 
 import (
-	"app/internal/fs"
 	"encoding/json"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"sync"
+
+	"github.com/keshon/bvc/internal/fs"
 )
 
 // WriteJSON writes a JSON file atomically using the FS interface.

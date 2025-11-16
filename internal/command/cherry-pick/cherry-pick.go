@@ -1,14 +1,15 @@
 package cherry_pick
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/middleware"
-	"app/internal/repo"
-	"app/internal/repo/meta"
 	"flag"
 	"fmt"
 	"time"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/middleware"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repo/meta"
 )
 
 type Command struct{}

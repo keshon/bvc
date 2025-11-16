@@ -1,10 +1,11 @@
 package file_test
 
 import (
-	"app/internal/repo/store/block"
-	"app/internal/repo/store/file"
 	"path/filepath"
 	"testing"
+
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/store/file"
 )
 
 func TestRestoreFiles(t *testing.T) {

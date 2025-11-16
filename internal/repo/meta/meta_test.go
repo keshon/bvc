@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"app/internal/config"
+	"github.com/keshon/bvc/internal/config"
 
-	"app/internal/repo"
-	"app/internal/repo/meta"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repo/meta"
 )
 
 // helpers

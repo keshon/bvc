@@ -1,11 +1,12 @@
 package file
 
 import (
-	"app/internal/progress"
 	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/keshon/bvc/internal/progress"
 )
 
 // Restore rebuilds files from entries (e.g., from a snapshot).

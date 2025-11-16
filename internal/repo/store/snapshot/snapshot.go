@@ -1,14 +1,15 @@
 package snapshot
 
 import (
-	"app/internal/fs"
-	"app/internal/progress"
-	"app/internal/repo/store/block"
-	"app/internal/repo/store/file"
-	"app/internal/util"
 	"fmt"
 	"path/filepath"
 	"sort"
+
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/progress"
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/util"
 )
 
 // SnapshotContext handles higher-level operations (filesets, commits)

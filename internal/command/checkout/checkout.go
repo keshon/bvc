@@ -1,12 +1,13 @@
 package checkout
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/middleware"
-	"app/internal/repo"
 	"flag"
 	"fmt"
+
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/middleware"
+	"github.com/keshon/bvc/internal/repo"
 )
 
 type Command struct{}

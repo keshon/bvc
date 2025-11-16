@@ -1,8 +1,8 @@
 package file
 
 import (
-	"app/internal/fs"
-	"app/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/repo/store/block"
 )
 
 // Entry represents a tracked file and its content blocks.

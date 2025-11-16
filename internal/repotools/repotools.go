@@ -1,6 +1,6 @@
 package repotools
 
-import "app/internal/repo/meta"
+import "github.com/keshon/bvc/internal/repo/meta"
 
 // MetaInterface is the minimal interface repotools needs from a repo's meta layer.
 type MetaInterface interface {

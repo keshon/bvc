@@ -1,16 +1,17 @@
 package init_test
 
 import (
-	"app/internal/command"
-	initcmd "app/internal/command/init"
-	"app/internal/config"
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/command"
+	initcmd "github.com/keshon/bvc/internal/command/init"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 
-	"app/internal/repo"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/keshon/bvc/internal/repo"
 )
 
 // helpers

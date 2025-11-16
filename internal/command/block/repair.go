@@ -1,18 +1,19 @@
 package block
 
 import (
-	"app/internal/command"
-	"app/internal/config"
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 
-	"app/internal/repo"
-	"app/internal/repo/store/block"
-	"app/internal/repotools"
 	"flag"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repotools"
 )
 
 type RepairCommand struct{}

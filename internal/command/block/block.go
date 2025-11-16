@@ -1,9 +1,10 @@
 package block
 
 import (
-	"app/internal/command"
 	"flag"
 	"fmt"
+
+	"github.com/keshon/bvc/internal/command"
 )
 
 // Base command for "block"

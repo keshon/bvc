@@ -1,10 +1,10 @@
 package repo
 
 import (
-	"app/internal/config"
-	"app/internal/repo/meta"
-	"app/internal/repo/store"
-	"app/internal/repo/store/snapshot"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/repo/meta"
+	"github.com/keshon/bvc/internal/repo/store"
+	"github.com/keshon/bvc/internal/repo/store/snapshot"
 )
 
 type Repository struct {

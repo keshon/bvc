@@ -1,13 +1,14 @@
 package block
 
 import (
-	"app/internal/config"
-	"app/internal/fs"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 
-	"app/internal/repo/store/block"
 	"fmt"
 	"path/filepath"
 	"sort"
+
+	"github.com/keshon/bvc/internal/repo/store/block"
 
 	"github.com/zeebo/xxh3"
 )

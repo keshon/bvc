@@ -1,11 +1,12 @@
 package file
 
 import (
-	"app/internal/progress"
-	"app/internal/util"
 	"fmt"
 	"path/filepath"
 	"sync"
+
+	"github.com/keshon/bvc/internal/progress"
+	"github.com/keshon/bvc/internal/util"
 )
 
 // BuildEntry splits a file into block references (content-defined).

@@ -1,11 +1,12 @@
 package fs_test
 
 import (
-	"app/internal/fs"
 	"errors"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/keshon/bvc/internal/fs"
 )
 
 func TestHookOverrides(t *testing.T) {

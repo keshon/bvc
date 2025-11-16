@@ -3,11 +3,11 @@ package store
 import (
 	"fmt"
 
-	"app/internal/config"
-	"app/internal/fs"
-	"app/internal/repo/store/block"
-	"app/internal/repo/store/file"
-	"app/internal/repo/store/snapshot"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
+	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/store/snapshot"
 )
 
 // StoreContext is the high-level store abstraction that unifies all subsystems.
