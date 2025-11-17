@@ -61,11 +61,7 @@ func SortedKeys[M ~map[string]V, V any](m M) []string {
 
 // WorkerCount returns the number of workers for concurrent operations.
 func WorkerCount() int {
-	workers := runtime.NumCPU()
-	// if runtime.GOOS == "windows" && workers > 2 {
-	// 	workers = 2 // limit concurrency on Windows
-	// }
-	return workers
+	return runtime.NumCPU()
 }
 
 // Parallel runs fn concurrently for each item in inputs, limited by workerLimit.

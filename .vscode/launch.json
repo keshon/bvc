@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug: bvc block reuse",
+            "type": "go",
+            "request": "launch",
+            "program": "${workspaceFolder}/cmd/bvc",
+            "args": ["block", "reuse"],
+            "cwd": "${workspaceFolder}/temp",
+            "console": "integratedTerminal",
+            "env": {
+                "BVC_DEBUG": "1"
+            }
+        }
+    ]
+}

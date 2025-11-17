@@ -35,7 +35,7 @@ func makeSnapshotContext(t *testing.T, root string, fm *file.FileContext, bm *bl
 func TestSnapshotContextWorkflow(t *testing.T) {
 	root := makeTempDir(t)
 
-	// setup managers
+	// setup store contexts
 	bm := makeBlockContext(t, filepath.Join(root, "blocks"))
 	fm := makeFileContext(t, filepath.Join(root, "files"), bm)
 	sm := makeSnapshotContext(t, filepath.Join(root, "snapshots"), fm, bm)

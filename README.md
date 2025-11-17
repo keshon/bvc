@@ -138,12 +138,20 @@ Repair any missing or damaged blocks automatically.
 ### reset
 ```
 reset [<commit-id>] [--soft|--mixed|--hard]
-Reset the current branch.
+Reset current branch.
+
 Modes:
   --soft  : move HEAD only
   --mixed : move HEAD and reset index (default)
   --hard  : move HEAD, reset index and working directory
-If <commit-id> is omitted, the last commit is used (mixed).
+
+If <commit-id> is omitted, the last commit is used.
+```
+
+### reuse
+```
+block reuse [--full] [--export]
+Analyze block reuse across branches
 ```
 
 ### reuse

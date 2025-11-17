@@ -64,7 +64,8 @@ func (c *ReuseCommand) Run(ctx *command.Context) error {
 			continue
 		}
 
-		fileset, err := r.GetCommittedFileset(lastCommit.FilesetID)
+		fileset, err := r.GetCommittedFileset(lastCommit.ID)
+
 		if err != nil {
 			continue
 		}
