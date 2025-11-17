@@ -73,7 +73,7 @@ func VerifyBlocksStream(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommi
 			errCh <- fmt.Errorf("failed to init store: %w", err)
 			return
 		}
-		verifyOut := st.Blocks.Verify(hashes, util.WorkerCount())
+		verifyOut := st.BlockCtx.Verify(hashes, util.WorkerCount())
 
 		for bc := range verifyOut {
 			ref := blocks[bc.Hash]

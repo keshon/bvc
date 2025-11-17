@@ -13,7 +13,14 @@ import (
 	"github.com/keshon/bvc/internal/repo/store/file"
 )
 
-type Command struct{}
+type Command struct {
+	short          bool
+	porcelain      bool
+	branch         bool
+	untrackedFiles string
+	ignored        bool
+	quiet          bool
+}
 
 func (c *Command) Name() string      { return "status" }
 func (c *Command) Short() string     { return "S" }
@@ -37,16 +44,21 @@ Options:
 func (c *Command) Subcommands() []command.Command { return nil }
 
 func (c *Command) Flags(fs *flag.FlagSet) {
-	fs.Bool("short", false, "show short summary")
-	fs.Bool("s", false, "alias for --short")
-	fs.Bool("porcelain", false, "machine-readable short output")
-	fs.Bool("branch", false, "")
-	fs.Bool("b", false, "alias for --branch")
-	fs.String("untracked-files", "normal", "")
-	fs.String("u", "normal", "alias for --untracked-files")
-	fs.Bool("ignored", false, "")
-	fs.Bool("quiet", false, "")
-	fs.Bool("q", false, "alias for --quiet")
+	fs.BoolVar(&c.short, "short", false, "show short summary")
+	fs.BoolVar(&c.short, "s", false, "alias for --short")
+
+	fs.BoolVar(&c.porcelain, "porcelain", false, "machine-readable short output")
+
+	fs.BoolVar(&c.branch, "branch", false, "")
+	fs.BoolVar(&c.branch, "b", false, "alias for --branch")
+
+	fs.StringVar(&c.untrackedFiles, "untracked-files", "normal", "")
+	fs.StringVar(&c.untrackedFiles, "u", "normal", "alias for --untracked-files")
+
+	fs.BoolVar(&c.ignored, "ignored", false, "")
+
+	fs.BoolVar(&c.quiet, "quiet", false, "")
+	fs.BoolVar(&c.quiet, "q", false, "alias for --quiet")
 }
 
 type statusItem struct {
@@ -56,18 +68,16 @@ type statusItem struct {
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	short := ctx.Flags.Lookup("short").Value.(flag.Getter).Get().(bool) ||
-		ctx.Flags.Lookup("s").Value.(flag.Getter).Get().(bool)
-	porcelain := ctx.Flags.Lookup("porcelain").Value.(flag.Getter).Get().(bool)
-	showBranch := ctx.Flags.Lookup("branch").Value.(flag.Getter).Get().(bool) ||
-		ctx.Flags.Lookup("b").Value.(flag.Getter).Get().(bool)
-	untrackedMode := ctx.Flags.Lookup("untracked-files").Value.(flag.Getter).Get().(string)
-	if u := ctx.Flags.Lookup("u"); u != nil {
-		untrackedMode = u.Value.(flag.Getter).Get().(string)
+	short := c.short
+	porcelain := c.porcelain
+	showBranch := c.branch
+	showIgnored := c.ignored
+	quiet := c.quiet
+	untrackedMode := c.untrackedFiles
+
+	if untrackedMode == "" {
+		untrackedMode = "normal"
 	}
-	showIgnored := ctx.Flags.Lookup("ignored").Value.(flag.Getter).Get().(bool)
-	quiet := ctx.Flags.Lookup("quiet").Value.(flag.Getter).Get().(bool) ||
-		ctx.Flags.Lookup("q").Value.(flag.Getter).Get().(bool)
 
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
@@ -95,7 +105,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// work, staged, ignored filesets
-	workFS, stagedFS, ignoredFS, err := r.Store.Snapshots.BuildAllRepositoryFilesets()
+	workFS, stagedFS, ignoredFS, err := r.Store.SnapshotCtx.BuildAllRepositoryFilesets()
 	if err != nil {
 		return fmt.Errorf("scan working tree: %w", err)
 	}

@@ -69,7 +69,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// get staged files
-	stagedFileentries, err := r.Store.Files.LoadIndex()
+	stagedFileentries, err := r.Store.FileCtx.LoadIndex()
 	if err != nil {
 		return err
 	}
@@ -79,13 +79,13 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// create fileset from staged files (or empty fileset if --allow-empty)
-	fileset, err := r.Store.Snapshots.BuildFilesetFromEntries(stagedFileentries)
+	fileset, err := r.Store.SnapshotCtx.BuildFilesetFromEntries(stagedFileentries)
 	if err != nil {
 		return err
 	}
 
 	if len(fileset.Files) > 0 {
-		if err := r.Store.Snapshots.WriteAndSave(&fileset); err != nil {
+		if err := r.Store.SnapshotCtx.WriteAndSave(&fileset); err != nil {
 			return err
 		}
 	}
@@ -121,7 +121,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// clear staged changes after commit
 	if len(stagedFileentries) > 0 {
-		if err := r.Store.Files.ClearIndex(); err != nil {
+		if err := r.Store.FileCtx.ClearIndex(); err != nil {
 			return err
 		}
 	}

@@ -14,7 +14,10 @@ import (
 	"github.com/keshon/bvc/internal/repo"
 )
 
-type ReuseCommand struct{}
+type ReuseCommand struct {
+	full   bool
+	export bool
+}
 
 func (c *ReuseCommand) Name() string                   { return "reuse" }
 func (c *ReuseCommand) Brief() string                  { return "Analyze block reuse across the repo" }
@@ -23,13 +26,13 @@ func (c *ReuseCommand) Help() string                   { return "Analyze block r
 func (c *ReuseCommand) Aliases() []string              { return []string{"a"} }
 func (c *ReuseCommand) Subcommands() []command.Command { return nil }
 func (c *ReuseCommand) Flags(fs *flag.FlagSet) {
-	fs.Bool("full", false, "Print detailed shared block list")
-	fs.Bool("export", false, "Save output to file")
+	fs.BoolVar(&c.full, "full", false, "Print detailed shared block list")
+	fs.BoolVar(&c.export, "export", false, "Save output to file")
 }
 
 func (c *ReuseCommand) Run(ctx *command.Context) error {
-	full := ctx.Flags.Lookup("full").Value.(flag.Getter).Get().(bool)
-	export := ctx.Flags.Lookup("export").Value.(flag.Getter).Get().(bool)
+	full := c.full
+	export := c.export
 
 	var exportBuf strings.Builder
 	writeOut := func(s string) {

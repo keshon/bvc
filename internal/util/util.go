@@ -98,19 +98,3 @@ func Parallel[T any](inputs []T, workerLimit int, fn func(T) error) error {
 	}
 	return nil
 }
-
-func AbsToRelPath(absPath string, rootPath string) string {
-	rel, err := filepath.Rel(rootPath, absPath)
-	if err != nil {
-		return absPath
-	}
-	return rel
-}
-
-func RelToAbsPath(relPath string, rootPath string) string {
-	abs, err := filepath.Abs(filepath.Join(rootPath, relPath))
-	if err != nil {
-		return relPath
-	}
-	return abs
-}

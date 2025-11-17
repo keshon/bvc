@@ -26,7 +26,6 @@ func (c *Command) Subcommands() []command.Command { return nil }
 func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
-	// require branch name
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("branch name required")
 	}
@@ -54,7 +53,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// case 1: handle empty branch
 	if commitID == "" {
-		if err := r.Store.Files.RestoreFilesToWorkingTree(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
+		if err := r.Store.FileCtx.RestoreFilesToWorkingTree(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
 			return err
 		}
 		if _, err := r.Meta.SetHeadRef(branchName); err != nil {
@@ -71,13 +70,13 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
 	}
 
-	fs, err := r.Store.Snapshots.Load(commit.FilesetID)
+	fs, err := r.Store.SnapshotCtx.Load(commit.FilesetID)
 	if err != nil {
 		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
 	}
 
 	// restore files
-	if err := r.Store.Files.RestoreFilesToWorkingTree(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
+	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
 		return fmt.Errorf("restore failed: %w", err)
 	}
 

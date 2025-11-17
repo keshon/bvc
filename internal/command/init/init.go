@@ -14,7 +14,11 @@ import (
 	"github.com/keshon/bvc/internal/repo"
 )
 
-type Command struct{}
+type Command struct {
+	quiet          bool
+	separateBvcDir string
+	initialBranch  string
+}
 
 func (c *Command) Name() string      { return "init" }
 func (c *Command) Short() string     { return "i" }
@@ -39,33 +43,28 @@ Examples:
   bvc init --initial-branch=master
 `
 }
-func (c *Command) Flags(fs *flag.FlagSet)         {}
+func (c *Command) Flags(fs *flag.FlagSet) {
+	fs.BoolVar(&c.quiet, "quiet", false, "Suppress normal output.")
+
+	fs.StringVar(&c.separateBvcDir, "separate-bvc-dir", "", "Store repository data in a separate directory.")
+
+	fs.StringVar(&c.initialBranch, "initial-branch", config.DefaultBranch, "Use a custom initial branch name (default: main).")
+}
 func (c *Command) Subcommands() []command.Command { return nil }
 
 func (c *Command) Run(ctx *command.Context) error {
-	fset := flag.NewFlagSet("init", flag.ContinueOnError)
+	quiet := c.quiet
+	sepDir := c.separateBvcDir
+	initBranch := c.initialBranch
 
-	quiet := fset.Bool("quiet", false, "")
-	fset.BoolVar(quiet, "q", false, "alias for --quiet")
-	sepDir := fset.String("separate-bvc-dir", "", "")
-	initBranch := fset.String("initial-branch", config.DefaultBranch, "")
-	fset.StringVar(initBranch, "b", config.DefaultBranch, "alias for --initial-branch")
-
-	if err := fset.Parse(ctx.Args); err != nil {
-		return err
-	}
-
-	// determine repoDir
 	repoDir := config.ResolveRepoDir()
-
-	// initialize FS
 	fs := fs.NewOSFS()
 
 	// if --separate-bvc-dir is provided, override pointer
-	if *sepDir != "" {
-		repoDir = *sepDir
+	if sepDir != "" {
+		repoDir = sepDir
 		linkFile := filepath.Join(".", config.RepoPointerFile)
-		if err := fs.WriteFile(linkFile, []byte(*sepDir), 0o644); err != nil {
+		if err := fs.WriteFile(linkFile, []byte(sepDir), 0o644); err != nil {
 			return fmt.Errorf("failed to write separate-bvc-dir pointer file: %w", err)
 		}
 	}
@@ -81,19 +80,19 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// warn if initial branch was specified but repo already exists
-	if alreadyExists && *initBranch != config.DefaultBranch {
-		fmt.Fprintf(os.Stderr, "warning: re-init: ignored --initial-branch=%s\n", *initBranch)
+	if alreadyExists && initBranch != config.DefaultBranch {
+		fmt.Fprintf(os.Stderr, "warning: re-init: ignored --initial-branch=%s\n", initBranch)
 	}
 
 	// set HEAD only if new repo
 	if !alreadyExists {
-		if _, err := r.Meta.SetHeadRef(*initBranch); err != nil {
-			return fmt.Errorf("failed to set initial branch %q: %w", *initBranch, err)
+		if _, err := r.Meta.SetHeadRef(initBranch); err != nil {
+			return fmt.Errorf("failed to set initial branch %q: %w", initBranch, err)
 		}
 	}
 
 	// output messages
-	if !*quiet {
+	if !quiet {
 		root := absPath(r.Config.RepoDir)
 		if alreadyExists {
 			fmt.Printf("Reinitialized existing BVC repository in %s\n", root)

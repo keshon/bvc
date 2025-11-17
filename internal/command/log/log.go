@@ -14,7 +14,13 @@ import (
 	"github.com/keshon/bvc/internal/repo/meta"
 )
 
-type Command struct{}
+type Command struct {
+	all     bool
+	oneline bool
+	limit   int
+	since   string
+	until   string
+}
 
 func (c *Command) Name() string      { return "log" }
 func (c *Command) Short() string     { return "l" }
@@ -45,21 +51,24 @@ func (c *Command) Subcommands() []command.Command {
 	return nil
 }
 func (c *Command) Flags(fs *flag.FlagSet) {
-	fs.Bool("all", false, "show commits from all branches")
-	fs.Bool("a", false, "alias for --all")
-	fs.Bool("oneline", false, "show each commit on one line")
-	fs.Int("n", 0, "limit number of commits")
-	fs.String("since", "", "show commits after date YYYY-MM-DD")
-	fs.String("until", "", "show commits before date YYYY-MM-DD")
+	fs.BoolVar(&c.all, "all", false, "show commits from all branches")
+	fs.BoolVar(&c.all, "a", false, "alias for --all")
+
+	fs.BoolVar(&c.oneline, "oneline", false, "show each commit on one line")
+
+	fs.IntVar(&c.limit, "n", 0, "limit number of commits")
+
+	fs.StringVar(&c.since, "since", "", "show commits after date YYYY-MM-DD")
+
+	fs.StringVar(&c.until, "until", "", "show commits before date YYYY-MM-DD")
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	showAll := ctx.Flags.Lookup("all").Value.(flag.Getter).Get().(bool) ||
-		ctx.Flags.Lookup("a").Value.(flag.Getter).Get().(bool)
-	oneline := ctx.Flags.Lookup("oneline").Value.(flag.Getter).Get().(bool)
-	n := ctx.Flags.Lookup("n").Value.(flag.Getter).Get().(int)
-	since := ctx.Flags.Lookup("since").Value.(flag.Getter).Get().(string)
-	until := ctx.Flags.Lookup("until").Value.(flag.Getter).Get().(string)
+	showAll := c.all
+	oneline := c.oneline
+	n := c.limit
+	since := c.since
+	until := c.until
 
 	branchArg := ""
 	args := ctx.Flags.Args()

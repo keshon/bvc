@@ -42,7 +42,7 @@ func (r *Repository) GetCommittedFileset(commitID string) (*snapshot.Fileset, er
 	if err != nil {
 		return nil, err
 	}
-	fs, err := r.Store.Snapshots.Load(commit.FilesetID)
+	fs, err := r.Store.SnapshotCtx.Load(commit.FilesetID)
 	if err != nil {
 		return nil, err
 	}

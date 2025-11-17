@@ -81,7 +81,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := r.Store.Files.BuildEntry(currFile)
+			entry, err := r.Store.FileCtx.BuildEntry(currFile)
 			if err != nil {
 				continue
 			}
@@ -89,10 +89,10 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 				if b.Hash != bc.Hash {
 					continue
 				}
-				if err := r.Store.Blocks.Write(entry.Path, []block.BlockRef{b}); err != nil {
+				if err := r.Store.BlockCtx.Write(entry.Path, []block.BlockRef{b}); err != nil {
 					continue
 				}
-				status, _ := r.Store.Blocks.VerifyBlock(b.Hash)
+				status, _ := r.Store.BlockCtx.VerifyBlock(b.Hash)
 				if status == block.OK {
 					fixed = true
 					repaired++

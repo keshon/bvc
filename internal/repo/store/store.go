@@ -12,18 +12,18 @@ import (
 
 // StoreContext is the high-level store abstraction that unifies all subsystems.
 type StoreContext struct {
-	Config    *config.RepoConfig
-	Blocks    *block.BlockContext
-	Files     *file.FileContext
-	Snapshots *snapshot.SnapshotContext
+	Config      *config.RepoConfig
+	BlockCtx    *block.BlockContext
+	FileCtx     *file.FileContext
+	SnapshotCtx *snapshot.SnapshotContext
 }
 
 // NewStoreOptions allows optional dependency injection (FS, BlockStore)
 type NewStoreOptions struct {
-	FS        fs.FS
-	Blocks    *block.BlockContext
-	Files     *file.FileContext
-	Snapshots *snapshot.SnapshotContext
+	FS          fs.FS
+	BlockCtx    *block.BlockContext
+	FileCtx     *file.FileContext
+	SnapshotCtx *snapshot.SnapshotContext
 }
 
 // NewStoreDefault creates a store with default dependencies (FS, BlockStore)
@@ -45,20 +45,20 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 
 	// Resolve BlockContext
 	blockCtx := block.NewBlockContext(cfg.BlocksDir(), fs)
-	if opts != nil && opts.Blocks != nil {
-		blockCtx = opts.Blocks
+	if opts != nil && opts.BlockCtx != nil {
+		blockCtx = opts.BlockCtx
 	}
 
 	// Resolve FileContext
 	fileCtx := file.NewFileContext(cfg.WorkingTreeDir, cfg.RepoDir, blockCtx, fs)
-	if opts != nil && opts.Files != nil {
-		fileCtx = opts.Files
+	if opts != nil && opts.FileCtx != nil {
+		fileCtx = opts.FileCtx
 	}
 
 	// Resolve SnapshotContext
 	snapshotCtx := snapshot.NewSnapshotContext(cfg.SnapshotsDir(), fileCtx, blockCtx, fs)
-	if opts != nil && opts.Snapshots != nil {
-		snapshotCtx = opts.Snapshots
+	if opts != nil && opts.SnapshotCtx != nil {
+		snapshotCtx = opts.SnapshotCtx
 	}
 
 	// Ensure store layout
@@ -69,10 +69,10 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 	}
 
 	return &StoreContext{
-		Config:    cfg,
-		Blocks:    blockCtx,
-		Files:     fileCtx,
-		Snapshots: snapshotCtx,
+		Config:      cfg,
+		BlockCtx:    blockCtx,
+		FileCtx:     fileCtx,
+		SnapshotCtx: snapshotCtx,
 	}, nil
 }
 

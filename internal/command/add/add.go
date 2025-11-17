@@ -13,7 +13,10 @@ import (
 	"github.com/keshon/bvc/internal/repo/store/file"
 )
 
-type Command struct{}
+type Command struct {
+	all    bool
+	update bool
+}
 
 func (c *Command) Name() string  { return "add" }
 func (c *Command) Brief() string { return "Stage files or directories for the next commit" }
@@ -30,13 +33,13 @@ Usage:
 func (c *Command) Aliases() []string              { return nil }
 func (c *Command) Subcommands() []command.Command { return nil }
 func (c *Command) Flags(fs *flag.FlagSet) {
-	fs.Bool("all", false, "Stage all changes, including deletions (-A)")
-	fs.Bool("update", false, "Stage modifications and deletions only (-u)")
+	fs.BoolVar(&c.all, "all", false, "Stage all changes, including deletions (-A)")
+	fs.BoolVar(&c.update, "update", false, "Stage modifications and deletions only (-u)")
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	includeAll := ctx.Flags.Lookup("all").Value.(flag.Getter).Get().(bool)
-	updateOnly := ctx.Flags.Lookup("update").Value.(flag.Getter).Get().(bool)
+	includeAll := c.all
+	updateOnly := c.update
 
 	args := filterNonFlags(ctx.Args)
 	if len(args) == 0 {
@@ -50,7 +53,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Collect repo filesets (working, staged, ignored)
-	trackedFS, stagedFS, _, err := r.Store.Snapshots.BuildAllRepositoryFilesets()
+	trackedFS, stagedFS, _, err := r.Store.SnapshotCtx.BuildAllRepositoryFilesets()
 	if err != nil {
 		return fmt.Errorf("failed to scan repository files: %w", err)
 	}
@@ -87,7 +90,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Write staged entries to index
-	if err := r.Store.Files.SaveIndexMerge(entries); err != nil {
+	if err := r.Store.FileCtx.SaveIndexMerge(entries); err != nil {
 		return fmt.Errorf("failed to update index: %w", err)
 	}
 

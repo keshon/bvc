@@ -28,7 +28,6 @@ func (c *Command) Subcommands() []command.Command { return nil }
 func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
-	// require commit ID
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("commit ID required")
 	}
@@ -46,7 +45,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
-	targetFileset, err := r.Store.Snapshots.Load(targetCommit.FilesetID)
+	targetFileset, err := r.Store.SnapshotCtx.Load(targetCommit.FilesetID)
 	if err != nil {
 		return err
 	}
@@ -85,7 +84,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// restore files from picked commit
-	if err := r.Store.Files.RestoreFilesToWorkingTree(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

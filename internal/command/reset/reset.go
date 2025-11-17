@@ -10,7 +10,11 @@ import (
 	"github.com/keshon/bvc/internal/repo"
 )
 
-type Command struct{}
+type Command struct {
+	soft  bool
+	mixed bool
+	hard  bool
+}
 
 func (c *Command) Name() string      { return "reset" }
 func (c *Command) Short() string     { return "R" }
@@ -18,50 +22,53 @@ func (c *Command) Aliases() []string { return []string{"drop"} }
 func (c *Command) Usage() string     { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
 func (c *Command) Brief() string     { return "Reset current branch to a commit or HEAD" }
 func (c *Command) Help() string {
-	return `Reset the current branch.
+	return `Reset current branch.
+
 Modes:
   --soft  : move HEAD only
   --mixed : move HEAD and reset index (default)
   --hard  : move HEAD, reset index and working directory
-If <commit-id> is omitted, the last commit is used (mixed).`
+
+If <commit-id> is omitted, the last commit is used.`
 }
 
-func (c *Command) Subcommands() []command.Command {
-	return nil
-}
+func (c *Command) Subcommands() []command.Command { return nil }
+
 func (c *Command) Flags(fs *flag.FlagSet) {
-	fs.Bool("soft", false, "move HEAD only")
-	fs.Bool("mixed", false, "move HEAD and reset index (default)")
-	fs.Bool("hard", false, "move HEAD, reset index and working directory")
+	fs.BoolVar(&c.soft, "soft", false, "move HEAD only")
+	fs.BoolVar(&c.mixed, "mixed", false, "move HEAD and reset index (default)")
+	fs.BoolVar(&c.hard, "hard", false, "move HEAD, reset index and working directory")
 }
 
-// Run executes the reset command
 func (c *Command) Run(ctx *command.Context) error {
-	// extract flags
-	soft := ctx.Flags.Lookup("soft").Value.(flag.Getter).Get().(bool)
-	hard := ctx.Flags.Lookup("hard").Value.(flag.Getter).Get().(bool)
+	soft := c.soft
+	mixed := c.mixed
+	hard := c.hard
 
-	mode := "mixed"
+	mode := "mixed" // default mode
+	count := 0
+
 	if soft {
 		mode = "soft"
+		count++
+	}
+	if mixed {
+		mode = "mixed"
+		count++
 	}
 	if hard {
-		if mode != "mixed" {
-			return fmt.Errorf("conflicting reset modes: %s and hard", mode)
-		}
 		mode = "hard"
+		count++
 	}
 
-	// extract optional commit-id (non-flag args)
-	targetID := ""
-	if len(ctx.Args) > 0 {
-		targetID = ctx.Args[0]
+	if count > 1 {
+		return fmt.Errorf("conflicting reset modes specified")
 	}
 
-	// Open repository
+	// repo open once
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return fmt.Errorf("open repository: %w", err)
 	}
 
 	branch, err := r.Meta.GetCurrentBranch()
@@ -69,11 +76,17 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
-	// If no commit-id, use last commit
+	// extract commit-id argument
+	targetID := ""
+	if len(ctx.Args) > 0 {
+		targetID = ctx.Args[0]
+	}
+
+	// if no commit specified — use last
 	if targetID == "" {
 		last, err := r.Meta.GetLastCommitID(branch.Name)
 		if err != nil {
-			return fmt.Errorf("cannot determine last commit: %v", err)
+			return fmt.Errorf("cannot determine last commit: %w", err)
 		}
 		if last == "" {
 			return fmt.Errorf("no commits to reset to")
@@ -81,47 +94,35 @@ func (c *Command) Run(ctx *command.Context) error {
 		targetID = last
 	}
 
-	return reset(targetID, mode)
-}
-
-func reset(targetID, mode string) error {
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
+	// validate commit exists
 	target, err := r.Meta.GetCommit(targetID)
 	if err != nil {
 		return fmt.Errorf("unknown commit: %s", targetID)
 	}
 
-	branch, err := r.Meta.GetCurrentBranch()
-	if err != nil {
+	return c.reset(r, branch.Name, targetID, target.FilesetID, mode)
+}
+
+func (c *Command) reset(r *repo.Repository, branchName, targetID, filesetID, mode string) error {
+	fmt.Printf("Resetting branch '%s' to commit %s (%s)...\n", branchName, targetID, mode)
+
+	// move HEAD for all modes
+	if err := r.Meta.SetLastCommitID(branchName, targetID); err != nil {
 		return err
 	}
 
-	fmt.Printf("Resetting branch '%s' to commit %s (%s)...\n", branch.Name, targetID, mode)
-
 	switch mode {
 	case "soft":
-		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
-			return err
-		}
+		// nothing else
 	case "mixed":
-		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
-			return err
-		}
-		if err := resetIndex(target.FilesetID); err != nil {
+		if err := c.resetIndex(r, filesetID); err != nil {
 			return err
 		}
 	case "hard":
-		if err := r.Meta.SetLastCommitID(branch.Name, targetID); err != nil {
+		if err := c.resetIndex(r, filesetID); err != nil {
 			return err
 		}
-		if err := resetIndex(target.FilesetID); err != nil {
-			return err
-		}
-		if err := resetWorkingDirectory(target.FilesetID); err != nil {
+		if err := c.resetWorkingDirectory(r, filesetID); err != nil {
 			return err
 		}
 	default:
@@ -132,21 +133,16 @@ func reset(targetID, mode string) error {
 	return nil
 }
 
-func resetIndex(filesetID string) error {
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	fs, err := r.Store.Snapshots.Load(filesetID)
+func (c *Command) resetIndex(r *repo.Repository, filesetID string) error {
+	fs, err := r.Store.SnapshotCtx.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	if err := r.Store.Files.ClearIndex(); err != nil {
+	if err := r.Store.FileCtx.ClearIndex(); err != nil {
 		return err
 	}
-	if err := r.Store.Files.SaveIndexReplace(fs.Files); err != nil {
+	if err := r.Store.FileCtx.SaveIndexReplace(fs.Files); err != nil {
 		return err
 	}
 
@@ -154,18 +150,15 @@ func resetIndex(filesetID string) error {
 	return nil
 }
 
-func resetWorkingDirectory(filesetID string) error {
-	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	fs, err := r.Store.Snapshots.Load(filesetID)
+func (c *Command) resetWorkingDirectory(r *repo.Repository, filesetID string) error {
+	fs, err := r.Store.SnapshotCtx.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	if err := r.Store.Files.RestoreFilesToWorkingTree(fs.Files, fmt.Sprintf("reset --hard to fileset %s", filesetID)); err != nil {
+	msg := fmt.Sprintf("reset --hard to fileset %s", filesetID)
+
+	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(fs.Files, msg); err != nil {
 		return err
 	}
 
