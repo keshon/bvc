@@ -37,7 +37,7 @@ func (b *mockBlock) Read(hash string) ([]byte, error) {
 	return append([]byte(nil), data...), nil
 }
 
-func (b *mockBlock) GetBlocksDir() string { return "" }
+func (b *mockBlock) BlocksDir() string { return "" }
 
 // Helper to create FileContext with in-memory FS.
 func newTestFC(t *testing.T) (*file.FileContext, string) {

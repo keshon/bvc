@@ -18,7 +18,7 @@ func makeTempDir(t *testing.T) string {
 
 func makeBlockContext(t *testing.T, dir string) *block.BlockContext {
 	t.Helper()
-	return &block.BlockContext{BlocksDir: dir}
+	return block.NewBlockContext(dir, nil)
 }
 
 func makeFileContext(t *testing.T, root string, bm *block.BlockContext) *file.FileContext {
@@ -105,7 +105,7 @@ func TestSnapshotContextWorkflow(t *testing.T) {
 
 	// verify blocks exist
 	for _, b := range entry.Blocks {
-		path := filepath.Join(bm.BlocksDir, b.Hash+".bin")
+		path := filepath.Join(bm.BlocksDir(), b.Hash+".bin")
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Errorf("expected block file %s to exist: %v", path, err)

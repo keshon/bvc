@@ -50,7 +50,7 @@ func NewStore(cfg *config.RepoConfig, opts *NewStoreOptions) (*StoreContext, err
 	}
 
 	// Resolve FileContext
-	fileCtx := file.NewFileContext(cfg.WorkingTreeRoot, cfg.RepoRoot, blockCtx, fs)
+	fileCtx := file.NewFileContext(cfg.WorkingTreeDir, cfg.RepoDir, blockCtx, fs)
 	if opts != nil && opts.Files != nil {
 		fileCtx = opts.Files
 	}

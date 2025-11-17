@@ -17,8 +17,8 @@ var (
 
 // RepoConfig represents a resolved repository configuration and layout.
 type RepoConfig struct {
-	RepoRoot        string // repository root directory (absolute or relative)
-	WorkingTreeRoot string // working tree root directory
+	RepoDir        string // repository root directory (absolute or relative)
+	WorkingTreeDir string // working tree root directory
 }
 
 // NewRepoConfig creates a RepoConfig for a given root path.
@@ -27,14 +27,14 @@ func NewRepoConfig(root string) *RepoConfig {
 	if root == "" {
 		root = ResolveRepoDir()
 	}
-	cfg := &RepoConfig{RepoRoot: root}
-	cfg.WorkingTreeRoot = ResolveWorkingTreeRoot()
+	cfg := &RepoConfig{RepoDir: root}
+	cfg.WorkingTreeDir = ResolveWorkingTreeRoot()
 	return cfg
 }
 
 // Derived Path Helpers
 func (c *RepoConfig) RepoPath(parts ...string) string {
-	return filepath.Join(append([]string{c.RepoRoot}, parts...)...)
+	return filepath.Join(append([]string{c.RepoDir}, parts...)...)
 }
 
 func (c *RepoConfig) CommitsDir() string {

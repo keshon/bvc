@@ -36,8 +36,8 @@ func TestInitAndOpenRepository(t *testing.T) {
 		t.Fatalf("InitAt failed: %v", err)
 	}
 
-	if r.Meta.Config.RepoRoot != tmp {
-		t.Errorf("expected Root=%q got %q", tmp, r.Meta.Config.RepoRoot)
+	if r.Meta.Config.RepoDir != tmp {
+		t.Errorf("expected Root=%q got %q", tmp, r.Meta.Config.RepoDir)
 	}
 
 	// Check HEAD file

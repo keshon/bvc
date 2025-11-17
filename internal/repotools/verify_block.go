@@ -52,8 +52,8 @@ func VerifyBlocksStream(m MetaInterface, cfg *config.RepoConfig, onlyLatestCommi
 		defer close(out)
 		defer close(errCh)
 
-		if _, err := fs.Stat(cfg.RepoRoot); os.IsNotExist(err) {
-			errCh <- fmt.Errorf("repository not initialized (missing %s)", cfg.RepoRoot)
+		if _, err := fs.Stat(cfg.RepoDir); os.IsNotExist(err) {
+			errCh <- fmt.Errorf("repository not initialized (missing %s)", cfg.RepoDir)
 			return
 		}
 

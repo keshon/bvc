@@ -50,7 +50,7 @@ func NewMeta(cfg *config.RepoConfig, targetFS fs.FS) (*MetaContext, error) {
 // createMetaStructure builds a fresh meta layout and writes defaults.
 func createMetaStructure(cfg *config.RepoConfig, fs fs.FS) error {
 	dirs := []string{
-		cfg.RepoRoot,
+		cfg.RepoDir,
 		cfg.CommitsDir(),
 		cfg.SnapshotsDir(),
 		cfg.BranchesDir(),

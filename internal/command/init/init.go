@@ -72,7 +72,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// check if repo already exists
 	cfg := config.NewRepoConfig(repoDir)
-	alreadyExists := repo.IsRepoExists(cfg.RepoRoot)
+	alreadyExists := repo.IsRepoExists(cfg.RepoDir)
 
 	// initialize repository
 	r, err := repo.NewRepositoryByPath(repoDir)
@@ -94,7 +94,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// output messages
 	if !*quiet {
-		root := absPath(r.Config.RepoRoot)
+		root := absPath(r.Config.RepoDir)
 		if alreadyExists {
 			fmt.Printf("Reinitialized existing BVC repository in %s\n", root)
 		} else {

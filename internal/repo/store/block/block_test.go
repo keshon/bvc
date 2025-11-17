@@ -28,7 +28,7 @@ func TestWriteAndRead(t *testing.T) {
 	bc, _ := newTestBC(t)
 
 	data := []byte("hello-world-1234567890")
-	src := filepath.Join(bc.BlocksDir, "src.bin")
+	src := filepath.Join(bc.BlocksDir(), "src.bin")
 
 	// Write to in-memory FS
 	if err := bc.FS.WriteFile(src, data, 0o644); err != nil {
@@ -58,7 +58,7 @@ func TestVerifyBlock_OK(t *testing.T) {
 	bc, _ := newTestBC(t)
 
 	data := []byte("abcdef1234567890")
-	src := filepath.Join(bc.BlocksDir, "src.bin")
+	src := filepath.Join(bc.BlocksDir(), "src.bin")
 
 	if err := bc.FS.WriteFile(src, data, 0o644); err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestVerifyBlock_Damaged(t *testing.T) {
 
 	// write garbaged block with wrong hash to objects dir
 	wrongPath := "wronghash.bin"
-	err := bc.FS.WriteFile(filepath.Join(bc.BlocksDir, wrongPath), []byte("XXX"), 0o644)
+	err := bc.FS.WriteFile(filepath.Join(bc.BlocksDir(), wrongPath), []byte("XXX"), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,18 +117,18 @@ func TestCleanupTemp(t *testing.T) {
 	bc, _ := newTestBC(t)
 
 	// good file (should stay)
-	err := bc.FS.WriteFile(filepath.Join(bc.BlocksDir, "good.bin"), []byte("123"), 0o644)
+	err := bc.FS.WriteFile(filepath.Join(bc.BlocksDir(), "good.bin"), []byte("123"), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// temp files (should be removed)
-	err = bc.FS.WriteFile(filepath.Join(bc.BlocksDir, "tmp-abc"), []byte{}, 0o644)
+	err = bc.FS.WriteFile(filepath.Join(bc.BlocksDir(), "tmp-abc"), []byte{}, 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = bc.FS.WriteFile(filepath.Join(bc.BlocksDir, ".tmp-xyz"), []byte{}, 0o644)
+	err = bc.FS.WriteFile(filepath.Join(bc.BlocksDir(), ".tmp-xyz"), []byte{}, 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestCleanupTemp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	entries, _ := bc.FS.ReadDir(bc.BlocksDir)
+	entries, _ := bc.FS.ReadDir(bc.BlocksDir())
 	names := map[string]bool{}
 	for _, e := range entries {
 		names[e.Name()] = true
@@ -158,7 +158,7 @@ func TestSplitFile(t *testing.T) {
 	bc, _ := newTestBC(t)
 
 	data := bytes.Repeat([]byte("A"), 5*1024*1024) // 5 MiB
-	src := filepath.Join(bc.BlocksDir, "big.bin")
+	src := filepath.Join(bc.BlocksDir(), "big.bin")
 
 	// write source file into the fake filesystem
 	if err := bc.FS.WriteFile(src, data, 0o644); err != nil {

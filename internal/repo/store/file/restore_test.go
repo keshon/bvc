@@ -16,7 +16,7 @@ func TestRestoreFiles(t *testing.T) {
 	// Prepare block "hash1" with data "data"
 	blockData := []byte("data")
 	if err := fc.FS.WriteFile(
-		filepath.Join(fc.BlockCtx.GetBlocksDir(), "hash1.bin"),
+		filepath.Join(fc.BlockCtx.BlocksDir(), "hash1.bin"),
 		blockData,
 		0o644,
 	); err != nil {

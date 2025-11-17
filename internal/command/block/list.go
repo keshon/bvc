@@ -88,7 +88,7 @@ func (c *ListCommand) Run(ctx *command.Context) error {
 	for _, row := range rows {
 		var files []string
 		for _, f := range row.Files {
-			files = append(files, strings.TrimPrefix(f, r.Config.WorkingTreeRoot))
+			files = append(files, strings.TrimPrefix(f, r.Config.WorkingTreeDir))
 		}
 		row.Files = files
 
