@@ -13,7 +13,6 @@ import (
 type Command struct{}
 
 func (c *Command) Name() string      { return "help" }
-func (c *Command) Short() string     { return "H" }
 func (c *Command) Aliases() []string { return []string{"h", "?"} }
 func (c *Command) Usage() string     { return "help [command]" }
 func (c *Command) Brief() string     { return "Show help for commands" }

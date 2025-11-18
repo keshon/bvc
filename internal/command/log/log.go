@@ -23,7 +23,6 @@ type Command struct {
 }
 
 func (c *Command) Name() string      { return "log" }
-func (c *Command) Short() string     { return "l" }
 func (c *Command) Aliases() []string { return []string{"commits"} }
 func (c *Command) Usage() string     { return "log [options] [branch]" }
 func (c *Command) Brief() string     { return "Show commit history (current branch by default)" }

@@ -13,7 +13,6 @@ import (
 type Command struct{}
 
 func (c *Command) Name() string      { return "merge" }
-func (c *Command) Short() string     { return "M" }
 func (c *Command) Aliases() []string { return []string{"mg"} }
 func (c *Command) Usage() string     { return "merge <branch-name>" }
 func (c *Command) Brief() string     { return "Merge another branch into the current branch" }

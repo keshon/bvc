@@ -17,19 +17,32 @@ type Command struct {
 }
 
 func (c *Command) Name() string      { return "reset" }
-func (c *Command) Short() string     { return "R" }
 func (c *Command) Aliases() []string { return []string{"drop"} }
 func (c *Command) Usage() string     { return "reset [<commit-id>] [--soft|--mixed|--hard]" }
 func (c *Command) Brief() string     { return "Reset current branch to a commit or HEAD" }
 func (c *Command) Help() string {
 	return `Reset current branch.
 
-Modes:
+Options:
   --soft  : move HEAD only
   --mixed : move HEAD and reset index (default)
   --hard  : move HEAD, reset index and working directory
 
-If <commit-id> is omitted, the last commit is used.`
+If <commit-id> is omitted, the last commit is used.
+
+Usage:
+  bvc reset [<commit-id>] [--soft|--mixed|--hard]
+
+Examples:
+  bvc reset
+  bvc reset --mixed
+  bvc reset --hard
+
+  bvc reset <commit-id>
+  bvc reset --soft <commit-id>
+  bvc reset --mixed <commit-id>
+  bvc reset --hard <commit-id>
+`
 }
 
 func (c *Command) Subcommands() []command.Command { return nil }
