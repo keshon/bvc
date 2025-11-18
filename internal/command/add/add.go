@@ -18,19 +18,26 @@ type Command struct {
 	update bool
 }
 
-func (c *Command) Name() string  { return "add" }
-func (c *Command) Brief() string { return "Stage files or directories for the next commit" }
-func (c *Command) Usage() string { return "add <file|dir|.> [options]" }
+func (c *Command) Name() string      { return "add" }
+func (c *Command) Aliases() []string { return nil }
+func (c *Command) Brief() string     { return "Stage files or directories for the next commit" }
+func (c *Command) Usage() string     { return "add <file|dir|.> [options]" }
 func (c *Command) Help() string {
 	return `Stage changes for commit.
 
+Options:
+  -a, --all             Stage all changes, including deletions (-A)
+	  --update          Stage modifications and deletions only (-u)
+
 Usage:
-  add .              - stage new and modified files
-  add -A or --all    - stage all changes, including deletions
-  add -u or --update - stage modifications and deletions (no new files)
-  add <path>         - stage a specific file or directory`
+  bvc add <file|dir|.> [options]
+
+Examples:
+  bvc add .
+  bvc add 'main.go'
+  bvc add dir/
+`
 }
-func (c *Command) Aliases() []string              { return nil }
 func (c *Command) Subcommands() []command.Command { return nil }
 func (c *Command) Flags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.all, "all", false, "Stage all changes, including deletions (-A)")

@@ -16,11 +16,23 @@ import (
 
 type ListCommand struct{}
 
-func (c *ListCommand) Name() string                   { return "list" }
-func (c *ListCommand) Brief() string                  { return "Display repository blocks list" }
-func (c *ListCommand) Usage() string                  { return "block list [branch|name]" }
-func (c *ListCommand) Help() string                   { return "Show repository blocks list" }
-func (c *ListCommand) Aliases() []string              { return []string{"bl"} }
+func (c *ListCommand) Name() string      { return "list" }
+func (c *ListCommand) Aliases() []string { return []string{"bl"} }
+func (c *ListCommand) Brief() string     { return "Display repository blocks list" }
+func (c *ListCommand) Usage() string     { return "block list [branch|name]" }
+func (c *ListCommand) Help() string {
+	return `
+Display repository blocks list
+
+Usage:
+  bvc block list [branch|name]
+
+Examples:
+  bvc block list               List all blocks sorted by hash
+  bvc block list branch        List blocks sorted by branch name
+  bvc block list name          List blocks sorted by file name
+`
+}
 func (c *ListCommand) Subcommands() []command.Command { return nil }
 func (c *ListCommand) Flags(fs *flag.FlagSet)         {}
 

@@ -11,10 +11,22 @@ import (
 type BlockCommand struct{}
 
 func (c *BlockCommand) Name() string      { return "block" }
+func (c *BlockCommand) Aliases() []string { return []string{"bl"} }
 func (c *BlockCommand) Brief() string     { return "Block-related commands" }
 func (c *BlockCommand) Usage() string     { return "block <subcommand> [options]" }
-func (c *BlockCommand) Help() string      { return "Manage repository blocks and analysis" }
-func (c *BlockCommand) Aliases() []string { return []string{"bl"} }
+func (c *BlockCommand) Help() string {
+	return `Manage repository blocks and analysis
+
+Usage:
+  bvc block <subcommand> [options]
+
+Available subcommands:
+  bvc block list
+  bvc block scan
+  bvc block repair
+  bvc block reuse
+`
+}
 
 // Subcommands now include analyze, overview, scan, and repair
 func (c *BlockCommand) Subcommands() []command.Command {

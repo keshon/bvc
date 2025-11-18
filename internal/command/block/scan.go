@@ -14,13 +14,17 @@ import (
 
 type ScanCommand struct{}
 
-func (c *ScanCommand) Name() string  { return "scan" }
-func (c *ScanCommand) Brief() string { return "Scan repository blocks for integrity issues" }
-func (c *ScanCommand) Usage() string { return "block scan" }
+func (c *ScanCommand) Name() string      { return "scan" }
+func (c *ScanCommand) Aliases() []string { return []string{"verify"} }
+func (c *ScanCommand) Brief() string     { return "Scan repository blocks for integrity issues" }
+func (c *ScanCommand) Usage() string     { return "block scan" }
 func (c *ScanCommand) Help() string {
-	return "Scan all repository blocks and report missing or damaged ones."
+	return `Scan all repository blocks and report missing or damaged ones.
+
+Usage:
+  bvc block scan	
+`
 }
-func (c *ScanCommand) Aliases() []string              { return []string{"verify"} }
 func (c *ScanCommand) Subcommands() []command.Command { return nil }
 func (c *ScanCommand) Flags(fs *flag.FlagSet)         {}
 

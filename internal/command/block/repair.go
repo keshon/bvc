@@ -18,13 +18,18 @@ import (
 
 type RepairCommand struct{}
 
-func (c *RepairCommand) Name() string  { return "repair" }
-func (c *RepairCommand) Brief() string { return "Repair missing or damaged repository blocks" }
-func (c *RepairCommand) Usage() string { return "block repair" }
+func (c *RepairCommand) Name() string      { return "repair" }
+func (c *RepairCommand) Aliases() []string { return []string{"verify-repair"} }
+func (c *RepairCommand) Brief() string     { return "Repair missing or damaged repository blocks" }
+func (c *RepairCommand) Usage() string     { return "block repair" }
 func (c *RepairCommand) Help() string {
-	return "Repair any missing or damaged blocks automatically."
+	return `Repair any missing or damaged blocks automatically.
+
+Examples:
+  bvc block repair
+	
+`
 }
-func (c *RepairCommand) Aliases() []string              { return []string{"verify-repair"} }
 func (c *RepairCommand) Subcommands() []command.Command { return nil }
 func (c *RepairCommand) Flags(fs *flag.FlagSet)         {}
 

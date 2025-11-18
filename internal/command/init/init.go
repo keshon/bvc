@@ -21,10 +21,9 @@ type Command struct {
 }
 
 func (c *Command) Name() string      { return "init" }
-func (c *Command) Short() string     { return "i" }
 func (c *Command) Aliases() []string { return []string{} }
-func (c *Command) Usage() string     { return "init [options]" }
 func (c *Command) Brief() string     { return "Initialize a new repository" }
+func (c *Command) Usage() string     { return "init [options]" }
 func (c *Command) Help() string {
 	return `Initialize a new repository in the current directory.
 

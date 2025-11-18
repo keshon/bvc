@@ -19,15 +19,32 @@ type ReuseCommand struct {
 	export bool
 }
 
-func (c *ReuseCommand) Name() string                   { return "reuse" }
-func (c *ReuseCommand) Brief() string                  { return "Analyze block reuse across the repo" }
-func (c *ReuseCommand) Usage() string                  { return "block reuse [--full] [--export]" }
-func (c *ReuseCommand) Help() string                   { return "Analyze block reuse across branches" }
-func (c *ReuseCommand) Aliases() []string              { return []string{"a"} }
+func (c *ReuseCommand) Name() string      { return "reuse" }
+func (c *ReuseCommand) Aliases() []string { return []string{"a"} }
+func (c *ReuseCommand) Brief() string     { return "Analyze block reuse across the repo" }
+func (c *ReuseCommand) Usage() string     { return "block reuse [--full] [--export]" }
+func (c *ReuseCommand) Help() string {
+	return `Analyze block reuse across branches
+Options:
+  -f, --full            Print detailed shared block list
+  -e, --export          Save output to file
+
+Usage:
+  bvc block reuse [options]
+
+Examples:
+  bvc block reuse
+  bvc block reuse --full
+  bvc block reuse --export
+`
+}
 func (c *ReuseCommand) Subcommands() []command.Command { return nil }
 func (c *ReuseCommand) Flags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.full, "full", false, "Print detailed shared block list")
+	fs.BoolVar(&c.full, "f", false, "alias for --full")
+
 	fs.BoolVar(&c.export, "export", false, "Save output to file")
+	fs.BoolVar(&c.export, "e", false, "alias for --export")
 }
 
 func (c *ReuseCommand) Run(ctx *command.Context) error {

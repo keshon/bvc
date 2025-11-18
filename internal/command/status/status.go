@@ -23,10 +23,9 @@ type Command struct {
 }
 
 func (c *Command) Name() string      { return "status" }
-func (c *Command) Short() string     { return "S" }
 func (c *Command) Aliases() []string { return []string{"st"} }
-func (c *Command) Usage() string     { return "status [options]" }
 func (c *Command) Brief() string     { return "Show working tree and index status" }
+func (c *Command) Usage() string     { return "status [options]" }
 
 func (c *Command) Help() string {
 	return `Show the working tree status.
@@ -38,6 +37,14 @@ Options:
   -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
       --ignored                  Show ignored files
   -q, --quiet                    Suppress normal output
+
+Usage:
+  bvc status [options]
+
+Examples:
+  bvc status
+  bvc status -s
+  bvc status --branch
 `
 }
 
