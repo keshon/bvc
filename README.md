@@ -12,17 +12,34 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 add <file|dir|.> [options]
 Stage changes for commit.
 
+Options:
+  -a, --all             Stage all changes, including deletions (-A)
+	  --update          Stage modifications and deletions only (-u)
+
 Usage:
-  add .              - stage new and modified files
-  add -A or --all    - stage all changes, including deletions
-  add -u or --update - stage modifications and deletions (no new files)
-  add <path>         - stage a specific file or directory
+  bvc add <file|dir|.> [options]
+
+Examples:
+  bvc add .
+  bvc add 'main.go'
+  bvc add dir/
+
 ```
 
 ### block
 ```
 block <subcommand> [options]
 Manage repository blocks and analysis
+
+Usage:
+  bvc block <subcommand> [options]
+
+Available subcommands:
+  bvc block list
+  bvc block scan
+  bvc block repair
+  bvc block reuse
+
 ```
 
 ### branch
@@ -97,7 +114,17 @@ Examples:
 ### list
 ```
 block list [branch|name]
-Show repository blocks list
+
+Display repository blocks list
+
+Usage:
+  bvc block list [branch|name]
+
+Examples:
+  bvc block list               List all blocks sorted by hash
+  bvc block list branch        List blocks sorted by branch name
+  bvc block list name          List blocks sorted by file name
+
 ```
 
 ### log
@@ -133,6 +160,11 @@ Conflicts may need manual resolution.
 ```
 block repair
 Repair any missing or damaged blocks automatically.
+
+Examples:
+  bvc block repair
+	
+
 ```
 
 ### reset
@@ -152,18 +184,46 @@ If <commit-id> is omitted, the last commit is used.
 ```
 block reuse [--full] [--export]
 Analyze block reuse across branches
+Options:
+  -f, --full            Print detailed shared block list
+  -e, --export          Save output to file
+
+Usage:
+  bvc block reuse [options]
+
+Examples:
+  bvc block reuse
+  bvc block reuse --full
+  bvc block reuse --export
+
 ```
 
 ### reuse
 ```
 block reuse [--full] [--export]
 Analyze block reuse across branches
+Options:
+  -f, --full            Print detailed shared block list
+  -e, --export          Save output to file
+
+Usage:
+  bvc block reuse [options]
+
+Examples:
+  bvc block reuse
+  bvc block reuse --full
+  bvc block reuse --export
+
 ```
 
 ### scan
 ```
 block scan
 Scan all repository blocks and report missing or damaged ones.
+
+Usage:
+  bvc block scan	
+
 ```
 
 ### status
@@ -178,6 +238,14 @@ Options:
   -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
       --ignored                  Show ignored files
   -q, --quiet                    Suppress normal output
+
+Usage:
+  bvc status [options]
+
+Examples:
+  bvc status
+  bvc status -s
+  bvc status --branch
 
 ```
 
