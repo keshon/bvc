@@ -14,16 +14,16 @@ type Branch struct {
 }
 
 // GetCurrentBranch returns the current branch.
-func (mc *MetaContext) GetCurrentBranch() (Branch, error) {
+func (mc *MetaContext) GetCurrentBranch() (*Branch, error) {
 	ref, err := mc.GetHeadRef()
 	if err != nil {
-		return Branch{}, fmt.Errorf("failed to get HEAD ref: %w", err)
+		return &Branch{}, fmt.Errorf("failed to get HEAD ref: %w", err)
 	}
 	name := filepath.Base(ref.String())
 	if name == "" {
-		return Branch{}, fmt.Errorf("HEAD ref is empty or invalid")
+		return &Branch{}, fmt.Errorf("HEAD ref is empty or invalid")
 	}
-	return Branch{Name: name}, nil
+	return &Branch{Name: name}, nil
 }
 
 // GetBranch returns a Branch if it exists.

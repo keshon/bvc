@@ -43,7 +43,8 @@ Examples:
   bvc log
   bvc log -a
   bvc log --oneline -n 10
-  bvc log main`
+  bvc log main
+`
 }
 
 func (c *Command) Subcommands() []command.Command {
@@ -151,34 +152,112 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	if oneline {
+		// oneline output
 		for _, cmt := range commits {
-			firstLine := strings.SplitN(cmt.Message, "\n", 2)[0]
-			fmt.Printf("%s %s\n", cmt.ID, firstLine)
+			short := cmt.ID[:7]
+			msg := strings.SplitN(cmt.Message, "\n", 2)[0]
+
+			var refs []string
+
+			cur, _ := r.Meta.GetCurrentBranch()
+			refs, _ = findRefsForCommit(r.Meta, cmt.ID, cur.Name)
+
+			if len(refs) > 0 {
+				fmt.Printf("%s (%s) %s\n", short, strings.Join(refs, ", "), msg)
+			} else {
+				fmt.Printf("%s %s\n", short, msg)
+			}
 		}
+
 	} else {
+		// detailed output
 		for _, cmt := range commits {
 			t, _ := time.Parse(time.RFC3339, cmt.Timestamp)
-			fmt.Printf("\033[90mCommit:\033[0m %s\n", cmt.ID)
-			fmt.Printf("\033[90mBranch:\033[0m %s\n", cmt.Branch)
-			if len(cmt.Parents) > 0 {
-				fmt.Printf("\033[90mParent:\033[0m %s\n", strings.Join(cmt.Parents, " "))
-			}
-			fmt.Printf("\033[90mDate:\033[0m   %s\n\n", t.Format("Mon Jan 2 15:04:05 2006"))
 
-			lines := strings.Split(cmt.Message, "\n")
-			for _, line := range lines {
+			// commit <hash> (<refs>)
+			fmt.Printf("\033[33mcommit\033[0m %s", cmt.ID)
+
+			// build list of refs just like Git
+			var refs []string
+
+			// refs
+			cur, _ := r.Meta.GetCurrentBranch()
+			refs, _ = findRefsForCommit(r.Meta, cmt.ID, cur.Name)
+
+			// branch ref itself
+			if cmt.Branch != "" {
+				// Don't duplicate if already in HEAD -> main
+				if cur == nil || cur.Name != cmt.Branch {
+					refs = append(refs, cmt.Branch)
+				}
+			}
+
+			// if multiple refs -> print like Git: (HEAD -> main, origin/main)
+			if len(refs) > 0 {
+				fmt.Printf(" (%s)", strings.Join(refs, ", "))
+			}
+
+			fmt.Println()
+
+			// merge line
+			if len(cmt.Parents) > 1 {
+				fmt.Printf("Merge: %s\n", strings.Join(cmt.Parents, " "))
+			}
+
+			// author line (optional, currently disabled)
+			// fmt.Printf("Author: %s <%s>\n", config.UserName(), config.UserEmail())
+
+			// date line
+			fmt.Printf("Date:   %s\n\n", t.Format("Mon Jan 2 15:04:05 2006 -0700"))
+
+			// message
+			for _, line := range strings.Split(cmt.Message, "\n") {
 				if strings.TrimSpace(line) == "" {
 					fmt.Println()
 				} else {
 					fmt.Printf("    %s\n", line)
 				}
 			}
+
 			fmt.Println()
+		}
+
+	}
+
+	return nil
+}
+
+func findRefsForCommit(mc *meta.MetaContext, commitID string, headBranch string) ([]string, error) {
+	branches, err := mc.ListBranches()
+	if err != nil {
+		return nil, err
+	}
+
+	var refs []string
+
+	for _, b := range branches {
+		id, err := mc.GetLastCommitID(b.Name)
+		if err != nil {
+			continue
+		}
+		if id == commitID {
+			if b.Name == headBranch {
+				refs = append(refs, fmt.Sprintf("HEAD -> %s", b.Name))
+			} else {
+				refs = append(refs, b.Name)
+			}
 		}
 	}
 
-	fmt.Printf("Total commits: %d\n", len(commits))
-	return nil
+	// Sort for consistency: HEAD first
+	sort.Slice(refs, func(i, j int) bool {
+		if strings.HasPrefix(refs[i], "HEAD ->") {
+			return true
+		}
+		return refs[i] < refs[j]
+	})
+
+	return refs, nil
 }
 
 func init() {

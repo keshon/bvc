@@ -44,9 +44,8 @@ func main() {
 	sections := ""
 	for _, cmd := range commands {
 		sections += fmt.Sprintf(
-			"### %s\n```\n%s\n%s\n```\n\n",
+			"### bvc %s\n```\n%s\n```\n\n",
 			cmd.Name(),
-			cmd.Usage(),
 			cmd.Help(),
 		)
 	}

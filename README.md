@@ -7,9 +7,8 @@ It is a **personal pet project** and **not production ready**. Use at your own r
 
 ## Available Commands
 
-### add
+### bvc add
 ```
-add <file|dir|.> [options]
 Stage changes for commit.
 
 Options:
@@ -26,9 +25,8 @@ Examples:
 
 ```
 
-### block
+### bvc block
 ```
-block <subcommand> [options]
 Manage repository blocks and analysis
 
 Usage:
@@ -42,9 +40,8 @@ Available subcommands:
 
 ```
 
-### branch
+### bvc branch
 ```
-branch [options] [<branch-name>]
 List all branches or create a new one.
 
 Usage:
@@ -52,27 +49,24 @@ Usage:
   branch <name>    - create a new branch from the current one
 ```
 
-### checkout
+### bvc checkout
 ```
-checkout <branch-name>
 Switch to another branch.
 
 Usage:
   checkout <branch-name>
 ```
 
-### cherry-pick
+### bvc cherry-pick
 ```
-cherry-pick <commit-id>
 Apply a specific commit to the current branch.
 
 Usage:
   cherry-pick <commit-id>
 ```
 
-### commit
+### bvc commit
 ```
-commit -m "<message>" [--allow-empty]
 Create a new commit with the staged changes.
 
 Usage:
@@ -80,9 +74,8 @@ Usage:
   commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)
 ```
 
-### help
+### bvc help
 ```
-help [command]
 Display help information for commands.
 
 Usage:
@@ -90,9 +83,8 @@ Usage:
   help <name>   Show detailed help for a specific command.
 ```
 
-### init
+### bvc init
 ```
-init [options]
 Initialize a new repository in the current directory.
 
 Options:
@@ -111,9 +103,8 @@ Examples:
 
 ```
 
-### list
+### bvc list
 ```
-block list [branch|name]
 
 Display repository blocks list
 
@@ -127,9 +118,8 @@ Examples:
 
 ```
 
-### log
+### bvc log
 ```
-log [options] [branch]
 Show commit logs.
 
 Options:
@@ -147,18 +137,17 @@ Examples:
   bvc log -a
   bvc log --oneline -n 10
   bvc log main
+
 ```
 
-### merge
+### bvc merge
 ```
-merge <branch-name>
 Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.
 ```
 
-### repair
+### bvc repair
 ```
-block repair
 Repair any missing or damaged blocks automatically.
 
 Examples:
@@ -167,22 +156,34 @@ Examples:
 
 ```
 
-### reset
+### bvc reset
 ```
-reset [<commit-id>] [--soft|--mixed|--hard]
 Reset current branch.
 
-Modes:
+Options:
   --soft  : move HEAD only
   --mixed : move HEAD and reset index (default)
   --hard  : move HEAD, reset index and working directory
 
 If <commit-id> is omitted, the last commit is used.
+
+Usage:
+  bvc reset [<commit-id>] [--soft|--mixed|--hard]
+
+Examples:
+  bvc reset
+  bvc reset --mixed
+  bvc reset --hard
+
+  bvc reset <commit-id>
+  bvc reset --soft <commit-id>
+  bvc reset --mixed <commit-id>
+  bvc reset --hard <commit-id>
+
 ```
 
-### reuse
+### bvc reuse
 ```
-block reuse [--full] [--export]
 Analyze block reuse across branches
 Options:
   -f, --full            Print detailed shared block list
@@ -198,9 +199,8 @@ Examples:
 
 ```
 
-### reuse
+### bvc reuse
 ```
-block reuse [--full] [--export]
 Analyze block reuse across branches
 Options:
   -f, --full            Print detailed shared block list
@@ -216,9 +216,8 @@ Examples:
 
 ```
 
-### scan
+### bvc scan
 ```
-block scan
 Scan all repository blocks and report missing or damaged ones.
 
 Usage:
@@ -226,9 +225,8 @@ Usage:
 
 ```
 
-### status
+### bvc status
 ```
-status [options]
 Show the working tree status.
 
 Options:

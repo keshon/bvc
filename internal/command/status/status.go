@@ -153,6 +153,10 @@ func (c *Command) Run(ctx *command.Context) error {
 	var statusList []statusItem
 	var untracked []string
 
+	fmt.Println("HEAD:", len(headFiles))
+	fmt.Println("STAGED:", len(stagedFiles))
+	fmt.Println("WORK:", len(workFiles))
+
 	for _, p := range paths {
 		h, inHead := headFiles[p]
 		s, inStaged := stagedFiles[p]
@@ -164,19 +168,20 @@ func (c *Command) Run(ctx *command.Context) error {
 		switch {
 		case inStaged && !inHead:
 			staged = "A"
+
 		case inStaged && inHead && !h.Equal(&s):
 			staged = "M"
-		case inHead && !inStaged:
+
+		case inHead && !inWork && inStaged:
 			staged = "D"
 		}
 
 		// determine unstaged status
 		switch {
-		case inWork && inStaged && !s.Equal(&w):
+		case inWork && inHead && !h.Equal(&w):
 			unstaged = "M"
-		case inWork && !inStaged && inHead && !h.Equal(&w):
-			unstaged = "M"
-		case !inWork && inHead && inStaged:
+
+		case inHead && !inWork && !inStaged:
 			unstaged = "D"
 		}
 
