@@ -14,6 +14,7 @@ func (fc *FileContext) SaveIndexReplace(entries []Entry) error {
 	if err != nil {
 		return fmt.Errorf("marshal index: %w", err)
 	}
+
 	if err := fc.FS.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
 		return fmt.Errorf("mkdir index dir: %w", err)
 	}

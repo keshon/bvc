@@ -2,12 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug: bvc block reuse",
+            "name": "Debug: bvc status",
             "type": "go",
             "request": "launch",
             "program": "${workspaceFolder}/cmd/bvc",
-            "args": ["block", "reuse"],
-            "cwd": "${workspaceFolder}/temp",
+            "args": ["status"],
+            "cwd": "${workspaceFolder}/temp-1",
             "console": "integratedTerminal",
             "env": {
                 "BVC_DEBUG": "1"

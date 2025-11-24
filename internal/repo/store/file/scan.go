@@ -12,75 +12,82 @@ import (
 // - staged: files already present in index.json
 // - ignored: files matched by .bvc-ignore or defaults
 func (fc *FileContext) ScanAllRepository() (tracked []string, staged []string, ignored []string, err error) {
-	exe, _ := os.Executable() // skip current binary
+	// physical paths (only for comparison, not for FS ops)
+	repoAbs, _ := filepath.Abs(fc.RepoDir)
+	exeAbs, _ := filepath.Abs(os.Args[0])
+
 	matcher := NewIgnore(fc.WorkingTreeDir, fc.FS)
 
-	// Load staged entries (index)
+	// load index
 	indexEntries, _ := fc.LoadIndex()
-	indexSet := make(map[string]struct{}, len(indexEntries))
+	indexSet := make(map[string]struct{})
 	for _, e := range indexEntries {
-		indexSet[filepath.ToSlash(filepath.Clean(e.Path))] = struct{}{}
+		clean := filepath.ToSlash(filepath.Clean(e.Path))
+		indexSet[clean] = struct{}{}
 	}
 
-	var walk func(path string) error
-	walk = func(path string) error {
-		entries, err := fc.FS.ReadDir(path)
+	// --- Walk relative to working tree (MemoryFS safe) ---
+	var walk func(rel string) error
+	walk = func(rel string) error {
+		entries, err := fc.FS.ReadDir(filepath.Join(fc.WorkingTreeDir, rel))
 		if err != nil {
 			return err
 		}
 
 		for _, e := range entries {
-			p := filepath.Join(path, e.Name())
+			childRel := filepath.Join(rel, e.Name())
+			childAbs := filepath.Join(fc.WorkingTreeDir, childRel)
+
 			info, _ := e.Info()
-
-			// Skip internal repo directory completely
-			if info.IsDir() && filepath.Clean(p) == filepath.Clean(fc.RepoDir) {
+			if info == nil {
 				continue
 			}
 
-			// Normalize relative path
-			relPath, err := filepath.Rel(fc.WorkingTreeDir, p)
-			if err != nil {
-				relPath = p
-			}
-			relPath = filepath.ToSlash(relPath)
-
-			// Skip ignored dirs entirely
-			if info.IsDir() && matcher.Match(relPath) {
-				ignored = append(ignored, p)
+			// skip repo dir (compare by abs)
+			if childAbs == repoAbs {
 				continue
 			}
 
-			// Recurse into directories
+			// skip running binary (compare by abs)
+			if childAbs == exeAbs {
+				continue
+			}
+
+			// normalize rel for matcher
+			relSlash := filepath.ToSlash(childRel)
+
+			// directory
 			if info.IsDir() {
-				if err := walk(p); err != nil {
+				if matcher.Match(relSlash) {
+					ignored = append(ignored, childAbs)
+					continue
+				}
+				if err := walk(childRel); err != nil {
 					return err
 				}
 				continue
 			}
 
-			// Skip executable binary
-			if p == exe {
+			// file
+			if matcher.Match(relSlash) {
+				ignored = append(ignored, childAbs)
 				continue
 			}
 
-			// Decide where to put file
-			if matcher.Match(relPath) {
-				ignored = append(ignored, p)
-			} else if _, ok := indexSet[relPath]; ok {
-				staged = append(staged, p)
+			if _, ok := indexSet[relSlash]; ok {
+				staged = append(staged, childAbs)
 			} else {
-				tracked = append(tracked, p)
+				tracked = append(tracked, childAbs)
 			}
 		}
 		return nil
 	}
 
-	if err := walk(fc.WorkingTreeDir); err != nil {
+	// walk starting from ""
+	if err := walk(""); err != nil {
 		return nil, nil, nil, err
 	}
 
-	// Sort for determinism
 	sort.Strings(tracked)
 	sort.Strings(staged)
 	sort.Strings(ignored)

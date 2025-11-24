@@ -112,14 +112,14 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// work, staged, ignored filesets
-	workFS, stagedFS, ignoredFS, err := r.Store.SnapshotCtx.BuildAllRepositoryFilesets()
+	trackedFS, stagedFS, ignoredFS, err := r.Store.SnapshotCtx.BuildAllRepositoryFilesets()
 	if err != nil {
 		return fmt.Errorf("scan working tree: %w", err)
 	}
 
-	workFiles := map[string]file.Entry{}
-	for _, e := range workFS.Files {
-		workFiles[filepath.Clean(e.Path)] = e
+	trackedFiles := map[string]file.Entry{}
+	for _, e := range trackedFS.Files {
+		trackedFiles[filepath.Clean(e.Path)] = e
 	}
 
 	stagedFiles := map[string]file.Entry{}
@@ -140,7 +140,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	for k := range stagedFiles {
 		allPaths[k] = struct{}{}
 	}
-	for k := range workFiles {
+	for k := range trackedFiles {
 		allPaths[k] = struct{}{}
 	}
 
@@ -155,12 +155,12 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	fmt.Println("HEAD:", len(headFiles))
 	fmt.Println("STAGED:", len(stagedFiles))
-	fmt.Println("WORK:", len(workFiles))
+	fmt.Println("WORK:", len(trackedFiles))
 
 	for _, p := range paths {
 		h, inHead := headFiles[p]
 		s, inStaged := stagedFiles[p]
-		w, inWork := workFiles[p]
+		w, inWork := trackedFiles[p]
 
 		var staged, unstaged string
 

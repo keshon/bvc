@@ -78,7 +78,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return fmt.Errorf("conflicting reset modes specified")
 	}
 
-	// repo open once
+	// open repo
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
 		return fmt.Errorf("open repository: %w", err)
@@ -169,9 +169,7 @@ func (c *Command) resetWorkingDirectory(r *repo.Repository, filesetID string) er
 		return err
 	}
 
-	msg := fmt.Sprintf("reset --hard to fileset %s", filesetID)
-
-	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(fs.Files, msg); err != nil {
+	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(fs.Files, "files"); err != nil {
 		return err
 	}
 
