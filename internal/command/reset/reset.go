@@ -97,14 +97,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// if no commit specified — use last
 	if targetID == "" {
-		last, err := r.Meta.GetLastCommitID(branch.Name)
-		if err != nil {
-			return fmt.Errorf("cannot determine last commit: %w", err)
-		}
-		if last == "" {
-			return fmt.Errorf("no commits to reset to")
-		}
-		targetID = last
+		return r.Store.FileCtx.ClearIndex()
 	}
 
 	// validate commit exists
