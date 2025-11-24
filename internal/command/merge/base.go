@@ -8,9 +8,9 @@ import (
 
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/repo/file"
 	"github.com/keshon/bvc/internal/repo/meta"
-	"github.com/keshon/bvc/internal/repo/store/file"
-	"github.com/keshon/bvc/internal/repo/store/snapshot"
+	"github.com/keshon/bvc/internal/repo/snapshot"
 
 	"github.com/zeebo/xxh3"
 )
@@ -239,7 +239,7 @@ func merge(currentBranch, targetBranch string) error {
 	mergedFS, conflicts := mergeFilesets(baseFS, oursFS, theirsFS)
 
 	// save merged fileset
-	r.Store.SnapshotCtx.Save(mergedFS)
+	r.Snapshot.Save(mergedFS)
 
 	// create merge commit with two parents
 	hash128 := xxh3.Hash128([]byte(
@@ -268,7 +268,7 @@ func merge(currentBranch, targetBranch string) error {
 	}
 
 	// apply merged fileset to working directory
-	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
+	if err := r.File.RestoreFilesToWorkingTree(mergedFS.Files, fmt.Sprintf("merge of %s", targetBranch)); err != nil {
 		return fmt.Errorf("failed to apply merged fileset: %v", err)
 	}
 

@@ -1,19 +1,17 @@
 package block
 
 import (
-	"github.com/keshon/bvc/internal/command"
-	"github.com/keshon/bvc/internal/config"
-	"github.com/keshon/bvc/internal/fs"
-
 	"flag"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"time"
 
+	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/config"
+	"github.com/keshon/bvc/internal/fs"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repo/store/block"
-	"github.com/keshon/bvc/internal/repotools"
+	"github.com/keshon/bvc/internal/repo/block"
 )
 
 type RepairCommand struct{}
@@ -40,7 +38,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	out, errCh := repotools.VerifyBlocksStream(r.Meta, r.Config, true)
+	out, errCh := r.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Failed\n\n")
 
@@ -86,7 +84,7 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 		fixed := false
 
 		for _, currFile := range bc.Files {
-			entry, err := r.Store.FileCtx.BuildEntry(currFile)
+			entry, err := r.File.BuildEntry(currFile)
 			if err != nil {
 				continue
 			}
@@ -94,10 +92,10 @@ func (c *RepairCommand) Run(ctx *command.Context) error {
 				if b.Hash != bc.Hash {
 					continue
 				}
-				if err := r.Store.BlockCtx.Write(entry.Path, []block.BlockRef{b}); err != nil {
+				if err := r.Block.Write(entry.Path, []block.BlockRef{b}); err != nil {
 					continue
 				}
-				status, _ := r.Store.BlockCtx.VerifyBlock(b.Hash)
+				status, _ := r.Block.VerifyBlock(b.Hash)
 				if status == block.OK {
 					fixed = true
 					repaired++

@@ -6,7 +6,6 @@ import (
 	"github.com/keshon/bvc/internal/command"
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repotools"
 )
 
 // WithBlockIntegrityCheck is a middleware that checks the integrity of the repository blocks
@@ -20,7 +19,7 @@ func WithBlockIntegrityCheck() command.Middleware {
 				if err != nil {
 					return fmt.Errorf("failed to open repository: %w", err)
 				}
-				if err := repotools.VerifyBlocks(r.Meta, r.Config, true); err != nil {
+				if err := r.VerifyBlocks(true); err != nil {
 					return fmt.Errorf(
 						"repository verification failed: %v\nPlease run `bvc repair` before continuing",
 						err,

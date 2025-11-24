@@ -227,7 +227,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	return nil
 }
 
-func findRefsForCommit(mc *meta.MetaContext, commitID string, headBranch string) ([]string, error) {
+func findRefsForCommit(mc meta.MetaContextInterface, commitID string, headBranch string) ([]string, error) {
 	branches, err := mc.ListBranches()
 	if err != nil {
 		return nil, err

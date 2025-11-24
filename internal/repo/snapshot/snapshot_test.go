@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/keshon/bvc/internal/repo/store/block"
-	"github.com/keshon/bvc/internal/repo/store/file"
-	"github.com/keshon/bvc/internal/repo/store/snapshot"
+	"github.com/keshon/bvc/internal/repo/block"
+	"github.com/keshon/bvc/internal/repo/file"
+	"github.com/keshon/bvc/internal/repo/snapshot"
 )
 
 // helpers

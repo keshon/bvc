@@ -45,7 +45,7 @@ func (c *Command) Run(ctx *command.Context) error {
 		return err
 	}
 
-	targetFileset, err := r.Store.SnapshotCtx.Load(targetCommit.FilesetID)
+	targetFileset, err := r.Snapshot.Load(targetCommit.FilesetID)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// restore files from picked commit
-	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
+	if err := r.File.RestoreFilesToWorkingTree(targetFileset.Files, fmt.Sprintf("pick commit %s", commitID)); err != nil {
 		return err
 	}
 

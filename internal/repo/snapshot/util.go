@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/file"
 
 	"github.com/zeebo/xxh3"
 )

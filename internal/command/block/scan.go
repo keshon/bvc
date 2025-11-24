@@ -8,8 +8,7 @@ import (
 	"github.com/keshon/bvc/internal/command"
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repo/store/block"
-	"github.com/keshon/bvc/internal/repotools"
+	"github.com/keshon/bvc/internal/repo/block"
 )
 
 type ScanCommand struct{}
@@ -34,7 +33,7 @@ func (c *ScanCommand) Run(ctx *command.Context) error {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	out, errCh := repotools.VerifyBlocksStream(r.Meta, r.Config, true)
+	out, errCh := r.VerifyBlocksStream(true)
 
 	fmt.Print("\033[90mLegend:\033[0m \033[32m█\033[0m OK   \033[31m█\033[0m Missing   \033[33m█\033[0m Damaged\n\n")
 

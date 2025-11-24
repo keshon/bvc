@@ -374,8 +374,7 @@ func (bc *BlockContext) BlocksDir() string {
 	return bc.blocksDir
 }
 
-// simple helpers
-
+// simple helper
 func min(a, b int) int {
 	if a < b {
 		return a

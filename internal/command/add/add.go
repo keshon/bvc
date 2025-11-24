@@ -10,7 +10,7 @@ import (
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/middleware"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/file"
 )
 
 type Command struct {
@@ -60,7 +60,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Collect repo filesets (working, staged, ignored)
-	trackedFS, stagedFS, _, err := r.Store.SnapshotCtx.BuildAllRepositoryFilesets()
+	trackedFS, stagedFS, _, err := r.Snapshot.BuildAllRepositoryFilesets()
 	if err != nil {
 		return fmt.Errorf("failed to scan repository files: %w", err)
 	}
@@ -97,7 +97,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// Write staged entries to index
-	if err := r.Store.FileCtx.SaveIndexMerge(entries); err != nil {
+	if err := r.File.SaveIndexMerge(entries); err != nil {
 		return fmt.Errorf("failed to update index: %w", err)
 	}
 

@@ -97,7 +97,7 @@ func (c *Command) Run(ctx *command.Context) error {
 
 	// if no commit specified — use last
 	if targetID == "" {
-		return r.Store.FileCtx.ClearIndex()
+		return r.File.ClearIndex()
 	}
 
 	// validate commit exists
@@ -140,15 +140,15 @@ func (c *Command) reset(r *repo.Repository, branchName, targetID, filesetID, mod
 }
 
 func (c *Command) resetIndex(r *repo.Repository, filesetID string) error {
-	fs, err := r.Store.SnapshotCtx.Load(filesetID)
+	fs, err := r.Snapshot.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	if err := r.Store.FileCtx.ClearIndex(); err != nil {
+	if err := r.File.ClearIndex(); err != nil {
 		return err
 	}
-	if err := r.Store.FileCtx.SaveIndexReplace(fs.Files); err != nil {
+	if err := r.File.SaveIndexReplace(fs.Files); err != nil {
 		return err
 	}
 
@@ -157,12 +157,12 @@ func (c *Command) resetIndex(r *repo.Repository, filesetID string) error {
 }
 
 func (c *Command) resetWorkingDirectory(r *repo.Repository, filesetID string) error {
-	fs, err := r.Store.SnapshotCtx.Load(filesetID)
+	fs, err := r.Snapshot.Load(filesetID)
 	if err != nil {
 		return err
 	}
 
-	if err := r.Store.FileCtx.RestoreFilesToWorkingTree(fs.Files, "files"); err != nil {
+	if err := r.File.RestoreFilesToWorkingTree(fs.Files, "files"); err != nil {
 		return err
 	}
 

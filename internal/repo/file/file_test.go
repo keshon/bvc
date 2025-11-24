@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/keshon/bvc/internal/fs"
-	"github.com/keshon/bvc/internal/repo/store/block"
-	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/block"
+	"github.com/keshon/bvc/internal/repo/file"
 )
 
 type mockBlock struct {
@@ -38,6 +38,8 @@ func (b *mockBlock) Read(hash string) ([]byte, error) {
 }
 
 func (b *mockBlock) BlocksDir() string { return "" }
+
+func (b *mockBlock) CleanupTemp() error { return nil }
 
 // Helper to create FileContext with in-memory FS.
 func newTestFC(t *testing.T) (*file.FileContext, string) {

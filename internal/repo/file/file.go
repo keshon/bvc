@@ -2,7 +2,7 @@ package file
 
 import (
 	"github.com/keshon/bvc/internal/fs"
-	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/block"
 )
 
 // Entry represents a tracked file and its content blocks.
@@ -30,23 +30,15 @@ func (e *Entry) Equal(other *Entry) bool {
 	return true
 }
 
-// BlockContext abstracts block operations.
-type BlockContext interface {
-	BlocksDir() string
-	SplitFile(path string) ([]block.BlockRef, error)
-	Write(path string, blocks []block.BlockRef) error
-	Read(hash string) ([]byte, error)
-}
-
 // FileContext manages file-level operations (staging, restore, scan) with abstracted dependencies.
 type FileContext struct {
 	WorkingTreeDir string
 	RepoDir        string
-	BlockCtx       BlockContext
+	BlockCtx       block.BlockContextInterface
 	FS             fs.FS
 }
 
 // NewFileContext creates a new FileContext.
-func NewFileContext(workingTreeDir, repoDir string, blocks BlockContext, fs fs.FS) *FileContext {
+func NewFileContext(workingTreeDir, repoDir string, blocks block.BlockContextInterface, fs fs.FS) *FileContext {
 	return &FileContext{WorkingTreeDir: workingTreeDir, RepoDir: repoDir, BlockCtx: blocks, FS: fs}
 }

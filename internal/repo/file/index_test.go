@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/file"
 )
 
 func TestIndexCRUD(t *testing.T) {

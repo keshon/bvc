@@ -10,7 +10,6 @@ import (
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/middleware"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repotools"
 	"github.com/keshon/bvc/internal/util"
 )
 
@@ -47,7 +46,7 @@ func (c *ListCommand) Run(ctx *command.Context) error {
 		return fmt.Errorf("failed to open repository: %w", err)
 	}
 
-	blocksMap, err := repotools.ListAllBlocks(r.Meta, r.Config, true)
+	blocksMap, err := r.ListAllBlocks(true)
 	if err != nil {
 		return err
 	}
@@ -126,7 +125,7 @@ func truncateStringInMid(s string, width int) string {
 func init() {
 	command.RegisterCommand(
 		command.ApplyMiddlewares(
-			&BlockCommand{},
+			&ListCommand{},
 			middleware.WithDebugArgsPrint(),
 		),
 	)

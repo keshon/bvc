@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/block"
 
 	"github.com/zeebo/xxh3"
 )

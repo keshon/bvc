@@ -10,7 +10,7 @@ import (
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/middleware"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repo/store/file"
+	"github.com/keshon/bvc/internal/repo/file"
 )
 
 type Command struct {
@@ -112,7 +112,7 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 
 	// work, staged, ignored filesets
-	trackedFS, stagedFS, ignoredFS, err := r.Store.SnapshotCtx.BuildAllRepositoryFilesets()
+	trackedFS, stagedFS, ignoredFS, err := r.Snapshot.BuildAllRepositoryFilesets()
 	if err != nil {
 		return fmt.Errorf("scan working tree: %w", err)
 	}

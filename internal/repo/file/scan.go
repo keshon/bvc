@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/keshon/bvc/internal/repo/ignore"
 )
 
 // ScanAllRepository returns slices of tracked, staged, and ignored files
@@ -21,7 +23,7 @@ func (fc *FileContext) ScanAllRepository() (tracked, staged, ignored []string, e
 	binBase := filepath.Base(os.Args[0])
 	binName := strings.TrimSuffix(binBase, filepath.Ext(binBase))
 
-	matcher := NewIgnore(fc.WorkingTreeDir, fc.FS)
+	matcher := ignore.NewIgnore(fc.WorkingTreeDir, fc.FS)
 
 	// load staged entries
 	indexEntries, _ := fc.LoadIndex()
