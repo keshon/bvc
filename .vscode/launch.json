@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/cmd/bvc",
             "args": ["status"],
-            "cwd": "${workspaceFolder}/temp-1",
+            "cwd": "${workspaceFolder}/temp",
             "console": "integratedTerminal",
             "env": {
                 "BVC_DEBUG": "1"
