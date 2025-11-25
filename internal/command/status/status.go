@@ -4,13 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
-	"sort"
 
 	"github.com/keshon/bvc/internal/command"
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/middleware"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repo/file"
 )
 
 type Command struct {
@@ -68,171 +66,42 @@ func (c *Command) Flags(fs *flag.FlagSet) {
 	fs.BoolVar(&c.quiet, "q", false, "alias for --quiet")
 }
 
-type statusItem struct {
-	Path     string
-	Staged   string // "A", "M", "D"
-	Unstaged string // "M", "D"
-}
-
 func (c *Command) Run(ctx *command.Context) error {
-	short := c.short
-	porcelain := c.porcelain
-	showBranch := c.branch
-	showIgnored := c.ignored
-	quiet := c.quiet
-	untrackedMode := c.untrackedFiles
-
-	if untrackedMode == "" {
-		untrackedMode = "normal"
-	}
-
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
-		return fmt.Errorf("open repo: %w", err)
+		return err
 	}
 
-	branch, err := r.Meta.GetCurrentBranch()
+	st, err := r.Status(repo.StatusOptions{
+		UntrackedMode: c.untrackedFiles,
+		ShowIgnored:   c.ignored,
+	})
 	if err != nil {
-		if !quiet {
-			fmt.Println("No commits yet on current branch")
-		}
+		return err
+	}
+
+	if c.quiet {
 		return nil
 	}
 
-	// head files
-	headFiles := map[string]file.Entry{}
-	if commitID, _ := r.Meta.GetLastCommitID(branch.Name); commitID != "" {
-		fs, err := r.GetCommittedFileset(commitID)
-		if err != nil {
-			return err
-		}
-		for _, e := range fs.Files {
-			headFiles[filepath.Clean(e.Path)] = e
-		}
+	if c.branch || (!c.short && !c.porcelain) {
+		fmt.Printf("On branch %s\n\n", st.Branch)
 	}
 
-	// work, staged, ignored filesets
-	trackedFS, stagedFS, ignoredFS, err := r.Snapshot.BuildAllRepositoryFilesets()
-	if err != nil {
-		return fmt.Errorf("scan working tree: %w", err)
-	}
-
-	trackedFiles := map[string]file.Entry{}
-	for _, e := range trackedFS.Files {
-		trackedFiles[filepath.Clean(e.Path)] = e
-	}
-
-	stagedFiles := map[string]file.Entry{}
-	for _, e := range stagedFS.Files {
-		stagedFiles[filepath.Clean(e.Path)] = e
-	}
-
-	ignoredFiles := map[string]file.Entry{}
-	for _, e := range ignoredFS.Files {
-		ignoredFiles[filepath.Clean(e.Path)] = e
-	}
-
-	// collect all unique paths
-	allPaths := make(map[string]struct{})
-	for k := range headFiles {
-		allPaths[k] = struct{}{}
-	}
-	for k := range stagedFiles {
-		allPaths[k] = struct{}{}
-	}
-	for k := range trackedFiles {
-		allPaths[k] = struct{}{}
-	}
-
-	paths := make([]string, 0, len(allPaths))
-	for p := range allPaths {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-
-	var statusList []statusItem
-	var untracked []string
-
-	fmt.Println("HEAD:", len(headFiles))
-	fmt.Println("STAGED:", len(stagedFiles))
-	fmt.Println("WORK:", len(trackedFiles))
-
-	for _, p := range paths {
-		h, inHead := headFiles[p]
-		s, inStaged := stagedFiles[p]
-		w, inWork := trackedFiles[p]
-
-		var staged, unstaged string
-
-		// determine staged status
-		switch {
-		case inStaged && !inHead:
-			staged = "A"
-
-		case inStaged && inHead && !h.Equal(&s):
-			staged = "M"
-
-		case inHead && !inWork && inStaged:
-			staged = "D"
-		}
-
-		// determine unstaged status
-		switch {
-		case inWork && inHead && !h.Equal(&w):
-			unstaged = "M"
-
-		case inHead && !inWork && !inStaged:
-			unstaged = "D"
-		}
-
-		if staged != "" || unstaged != "" {
-			statusList = append(statusList, statusItem{
-				Path:     p,
-				Staged:   staged,
-				Unstaged: unstaged,
-			})
-			continue
-		}
-
-		// determine untracked
-		if !inStaged && !inHead && inWork && untrackedMode != "no" {
-			untracked = append(untracked, p)
-		}
-	}
-
-	// collect ignored list
-	var ignoredList []string
-	if showIgnored {
-		for _, e := range ignoredFS.Files {
-			ignoredList = append(ignoredList, e.Path)
-		}
-		sort.Strings(ignoredList)
-	}
-
-	if quiet {
-		return nil
-	}
-
-	if showBranch || (!short && !porcelain) {
-		fmt.Printf("On branch %s\n\n", branch.Name)
-	}
-
-	// render status with colors if not porcelain
-	if short || porcelain {
-		printShortStatus(statusList, untracked, ignoredList, !porcelain)
+	if c.short || c.porcelain {
+		printShortStatus(st.Items, st.Untracked, st.Ignored, !c.porcelain)
 	} else {
-		printFullStatus(statusList, untracked, ignoredList, !porcelain)
+		printFullStatus(st.Items, st.Untracked, st.Ignored, !c.porcelain)
 	}
 
-	// show clean tree message
-	if len(statusList) == 0 && len(untracked) == 0 && len(ignoredList) == 0 {
+	if st.IsClean {
 		fmt.Println("nothing to commit, working tree clean")
 	}
 
 	return nil
 }
 
-func printShortStatus(items []statusItem, untracked, ignored []string, color bool) {
+func printShortStatus(items []repo.FileStatus, untracked, ignored []string, color bool) {
 	for _, it := range items {
 		line := fmt.Sprintf("%s%s %s", it.Staged, it.Unstaged, rel(it.Path))
 		if color {
@@ -258,8 +127,8 @@ func printShortStatus(items []statusItem, untracked, ignored []string, color boo
 	}
 }
 
-func printFullStatus(items []statusItem, untracked, ignored []string, color bool) {
-	var staged, unstaged []statusItem
+func printFullStatus(items []repo.FileStatus, untracked, ignored []string, color bool) {
+	var staged, unstaged []repo.FileStatus
 	for _, it := range items {
 		if it.Staged != "" {
 			staged = append(staged, it)

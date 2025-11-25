@@ -3,14 +3,12 @@ package add
 import (
 	"flag"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/keshon/bvc/internal/command"
 	"github.com/keshon/bvc/internal/config"
 	"github.com/keshon/bvc/internal/middleware"
 	"github.com/keshon/bvc/internal/repo"
-	"github.com/keshon/bvc/internal/repo/file"
 )
 
 type Command struct {
@@ -45,60 +43,16 @@ func (c *Command) Flags(fs *flag.FlagSet) {
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	includeAll := c.all
-	updateOnly := c.update
-
 	args := filterNonFlags(ctx.Args)
-	if len(args) == 0 {
-		args = []string{"."}
-	}
 
-	// Open repository
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return fmt.Errorf("open repository: %w", err)
 	}
 
-	// Collect repo filesets (working, staged, ignored)
-	trackedFS, stagedFS, _, err := r.Snapshot.BuildAllRepositoryFilesets()
+	entries, err := r.Add(args, c.all, c.update)
 	if err != nil {
-		return fmt.Errorf("failed to scan repository files: %w", err)
-	}
-
-	var entries []file.Entry
-
-	switch {
-	case includeAll:
-		// Stage all tracked changes (new, modified, deleted)
-		entries = trackedFS.Files
-
-	case updateOnly:
-		// Stage only modifications and deletions for already-staged files
-		stagedMap := make(map[string]file.Entry, len(stagedFS.Files))
-		for _, e := range stagedFS.Files {
-			stagedMap[e.Path] = e
-		}
-		for _, e := range trackedFS.Files {
-			if _, exists := stagedMap[e.Path]; exists {
-				entries = append(entries, e)
-			}
-		}
-
-	default:
-		// Stage specific paths or globs
-		for _, arg := range args {
-			matches := filterMatchingEntries(trackedFS.Files, arg)
-			entries = append(entries, matches...)
-		}
-	}
-
-	if len(entries) == 0 {
-		return fmt.Errorf("no changes to stage")
-	}
-
-	// Write staged entries to index
-	if err := r.File.SaveIndexMerge(entries); err != nil {
-		return fmt.Errorf("failed to update index: %w", err)
+		return err
 	}
 
 	fmt.Printf("Staged %d file(s)\n", len(entries))
@@ -115,22 +69,6 @@ func filterNonFlags(args []string) []string {
 		res = append(res, a)
 	}
 	return res
-}
-
-func filterMatchingEntries(entries []file.Entry, pattern string) []file.Entry {
-	var matched []file.Entry
-
-	if pattern == "." {
-		return entries
-	}
-
-	for _, e := range entries {
-		ok, _ := filepath.Match(pattern, filepath.Base(e.Path))
-		if ok || strings.HasPrefix(e.Path, pattern) {
-			matched = append(matched, e)
-		}
-	}
-	return matched
 }
 
 func init() {

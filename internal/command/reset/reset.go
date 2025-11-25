@@ -54,119 +54,46 @@ func (c *Command) Flags(fs *flag.FlagSet) {
 }
 
 func (c *Command) Run(ctx *command.Context) error {
-	soft := c.soft
-	mixed := c.mixed
-	hard := c.hard
-
-	mode := "mixed" // default mode
+	// determine mode
+	mode := repo.ResetMixed
 	count := 0
-
-	if soft {
-		mode = "soft"
+	if c.soft {
+		mode = repo.ResetSoft
 		count++
 	}
-	if mixed {
-		mode = "mixed"
+	if c.mixed {
+		mode = repo.ResetMixed
 		count++
 	}
-	if hard {
-		mode = "hard"
+	if c.hard {
+		mode = repo.ResetHard
 		count++
 	}
-
 	if count > 1 {
 		return fmt.Errorf("conflicting reset modes specified")
 	}
 
-	// open repo
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
-		return fmt.Errorf("open repository: %w", err)
-	}
-
-	branch, err := r.Meta.GetCurrentBranch()
-	if err != nil {
 		return err
 	}
 
-	// extract commit-id argument
-	targetID := ""
+	commitID := ""
 	if len(ctx.Args) > 0 {
-		targetID = ctx.Args[0]
+		commitID = ctx.Args[0]
 	}
 
-	// if no commit specified — use last
-	if targetID == "" {
-		return r.File.ClearIndex()
-	}
+	fmt.Printf("Resetting branch '%s' to commit %s (%s)...\n",
+		func() string {
+			b, _ := r.Meta.GetCurrentBranch()
+			return b.Name
+		}(), commitID, mode)
 
-	// validate commit exists
-	target, err := r.Meta.GetCommit(targetID)
-	if err != nil {
-		return fmt.Errorf("unknown commit: %s", targetID)
-	}
-
-	return c.reset(r, branch.Name, targetID, target.FilesetID, mode)
-}
-
-func (c *Command) reset(r *repo.Repository, branchName, targetID, filesetID, mode string) error {
-	fmt.Printf("Resetting branch '%s' to commit %s (%s)...\n", branchName, targetID, mode)
-
-	// move HEAD for all modes
-	if err := r.Meta.SetLastCommitID(branchName, targetID); err != nil {
+	if err := r.Reset(commitID, mode); err != nil {
 		return err
-	}
-
-	switch mode {
-	case "soft":
-		// nothing else
-	case "mixed":
-		if err := c.resetIndex(r, filesetID); err != nil {
-			return err
-		}
-	case "hard":
-		if err := c.resetIndex(r, filesetID); err != nil {
-			return err
-		}
-		if err := c.resetWorkingDirectory(r, filesetID); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("unsupported reset mode: %s", mode)
 	}
 
 	fmt.Println("Reset complete.")
-	return nil
-}
-
-func (c *Command) resetIndex(r *repo.Repository, filesetID string) error {
-	fs, err := r.Snapshot.Load(filesetID)
-	if err != nil {
-		return err
-	}
-
-	if err := r.File.ClearIndex(); err != nil {
-		return err
-	}
-	if err := r.File.SaveIndexReplace(fs.Files); err != nil {
-		return err
-	}
-
-	fmt.Println("Index reset.")
-	return nil
-}
-
-func (c *Command) resetWorkingDirectory(r *repo.Repository, filesetID string) error {
-	fs, err := r.Snapshot.Load(filesetID)
-	if err != nil {
-		return err
-	}
-
-	if err := r.File.RestoreFilesToWorkingTree(fs.Files, "files"); err != nil {
-		return err
-	}
-
-	fmt.Println("Working directory reset.")
 	return nil
 }
 
