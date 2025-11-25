@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/keshon/bvc/internal/fs"
-	"github.com/keshon/bvc/internal/repo/store/block"
+	"github.com/keshon/bvc/internal/repo/block"
 )
 
 // Helper to create BlockContext with in-memory FS.
