@@ -43,45 +43,55 @@ func NewSnapshotContext(root string, files *file.FileContext, blocks *block.Bloc
 }
 
 // BuildWorkingTreeFileset builds a Fileset of tracked (working tree) files.
-func (sc *SnapshotContext) BuildWorkingTreeFileset() (Fileset, error) {
-	tracked, _, _, err := sc.Scanner.ScanAll()
+func (sc *SnapshotContext) BuildTrackedFileset() (Fileset, error) {
+	scanResult, err := sc.Scanner.ScanAll()
 	if err != nil {
 		return Fileset{}, fmt.Errorf("scan tracked files: %w", err)
 	}
-	return sc.buildFilesetFromPaths(tracked, "tracked")
+	return sc.buildFilesetFromPaths(scanResult.Tracked, "tracked")
+}
+
+// BuildUntrackedFileset builds a Fileset of untracked files.
+func (sc *SnapshotContext) BuildUntrackedFileset() (Fileset, error) {
+	scanResult, err := sc.Scanner.ScanAll()
+	if err != nil {
+		return Fileset{}, fmt.Errorf("scan untracked files: %w", err)
+	}
+	return sc.buildFilesetFromPaths(scanResult.Untracked, "untracked")
 }
 
 // BuildStagedFileset builds a Fileset of staged files.
 func (sc *SnapshotContext) BuildStagedFileset() (Fileset, error) {
-	_, staged, _, err := sc.Scanner.ScanAll()
+	scanResult, err := sc.Scanner.ScanAll()
 	if err != nil {
 		return Fileset{}, fmt.Errorf("scan staged files: %w", err)
 	}
-	return sc.buildFilesetFromPaths(staged, "staged")
+	return sc.buildFilesetFromPaths(scanResult.Staged, "staged")
 }
 
 // BuildIgnoredFileset builds a Fileset of ignored files.
 func (sc *SnapshotContext) BuildIgnoredFileset() (Fileset, error) {
-	_, _, ignored, err := sc.Scanner.ScanAll()
+	scanResult, err := sc.Scanner.ScanAll()
 	if err != nil {
 		return Fileset{}, fmt.Errorf("scan ignored files: %w", err)
 	}
-	return sc.buildFilesetFromPaths(ignored, "ignored")
+	return sc.buildFilesetFromPaths(scanResult.Ignored, "ignored")
 }
 
 // BuildAllRepositoryFilesets builds working, staged and ignored filesets in parallel
 // and returns them.
-func (sc *SnapshotContext) BuildAllRepositoryFilesets() (tracked Fileset, staged Fileset, ignored Fileset, err error) {
+func (sc *SnapshotContext) BuildAllRepositoryFilesets() (tracked Fileset, untracked Fileset, staged Fileset, ignored Fileset, err error) {
 	type task struct {
 		id  int
 		run func() (Fileset, error)
 	}
 
-	results := make([]Fileset, 3)
+	results := make([]Fileset, 4)
 	tasks := []task{
-		{0, sc.BuildWorkingTreeFileset},
-		{1, sc.BuildStagedFileset},
-		{2, sc.BuildIgnoredFileset},
+		{0, sc.BuildTrackedFileset},
+		{1, sc.BuildUntrackedFileset},
+		{2, sc.BuildStagedFileset},
+		{3, sc.BuildIgnoredFileset},
 	}
 
 	err = util.Parallel(tasks, len(tasks), func(t task) error {
@@ -93,10 +103,10 @@ func (sc *SnapshotContext) BuildAllRepositoryFilesets() (tracked Fileset, staged
 		return nil
 	})
 	if err != nil {
-		return Fileset{}, Fileset{}, Fileset{}, err
+		return Fileset{}, Fileset{}, Fileset{}, Fileset{}, err
 	}
 
-	return results[0], results[1], results[2], nil
+	return results[0], results[1], results[2], results[3], nil
 }
 
 // buildFilesetFromPaths is a small helper to avoid duplication.

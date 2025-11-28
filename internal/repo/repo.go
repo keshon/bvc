@@ -18,6 +18,7 @@ type Repository struct {
 	Block    block.BlockContextInterface
 	File     file.FileContextInterface
 	Snapshot snapshot.SnapshotContextInterface
+	FS       fs.FS
 }
 
 func NewRepositoryByPath(path string) (*Repository, error) {
@@ -60,6 +61,7 @@ func NewRepository(cfg *config.RepoConfig) (*Repository, error) {
 		Block:    block,
 		File:     file,
 		Snapshot: snapshot,
+		FS:       fs,
 	}
 	return r, nil
 }

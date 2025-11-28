@@ -12,6 +12,13 @@ import (
 	"github.com/keshon/bvc/internal/util"
 )
 
+type ScanResult struct {
+	Tracked   []string // files from HEAD commit
+	Untracked []string // files not tracked by HEAD commit
+	Staged    []string // files from index
+	Ignored   []string // files ignored by ignore rules
+}
+
 // Scanner scans repository working tree, index and committed snapshots.
 type Scanner struct {
 	WorkingTreeDir string
@@ -32,60 +39,63 @@ func NewScanner(workingTreeDir string, mc meta.MetaContextInterface, fsys fs.FS)
 }
 
 // ScanAll walks the working tree and returns three slices:
-//   - tracked: files tracked by HEAD commit (but not staged),
+//   - tracked: files tracked by HEAD commit,
+//   - untracked: files not tracked by HEAD commit,
 //   - staged: files present in index.json,
 //   - ignored: files matched by ignore rules.
 //
 // Returned slices contain ABSOLUTE paths (joined with WorkingTreeDir).
-func (s *Scanner) ScanAll() (tracked, staged, ignored []string, err error) {
+func (s *Scanner) ScanAll() (*ScanResult, error) {
+	result := &ScanResult{}
+
 	repoDir := s.Meta.GetConfig().RepoDir
 	repoAbs := filepath.Join(s.WorkingTreeDir, repoDir)
 
-	// Skip current running binary
+	// skip current running binary
 	binBase := filepath.Base(os.Args[0])
 	binName := strings.TrimSuffix(binBase, filepath.Ext(binBase))
 
 	matcher := ignore.NewIgnore(s.WorkingTreeDir, s.FS)
 
-	// Load staged files (index.json)
+	// load staged files
 	indexSet := make(map[string]struct{})
-	{
-		indexPath := filepath.Join(repoDir, "index.json")
-		var raw []struct {
-			Path string `json:"path"`
-		}
-		if err := util.ReadJSON(indexPath, &raw); err == nil {
-			for _, e := range raw {
-				indexSet[filepath.ToSlash(filepath.Clean(e.Path))] = struct{}{}
-			}
+	indexPath := filepath.Join(repoDir, "index.json")
+	var raw []struct {
+		Path string `json:"path"`
+	}
+	if err := util.ReadJSON(indexPath, &raw); err == nil {
+		for _, e := range raw {
+			indexSet[filepath.ToSlash(filepath.Clean(e.Path))] = struct{}{}
 		}
 	}
 
-	// Load committed files from HEAD only
+	// load committed files from HEAD
 	committedSet := make(map[string]struct{})
-	{
-		branch, err := s.Meta.GetCurrentBranch()
-		if err == nil {
-			lastCommit, err := s.Meta.GetLastCommitForBranch(branch.Name)
-			if err == nil && lastCommit != nil && lastCommit.FilesetID != "" {
-				snap := filepath.Join(s.Meta.GetConfig().SnapshotsDir(), lastCommit.FilesetID+".json")
-
-				var payload struct {
-					Files []struct {
-						Path string `json:"path"`
-					} `json:"files"`
+	branch, err := s.Meta.GetCurrentBranch()
+	if err == nil {
+		curCommit, err2 := s.Meta.GetLastCommitForBranch(branch.Name)
+		for curCommit != nil && err2 == nil {
+			snap := filepath.Join(s.Meta.GetConfig().SnapshotsDir(), curCommit.FilesetID+".json")
+			var payload struct {
+				Files []struct {
+					Path string `json:"path"`
 				}
-				if err := util.ReadJSON(snap, &payload); err == nil {
-					for _, f := range payload.Files {
-						rel := filepath.ToSlash(filepath.Clean(f.Path))
-						committedSet[rel] = struct{}{}
-					}
+			}
+			if err3 := util.ReadJSON(snap, &payload); err3 == nil {
+				for _, f := range payload.Files {
+					rel := filepath.ToSlash(filepath.Clean(f.Path))
+					committedSet[rel] = struct{}{}
 				}
+			}
+			if len(curCommit.Parents) > 0 {
+				curCommit, err2 = s.Meta.GetCommit(curCommit.Parents[0])
+			} else {
+				break
 			}
 		}
 	}
 
-	// Walk working tree
+	// walk working tree
 	var walk func(rel string) error
 	walk = func(rel string) error {
 		dirAbs := filepath.Join(s.WorkingTreeDir, rel)
@@ -118,10 +128,10 @@ func (s *Scanner) ScanAll() (tracked, staged, ignored []string, err error) {
 
 			relSlash := filepath.ToSlash(childRel)
 
-			// Directory
+			// directory
 			if info.IsDir() {
 				if matcher.Match(relSlash) {
-					ignored = append(ignored, childAbs)
+					result.Ignored = append(result.Ignored, childAbs)
 					continue
 				}
 				if err := walk(childRel); err != nil {
@@ -130,35 +140,37 @@ func (s *Scanner) ScanAll() (tracked, staged, ignored []string, err error) {
 				continue
 			}
 
-			// File
+			// file
 			if matcher.Match(relSlash) {
-				ignored = append(ignored, childAbs)
+				result.Ignored = append(result.Ignored, childAbs)
 				continue
 			}
 
 			if _, ok := indexSet[relSlash]; ok {
-				staged = append(staged, childAbs)
+				result.Staged = append(result.Staged, childAbs)
 				continue
 			}
 
 			if _, ok := committedSet[relSlash]; ok {
-				tracked = append(tracked, childAbs)
+				result.Tracked = append(result.Tracked, childAbs)
 				continue
 			}
 
-			// untracked - ignore for tracked files (caller can handle separately)
+			// untracked
+			result.Untracked = append(result.Untracked, childAbs)
 		}
-
 		return nil
 	}
 
 	if err := walk(""); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
-	sort.Strings(tracked)
-	sort.Strings(staged)
-	sort.Strings(ignored)
+	// sort
+	sort.Strings(result.Tracked)
+	sort.Strings(result.Staged)
+	sort.Strings(result.Ignored)
+	sort.Strings(result.Untracked)
 
-	return tracked, staged, ignored, nil
+	return result, nil
 }

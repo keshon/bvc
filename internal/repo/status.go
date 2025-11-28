@@ -38,102 +38,85 @@ func (r *Repository) Status(opts StatusOptions) (*RepoStatus, error) {
 		return nil, fmt.Errorf("no current branch: %w", err)
 	}
 
-	// HEAD
-	headFiles := map[string]file.Entry{}
-	if commitID, _ := r.Meta.GetLastCommitID(branch.Name); commitID != "" {
-		fs, err := r.GetCommittedFileset(commitID)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range fs.Files {
-			headFiles[filepath.Clean(e.Path)] = e
-		}
-	}
-
-	// Working tree, staged, ignored
-	trackedFS, stagedFS, ignoredFS, err := r.Snapshot.BuildAllRepositoryFilesets()
+	// Получаем все файлы
+	trackedFS, untrackedFS, stagedFS, ignoredFS, err := r.Snapshot.BuildAllRepositoryFilesets()
 	if err != nil {
 		return nil, fmt.Errorf("scan working tree: %w", err)
 	}
 
-	tracked := make(map[string]file.Entry)
+	status := RepoStatus{Branch: branch.Name}
+
+	// Мапы для быстрого поиска
+	headMap := make(map[string]file.Entry)
 	for _, e := range trackedFS.Files {
-		tracked[filepath.Clean(e.Path)] = e
+		headMap[e.Path] = e
 	}
 
-	staged := make(map[string]file.Entry)
+	stagedMap := make(map[string]file.Entry)
 	for _, e := range stagedFS.Files {
-		staged[filepath.Clean(e.Path)] = e
+		stagedMap[e.Path] = e
 	}
 
-	ignored := make(map[string]file.Entry)
-	for _, e := range ignoredFS.Files {
-		ignored[filepath.Clean(e.Path)] = e
+	// Получаем все пути: из HEAD, индекса и рабочей директории
+	allPathsMap := make(map[string]struct{})
+	for _, e := range trackedFS.Files {
+		allPathsMap[e.Path] = struct{}{}
+	}
+	for _, e := range stagedFS.Files {
+		allPathsMap[e.Path] = struct{}{}
+	}
+	for _, e := range untrackedFS.Files {
+		allPathsMap[e.Path] = struct{}{}
 	}
 
-	// Collect all relevant file paths
-	allPaths := make(map[string]struct{})
-	for p := range headFiles {
-		allPaths[p] = struct{}{}
+	var allPaths []string
+	for p := range allPathsMap {
+		allPaths = append(allPaths, p)
 	}
-	for p := range staged {
-		allPaths[p] = struct{}{}
-	}
-	for p := range tracked {
-		allPaths[p] = struct{}{}
-	}
+	sort.Strings(allPaths)
 
-	var paths []string
-	for p := range allPaths {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-
-	status := RepoStatus{
-		Branch: branch.Name,
-	}
-
-	for _, p := range paths {
-		h, inHead := headFiles[p]
-		s, inStaged := staged[p]
-		w, inWork := tracked[p]
+	for _, path := range allPaths {
+		h, inHead := headMap[path]
+		s, inStaged := stagedMap[path]
+		fileExists := containsFile(trackedFS.Files, path) || r.FS.Exists(path)
 
 		var stg, ust string
 
-		// staged
+		// Staged
 		switch {
 		case inStaged && !inHead:
-			stg = "A"
+			stg = "A" // новый файл
 		case inStaged && inHead && !h.Equal(&s):
-			stg = "M"
-		case inHead && !inWork && inStaged:
-			stg = "D"
+			stg = "M" // модифицирован
+		case inHead && !inStaged && !fileExists:
+			stg = "D" // удалён
 		}
 
-		// unstaged
-		switch {
-		case inWork && inHead && !h.Equal(&w):
-			ust = "M"
-		case inHead && !inWork && !inStaged:
-			ust = "D"
+		// Unstaged
+		if inHead && fileExists {
+			entryInWD := getEntry(trackedFS.Files, path)
+			if !inStaged && entryInWD != nil && !h.Equal(entryInWD) {
+				ust = "M"
+			}
 		}
 
 		if stg != "" || ust != "" {
 			status.Items = append(status.Items, FileStatus{
-				Path:     p,
+				Path:     path,
 				Staged:   stg,
 				Unstaged: ust,
 			})
-			continue
-		}
-
-		// untracked
-		if !inStaged && !inHead && inWork && opts.UntrackedMode != "no" {
-			status.Untracked = append(status.Untracked, p)
 		}
 	}
 
-	// ignored
+	// Untracked
+	if opts.UntrackedMode != "no" {
+		for _, e := range untrackedFS.Files {
+			status.Untracked = append(status.Untracked, e.Path)
+		}
+	}
+
+	// Ignored
 	if opts.ShowIgnored {
 		for _, e := range ignoredFS.Files {
 			status.Ignored = append(status.Ignored, e.Path)
@@ -142,10 +125,29 @@ func (r *Repository) Status(opts StatusOptions) (*RepoStatus, error) {
 
 	sort.Strings(status.Untracked)
 	sort.Strings(status.Ignored)
-
-	status.IsClean = len(status.Items) == 0 &&
-		len(status.Untracked) == 0 &&
-		len(status.Ignored) == 0
+	status.IsClean = len(status.Items) == 0 && len(status.Untracked) == 0 && len(status.Ignored) == 0
 
 	return &status, nil
+}
+
+// helper: найти Entry в слайсе по пути
+func getEntry(files []file.Entry, path string) *file.Entry {
+	path = filepath.Clean(path)
+	for i := range files {
+		if filepath.Clean(files[i].Path) == path {
+			return &files[i]
+		}
+	}
+	return nil
+}
+
+// helper: проверить, содержится ли Entry в слайсе по пути
+func containsFile(files []file.Entry, path string) bool {
+	path = filepath.Clean(path)
+	for i := range files {
+		if filepath.Clean(files[i].Path) == path {
+			return true
+		}
+	}
+	return false
 }
