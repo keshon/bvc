@@ -11,6 +11,7 @@ import (
 	"github.com/keshon/bvc/internal/fs"
 	"github.com/keshon/bvc/internal/repo/block"
 	"github.com/keshon/bvc/internal/repo/file"
+	"github.com/keshon/bvc/internal/repo/scan"
 	"github.com/keshon/bvc/internal/util"
 )
 
@@ -19,6 +20,7 @@ type SnapshotContext struct {
 	SnapshotDir string
 	FileCtx     *file.FileContext
 	BlockCtx    *block.BlockContext
+	Scanner     *scan.Scanner
 	FS          fs.FS
 }
 
@@ -29,35 +31,42 @@ type Fileset struct {
 }
 
 // NewSnapshotContext returns a new SnapshotContext.
-func NewSnapshotContext(root string, files *file.FileContext, blocks *block.BlockContext, fs fs.FS) *SnapshotContext {
-	return &SnapshotContext{SnapshotDir: root, FileCtx: files, BlockCtx: blocks, FS: fs}
+func NewSnapshotContext(root string, files *file.FileContext, blocks *block.BlockContext, scanner *scan.Scanner, fs fs.FS) *SnapshotContext {
+
+	return &SnapshotContext{
+		SnapshotDir: root,
+		FileCtx:     files,
+		BlockCtx:    blocks,
+		Scanner:     scanner,
+		FS:          fs,
+	}
 }
 
 // BuildWorkingTreeFileset builds a Fileset of tracked (working tree) files.
 func (sc *SnapshotContext) BuildWorkingTreeFileset() (Fileset, error) {
-	trackedPaths, _, _, err := sc.FileCtx.ScanAllRepository()
+	tracked, _, _, err := sc.Scanner.ScanAll()
 	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to list tracked files: %w", err)
+		return Fileset{}, fmt.Errorf("scan tracked files: %w", err)
 	}
-	return sc.buildFilesetFromPaths(trackedPaths, "tracked")
+	return sc.buildFilesetFromPaths(tracked, "tracked")
 }
 
 // BuildStagedFileset builds a Fileset of staged files.
 func (sc *SnapshotContext) BuildStagedFileset() (Fileset, error) {
-	_, stagedPaths, _, err := sc.FileCtx.ScanAllRepository()
+	_, staged, _, err := sc.Scanner.ScanAll()
 	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to list staged files: %w", err)
+		return Fileset{}, fmt.Errorf("scan staged files: %w", err)
 	}
-	return sc.buildFilesetFromPaths(stagedPaths, "staged")
+	return sc.buildFilesetFromPaths(staged, "staged")
 }
 
 // BuildIgnoredFileset builds a Fileset of ignored files.
 func (sc *SnapshotContext) BuildIgnoredFileset() (Fileset, error) {
-	_, _, ignoredPaths, err := sc.FileCtx.ScanAllRepository()
+	_, _, ignored, err := sc.Scanner.ScanAll()
 	if err != nil {
-		return Fileset{}, fmt.Errorf("failed to list ignored files: %w", err)
+		return Fileset{}, fmt.Errorf("scan ignored files: %w", err)
 	}
-	return sc.buildFilesetFromPaths(ignoredPaths, "ignored")
+	return sc.buildFilesetFromPaths(ignored, "ignored")
 }
 
 // BuildAllRepositoryFilesets builds working, staged and ignored filesets in parallel

@@ -81,3 +81,7 @@ func IsMetaExists(cfg *config.RepoConfig) bool {
 	fi, err := fs.Stat(cfg.HeadFile())
 	return err == nil && fi.Mode().IsRegular()
 }
+
+func (m *MetaContext) GetConfig() *config.RepoConfig {
+	return m.Config
+}

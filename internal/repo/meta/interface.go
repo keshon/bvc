@@ -1,5 +1,7 @@
 package meta
 
+import "github.com/keshon/bvc/internal/config"
+
 type MetaContextInterface interface {
 	GetCurrentBranch() (*Branch, error)
 	GetBranch(name string) (Branch, error)
@@ -17,4 +19,6 @@ type MetaContextInterface interface {
 
 	GetHeadRef() (HeadRef, error)
 	SetHeadRef(branch string) (HeadRef, error)
+
+	GetConfig() *config.RepoConfig
 }

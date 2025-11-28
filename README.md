@@ -25,21 +25,6 @@ Examples:
 
 ```
 
-### bvc block
-```
-Manage repository blocks and analysis
-
-Usage:
-  bvc block <subcommand> [options]
-
-Available subcommands:
-  bvc block list
-  bvc block scan
-  bvc block repair
-  bvc block reuse
-
-```
-
 ### bvc branch
 ```
 List all branches or create a new one.
@@ -146,16 +131,6 @@ Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.
 ```
 
-### bvc repair
-```
-Repair any missing or damaged blocks automatically.
-
-Examples:
-  bvc block repair
-	
-
-```
-
 ### bvc reset
 ```
 Reset current branch.
@@ -179,49 +154,6 @@ Examples:
   bvc reset --soft <commit-id>
   bvc reset --mixed <commit-id>
   bvc reset --hard <commit-id>
-
-```
-
-### bvc reuse
-```
-Analyze block reuse across branches
-Options:
-  -f, --full            Print detailed shared block list
-  -e, --export          Save output to file
-
-Usage:
-  bvc block reuse [options]
-
-Examples:
-  bvc block reuse
-  bvc block reuse --full
-  bvc block reuse --export
-
-```
-
-### bvc reuse
-```
-Analyze block reuse across branches
-Options:
-  -f, --full            Print detailed shared block list
-  -e, --export          Save output to file
-
-Usage:
-  bvc block reuse [options]
-
-Examples:
-  bvc block reuse
-  bvc block reuse --full
-  bvc block reuse --export
-
-```
-
-### bvc scan
-```
-Scan all repository blocks and report missing or damaged ones.
-
-Usage:
-  bvc block scan	
 
 ```
 

@@ -8,6 +8,7 @@ import (
 	"github.com/keshon/bvc/internal/repo/block"
 	"github.com/keshon/bvc/internal/repo/file"
 	"github.com/keshon/bvc/internal/repo/meta"
+	"github.com/keshon/bvc/internal/repo/scan"
 	"github.com/keshon/bvc/internal/repo/snapshot"
 )
 
@@ -25,23 +26,26 @@ func NewRepositoryByPath(path string) (*Repository, error) {
 }
 
 func NewRepository(cfg *config.RepoConfig) (*Repository, error) {
-	// Resolve FS
+	// Create FS
 	fs := fs.FS(&fs.OSFS{})
 
-	// Resolve Meta
+	// Create Meta
 	meta, err := meta.NewMeta(cfg, fs)
 	if err != nil {
 		return nil, err
 	}
 
-	// Resolve BlockContext
+	// Create BlockContext
 	block := block.NewBlockContext(cfg.BlocksDir(), fs)
 
-	// Resolve FileContext
+	// Create FileContext
 	file := file.NewFileContext(cfg.WorkingTreeDir, cfg.RepoDir, block, fs)
 
-	// Resolve SnapshotContext
-	snapshot := snapshot.NewSnapshotContext(cfg.SnapshotsDir(), file, block, fs)
+	// Create file scanner
+	scanner := scan.NewScanner(cfg.WorkingTreeDir, meta, fs)
+
+	// Create SnapshotContext
+	snapshot := snapshot.NewSnapshotContext(cfg.SnapshotsDir(), file, block, scanner, fs)
 
 	// Ensure store layout
 	if !isStoreExists(cfg, fs) {
