@@ -8,76 +8,80 @@ import (
 )
 
 func (r *Repository) Add(paths []string, includeAll bool, updateOnly bool) ([]file.Entry, error) {
-	// Получаем все файловые сеты
-	trackedFS, untrackedFS, stagedFS, _, err := r.Snapshot.BuildAllRepositoryFilesets()
+	// load HEAD, untracked, staged filesets
+	headSet, untrackedSet, stagedSet, _, err := r.Snapshot.BuildAllRepositoryFilesets()
 	if err != nil {
 		return nil, fmt.Errorf("scan repository state: %w", err)
 	}
 
-	stagedMap := make(map[string]file.Entry, len(stagedFS.Files))
-	for _, e := range stagedFS.Files {
-		stagedMap[e.Path] = e
+	// index lookup for quick access
+	indexLookup := make(map[string]file.Entry, len(stagedSet.Files))
+	for _, e := range stagedSet.Files {
+		indexLookup[e.Path] = e
 	}
 
-	var entries []file.Entry
+	var stagedEntries []file.Entry
 
 	switch {
 	case includeAll:
-		// Stage всё: tracked + untracked + уже staged, без дубликатов
-		allFiles := append(trackedFS.Files, untrackedFS.Files...)
-		fileSet := make(map[string]file.Entry)
+		// stage all: HEAD + untracked + already staged (deduplicated)
+		allFiles := append(headSet.Files, untrackedSet.Files...)
+		resultSet := make(map[string]file.Entry)
 
-		// Сначала добавляем уже staged
-		for _, e := range stagedFS.Files {
-			fileSet[e.Path] = e
+		// keep existing index entries
+		for _, e := range stagedSet.Files {
+			resultSet[e.Path] = e
 		}
 
-		// Потом новые из tracked + untracked
+		// add all known files
 		for _, f := range allFiles {
-			fileSet[f.Path] = f
+			resultSet[f.Path] = f
 		}
 
-		// Собираем список
-		entries = make([]file.Entry, 0, len(fileSet))
-		for _, e := range fileSet {
-			entries = append(entries, e)
+		// convert map to slice
+		stagedEntries = make([]file.Entry, 0, len(resultSet))
+		for _, e := range resultSet {
+			stagedEntries = append(stagedEntries, e)
 		}
 
-		// Сортировка для стабильности индекса
-		sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+		// stable ordering
+		sort.Slice(stagedEntries, func(i, j int) bool { return stagedEntries[i].Path < stagedEntries[j].Path })
 
 	case updateOnly:
-		// Stage tracked files that are already staged
-		for _, e := range trackedFS.Files {
-			if _, ok := stagedMap[e.Path]; ok {
-				entries = append(entries, e)
+		// restage only the files that are both tracked and already staged
+		for _, e := range headSet.Files {
+			if _, wasStaged := indexLookup[e.Path]; wasStaged {
+				stagedEntries = append(stagedEntries, e)
 			}
 		}
 
 	default:
-		// Stage по аргументам
+		// stage based on user-provided patterns
 		if len(paths) == 0 {
 			paths = []string{"."}
 		}
 
-		allFiles := append(trackedFS.Files, untrackedFS.Files...)
-		selected := filterEntriesByPatterns(allFiles, paths)
-		for _, e := range selected {
-			stagedMap[e.Path] = e
+		allFiles := append(headSet.Files, untrackedSet.Files...)
+		matchingEntries := filterEntriesByPatterns(allFiles, paths)
+
+		// overwrite or add matching paths to index
+		for _, e := range matchingEntries {
+			indexLookup[e.Path] = e
 		}
 
-		for _, e := range stagedMap {
-			entries = append(entries, e)
+		// convert map to slice
+		for _, e := range indexLookup {
+			stagedEntries = append(stagedEntries, e)
 		}
 	}
 
-	if len(entries) == 0 {
+	if len(stagedEntries) == 0 {
 		return nil, fmt.Errorf("no changes to stage")
 	}
 
-	if err := r.File.SaveIndexReplace(entries); err != nil {
+	if err := r.File.SaveIndexReplace(stagedEntries); err != nil {
 		return nil, fmt.Errorf("update index: %w", err)
 	}
 
-	return entries, nil
+	return stagedEntries, nil
 }

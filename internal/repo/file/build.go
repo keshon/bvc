@@ -15,23 +15,36 @@ func (fc *FileContext) BuildEntry(path string) (Entry, error) {
 		return Entry{}, fmt.Errorf("no BlockContext attached")
 	}
 
-	// Normalize just the slashes and cleanliness, not absolute pathing
-	cleanPath := filepath.ToSlash(filepath.Clean(path))
+	// Normalize slashes
+	cleanRel := filepath.ToSlash(filepath.Clean(path))
 
-	// Compute repository-relative path using the same cleaned value
-	relPath, err := filepath.Rel(fc.WorkingTreeDir, cleanPath)
-	if err != nil {
-		return Entry{}, fmt.Errorf("resolve relative path: %w", err)
+	// If the input is absolute, convert it to relative before continuing
+	var relPath string
+	if filepath.IsAbs(cleanRel) {
+		rp, err := filepath.Rel(fc.WorkingTreeDir, cleanRel)
+		if err != nil {
+			return Entry{}, fmt.Errorf("resolve relative path: %w", err)
+		}
+		relPath = filepath.ToSlash(filepath.Clean(rp))
+	} else {
+		// Input is already repo-relative (as now returned by Scanner)
+		relPath = cleanRel
 	}
-	relPath = filepath.ToSlash(relPath)
 
-	// Split based on FS path, not OS absolute path
-	blocks, err := fc.BlockCtx.SplitFile(cleanPath)
+	// Absolute path that actually exists on disk
+	absPath := filepath.Join(fc.WorkingTreeDir, relPath)
+
+	// Split file blocks
+	blocks, err := fc.BlockCtx.SplitFile(absPath)
 	if err != nil {
 		return Entry{}, fmt.Errorf("split %q: %w", relPath, err)
 	}
 
-	return Entry{Path: relPath, Blocks: blocks}, nil
+	// Entry.Path MUST stay repo-relative
+	return Entry{
+		Path:   relPath,
+		Blocks: blocks,
+	}, nil
 }
 
 // BuildEntries builds entries from a list of paths.

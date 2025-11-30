@@ -1,10 +1,8 @@
 package scan
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/keshon/bvc/internal/fs"
 	"github.com/keshon/bvc/internal/repo/ignore"
@@ -13,20 +11,18 @@ import (
 )
 
 type ScanResult struct {
-	Tracked   []string // files from HEAD commit
-	Untracked []string // files not tracked by HEAD commit
-	Staged    []string // files from index
-	Ignored   []string // files ignored by ignore rules
+	Tracked   []string // files from HEAD commit (repo-relative)
+	Untracked []string // files not tracked by HEAD commit (repo-relative)
+	Staged    []string // files from index (repo-relative)
+	Ignored   []string // files ignored by ignore rules (repo-relative)
 }
 
-// Scanner scans repository working tree, index and committed snapshots.
 type Scanner struct {
 	WorkingTreeDir string
 	FS             fs.FS
 	Meta           meta.MetaContextInterface
 }
 
-// NewScanner creates a scanner. If fs is nil, uses OS FS.
 func NewScanner(workingTreeDir string, mc meta.MetaContextInterface, fsys fs.FS) *Scanner {
 	if fsys == nil {
 		fsys = fs.NewOSFS()
@@ -38,26 +34,15 @@ func NewScanner(workingTreeDir string, mc meta.MetaContextInterface, fsys fs.FS)
 	}
 }
 
-// ScanAll walks the working tree and returns three slices:
-//   - tracked: files tracked by HEAD commit,
-//   - untracked: files not tracked by HEAD commit,
-//   - staged: files present in index.json,
-//   - ignored: files matched by ignore rules.
-//
-// Returned slices contain ABSOLUTE paths (joined with WorkingTreeDir).
 func (s *Scanner) ScanAll() (*ScanResult, error) {
 	result := &ScanResult{}
 
 	repoDir := s.Meta.GetConfig().RepoDir
-	repoAbs := filepath.Join(s.WorkingTreeDir, repoDir)
-
-	// skip current running binary
-	binBase := filepath.Base(os.Args[0])
-	binName := strings.TrimSuffix(binBase, filepath.Ext(binBase))
+	repoRel := filepath.ToSlash(filepath.Clean(repoDir))
 
 	matcher := ignore.NewIgnore(s.WorkingTreeDir, s.FS)
 
-	// load staged files
+	// staged from index.json
 	indexSet := make(map[string]struct{})
 	indexPath := filepath.Join(repoDir, "index.json")
 	var raw []struct {
@@ -69,7 +54,7 @@ func (s *Scanner) ScanAll() (*ScanResult, error) {
 		}
 	}
 
-	// load committed files from HEAD
+	// committed files
 	committedSet := make(map[string]struct{})
 	branch, err := s.Meta.GetCurrentBranch()
 	if err == nil {
@@ -99,39 +84,29 @@ func (s *Scanner) ScanAll() (*ScanResult, error) {
 	var walk func(rel string) error
 	walk = func(rel string) error {
 		dirAbs := filepath.Join(s.WorkingTreeDir, rel)
+
 		entries, err := s.FS.ReadDir(dirAbs)
 		if err != nil {
 			return err
 		}
 
 		for _, e := range entries {
-			childRel := filepath.Join(rel, e.Name())
-			childAbs := filepath.Join(s.WorkingTreeDir, childRel)
+			childRel := filepath.ToSlash(filepath.Join(rel, e.Name()))
 
 			info, err := e.Info()
 			if err != nil || info == nil {
 				continue
 			}
 
-			// skip repo dir itself
-			if filepath.Clean(childAbs) == filepath.Clean(repoAbs) {
+			// skip repo metadata directory
+			if filepath.ToSlash(childRel) == repoRel {
 				continue
 			}
 
-			// skip running binary
-			if !info.IsDir() {
-				fileName := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
-				if fileName == binName {
-					continue
-				}
-			}
-
-			relSlash := filepath.ToSlash(childRel)
-
-			// directory
+			// directories
 			if info.IsDir() {
-				if matcher.Match(relSlash) {
-					result.Ignored = append(result.Ignored, childAbs)
+				if matcher.Match(childRel) {
+					result.Ignored = append(result.Ignored, childRel)
 					continue
 				}
 				if err := walk(childRel); err != nil {
@@ -140,24 +115,26 @@ func (s *Scanner) ScanAll() (*ScanResult, error) {
 				continue
 			}
 
-			// file
-			if matcher.Match(relSlash) {
-				result.Ignored = append(result.Ignored, childAbs)
+			// ignored files
+			if matcher.Match(childRel) {
+				result.Ignored = append(result.Ignored, childRel)
 				continue
 			}
 
-			if _, ok := indexSet[relSlash]; ok {
-				result.Staged = append(result.Staged, childAbs)
+			// staged
+			if _, ok := indexSet[childRel]; ok {
+				result.Staged = append(result.Staged, childRel)
 				continue
 			}
 
-			if _, ok := committedSet[relSlash]; ok {
-				result.Tracked = append(result.Tracked, childAbs)
+			// tracked
+			if _, ok := committedSet[childRel]; ok {
+				result.Tracked = append(result.Tracked, childRel)
 				continue
 			}
 
 			// untracked
-			result.Untracked = append(result.Untracked, childAbs)
+			result.Untracked = append(result.Untracked, childRel)
 		}
 		return nil
 	}
@@ -166,7 +143,7 @@ func (s *Scanner) ScanAll() (*ScanResult, error) {
 		return nil, err
 	}
 
-	// sort
+	// sort output
 	sort.Strings(result.Tracked)
 	sort.Strings(result.Staged)
 	sort.Strings(result.Ignored)

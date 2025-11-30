@@ -38,114 +38,118 @@ func (r *Repository) Status(opts StatusOptions) (*RepoStatus, error) {
 		return nil, fmt.Errorf("no current branch: %w", err)
 	}
 
-	// Получаем все файлы
-	trackedFS, untrackedFS, stagedFS, ignoredFS, err := r.Snapshot.BuildAllRepositoryFilesets()
+	// build all Filesets: HEAD, index, untracked, ignored
+	headSet, untrackedSet, indexSet, ignoredSet, err := r.Snapshot.BuildAllRepositoryFilesets()
 	if err != nil {
 		return nil, fmt.Errorf("scan working tree: %w", err)
 	}
 
 	status := RepoStatus{Branch: branch.Name}
 
-	// Мапы для быстрого поиска
-	headMap := make(map[string]file.Entry)
-	for _, e := range trackedFS.Files {
-		headMap[e.Path] = e
+	// lookup tables for quick comparisons
+	headByPath := make(map[string]file.Entry)
+	for _, e := range headSet.Files {
+		headByPath[e.Path] = e
 	}
 
-	stagedMap := make(map[string]file.Entry)
-	for _, e := range stagedFS.Files {
-		stagedMap[e.Path] = e
+	indexByPath := make(map[string]file.Entry)
+	for _, e := range indexSet.Files {
+		indexByPath[e.Path] = e
 	}
 
-	// Получаем все пути: из HEAD, индекса и рабочей директории
-	allPathsMap := make(map[string]struct{})
-	for _, e := range trackedFS.Files {
-		allPathsMap[e.Path] = struct{}{}
+	// collect all unique paths appearing in HEAD, index, or untracked
+	uniquePaths := make(map[string]struct{})
+	for _, e := range headSet.Files {
+		uniquePaths[e.Path] = struct{}{}
 	}
-	for _, e := range stagedFS.Files {
-		allPathsMap[e.Path] = struct{}{}
+	for _, e := range indexSet.Files {
+		uniquePaths[e.Path] = struct{}{}
 	}
-	for _, e := range untrackedFS.Files {
-		allPathsMap[e.Path] = struct{}{}
+	for _, e := range untrackedSet.Files {
+		uniquePaths[e.Path] = struct{}{}
 	}
 
 	var allPaths []string
-	for p := range allPathsMap {
+	for p := range uniquePaths {
 		allPaths = append(allPaths, p)
 	}
 	sort.Strings(allPaths)
 
 	for _, path := range allPaths {
-		h, inHead := headMap[path]
-		s, inStaged := stagedMap[path]
-		fileExists := containsFile(trackedFS.Files, path) || r.FS.Exists(path)
+		headEntry, existsInHead := headByPath[path]
+		indexEntry, existsInIndex := indexByPath[path]
+		existsInWorkingTree := containsPath(headSet.Files, path) || r.FS.Exists(path)
 
-		var stg, ust string
+		var stagedStatus, unstagedStatus string
 
-		// Staged
+		// staged status
 		switch {
-		case inStaged && !inHead:
-			stg = "A" // новый файл
-		case inStaged && inHead && !h.Equal(&s):
-			stg = "M" // модифицирован
-		case inHead && !inStaged && !fileExists:
-			stg = "D" // удалён
+		case existsInIndex && !existsInHead:
+			stagedStatus = "A" // new file
+		case existsInIndex && existsInHead && !headEntry.Equal(&indexEntry):
+			stagedStatus = "M" // modified
+		case existsInHead && !existsInIndex && !existsInWorkingTree:
+			stagedStatus = "D" // deleted
 		}
 
-		// Unstaged
-		if inHead && fileExists {
-			entryInWD := getEntry(trackedFS.Files, path)
-			if !inStaged && entryInWD != nil && !h.Equal(entryInWD) {
-				ust = "M"
+		// unstaged status
+		if existsInHead && existsInWorkingTree {
+			entryInWD := findEntry(headSet.Files, path)
+			if !existsInIndex && entryInWD != nil && !headEntry.Equal(entryInWD) {
+				unstagedStatus = "M"
 			}
 		}
 
-		if stg != "" || ust != "" {
+		if stagedStatus != "" || unstagedStatus != "" {
 			status.Items = append(status.Items, FileStatus{
 				Path:     path,
-				Staged:   stg,
-				Unstaged: ust,
+				Staged:   stagedStatus,
+				Unstaged: unstagedStatus,
 			})
 		}
 	}
 
-	// Untracked
+	// untracked files
 	if opts.UntrackedMode != "no" {
-		for _, e := range untrackedFS.Files {
+		for _, e := range untrackedSet.Files {
 			status.Untracked = append(status.Untracked, e.Path)
 		}
 	}
 
-	// Ignored
+	// ignored files
 	if opts.ShowIgnored {
-		for _, e := range ignoredFS.Files {
+		for _, e := range ignoredSet.Files {
 			status.Ignored = append(status.Ignored, e.Path)
 		}
 	}
 
 	sort.Strings(status.Untracked)
 	sort.Strings(status.Ignored)
-	status.IsClean = len(status.Items) == 0 && len(status.Untracked) == 0 && len(status.Ignored) == 0
+
+	status.IsClean =
+		len(status.Items) == 0 &&
+			len(status.Untracked) == 0 &&
+			len(status.Ignored) == 0
 
 	return &status, nil
 }
 
-// helper: найти Entry в слайсе по пути
-func getEntry(files []file.Entry, path string) *file.Entry {
-	path = filepath.Clean(path)
+// findEntry returns the Entry with the given path, or nil if not found.
+func findEntry(files []file.Entry, path string) *file.Entry {
+	clean := filepath.Clean(path)
 	for i := range files {
-		if filepath.Clean(files[i].Path) == path {
+		if filepath.Clean(files[i].Path) == clean {
 			return &files[i]
 		}
 	}
 	return nil
 }
 
-// helper: проверить, содержится ли Entry в слайсе по пути
-func containsFile(files []file.Entry, path string) bool {
-	path = filepath.Clean(path)
+// containsPath returns true if any Entry has the given path.
+func containsPath(files []file.Entry, path string) bool {
+	clean := filepath.Clean(path)
 	for i := range files {
-		if filepath.Clean(files[i].Path) == path {
+		if filepath.Clean(files[i].Path) == clean {
 			return true
 		}
 	}
