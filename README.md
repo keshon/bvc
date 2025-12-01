@@ -40,6 +40,21 @@ Examples:
 
 ```
 
+### bvc block list
+```
+
+Display repository blocks list
+
+Usage:
+  bvc block list [branch|name]
+
+Examples:
+  bvc block list               List all blocks sorted by hash
+  bvc block list branch        List blocks sorted by branch name
+  bvc block list name          List blocks sorted by file name
+
+```
+
 ### bvc block repair
 ```
 Repair any missing or damaged blocks automatically.
@@ -47,6 +62,33 @@ Repair any missing or damaged blocks automatically.
 Examples:
   bvc block repair
 	
+
+```
+
+### bvc block repair
+```
+Repair any missing or damaged blocks automatically.
+
+Examples:
+  bvc block repair
+	
+
+```
+
+### bvc block reuse
+```
+Analyze block reuse across branches
+Options:
+  -f, --full            Print detailed shared block list
+  -e, --export          Save output to file
+
+Usage:
+  bvc block reuse [options]
+
+Examples:
+  bvc block reuse
+  bvc block reuse --full
+  bvc block reuse --export
 
 ```
 
@@ -76,6 +118,15 @@ Usage:
 
 ```
 
+### bvc block scan
+```
+Scan all repository blocks and report missing or damaged ones.
+
+Usage:
+  bvc block scan	
+
+```
+
 ### bvc branch
 ```
 List all branches or create a new one.
@@ -83,6 +134,32 @@ List all branches or create a new one.
 Usage:
   branch           - list all branches (current marked with '*')
   branch <name>    - create a new branch from the current one
+```
+
+### bvc branch
+```
+List all branches or create a new one.
+
+Usage:
+  branch           - list all branches (current marked with '*')
+  branch <name>    - create a new branch from the current one
+```
+
+### bvc branch
+```
+List all branches or create a new one.
+
+Usage:
+  branch           - list all branches (current marked with '*')
+  branch <name>    - create a new branch from the current one
+```
+
+### bvc checkout
+```
+Switch to another branch.
+
+Usage:
+  checkout <branch-name>
 ```
 
 ### bvc checkout
@@ -101,6 +178,14 @@ Usage:
   cherry-pick <commit-id>
 ```
 
+### bvc cherry-pick
+```
+Apply a specific commit to the current branch.
+
+Usage:
+  cherry-pick <commit-id>
+```
+
 ### bvc commit
 ```
 Create a new commit with the staged changes.
@@ -108,6 +193,33 @@ Create a new commit with the staged changes.
 Usage:
   commit -m "<message>"               - commit with a given message
   commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)
+```
+
+### bvc commit
+```
+Create a new commit with the staged changes.
+
+Usage:
+  commit -m "<message>"               - commit with a given message
+  commit -m "<message>" --allow-empty - empty commit with a given message (no staged files exist)
+```
+
+### bvc help
+```
+Display help information for commands.
+
+Usage:
+  help          List all commands.
+  help <name>   Show detailed help for a specific command.
+```
+
+### bvc help
+```
+Display help information for commands.
+
+Usage:
+  help          List all commands.
+  help <name>   Show detailed help for a specific command.
 ```
 
 ### bvc help
@@ -139,18 +251,25 @@ Examples:
 
 ```
 
-### bvc list
+### bvc log
 ```
+Show commit logs.
 
-Display repository blocks list
+Options:
+  -a, --all             Show commits from all branches.
+      --oneline         Show each commit as a single line (ID + message).
+  -n <count>            Limit to the last N commits.
+      --since <date>    Show commits after the given date (YYYY-MM-DD).
+      --until <date>    Show commits before the given date (YYYY-MM-DD).
 
 Usage:
-  bvc block list [branch|name]
+  bvc log [options]
 
 Examples:
-  bvc block list               List all blocks sorted by hash
-  bvc block list branch        List blocks sorted by branch name
-  bvc block list name          List blocks sorted by file name
+  bvc log
+  bvc log -a
+  bvc log --oneline -n 10
+  bvc log main
 
 ```
 
@@ -182,13 +301,35 @@ Perform a three-way merge of the specified branch into the current branch.
 Conflicts may need manual resolution.
 ```
 
-### bvc repair
+### bvc merge
 ```
-Repair any missing or damaged blocks automatically.
+Perform a three-way merge of the specified branch into the current branch.
+Conflicts may need manual resolution.
+```
+
+### bvc reset
+```
+Reset current branch.
+
+Options:
+  --soft  : move HEAD only
+  --mixed : move HEAD and reset index (default)
+  --hard  : move HEAD, reset index and working directory
+
+If <commit-id> is omitted, the last commit is used.
+
+Usage:
+  bvc reset [<commit-id>] [--soft|--mixed|--hard]
 
 Examples:
-  bvc block repair
-	
+  bvc reset
+  bvc reset --mixed
+  bvc reset --hard
+
+  bvc reset <commit-id>
+  bvc reset --soft <commit-id>
+  bvc reset --mixed <commit-id>
+  bvc reset --hard <commit-id>
 
 ```
 
@@ -218,46 +359,25 @@ Examples:
 
 ```
 
-### bvc reuse
+### bvc status
 ```
-Analyze block reuse across branches
+Show the working tree status.
+
 Options:
-  -f, --full            Print detailed shared block list
-  -e, --export          Save output to file
+  -s, --short                    Show short summary (XY path)
+      --porcelain                Machine-readable short output
+  -b, --branch                   Show branch info
+  -u, --untracked-files=<mode>   Show untracked files: no, normal, all (default: normal)
+      --ignored                  Show ignored files
+  -q, --quiet                    Suppress normal output
 
 Usage:
-  bvc block reuse [options]
+  bvc status [options]
 
 Examples:
-  bvc block reuse
-  bvc block reuse --full
-  bvc block reuse --export
-
-```
-
-### bvc reuse
-```
-Analyze block reuse across branches
-Options:
-  -f, --full            Print detailed shared block list
-  -e, --export          Save output to file
-
-Usage:
-  bvc block reuse [options]
-
-Examples:
-  bvc block reuse
-  bvc block reuse --full
-  bvc block reuse --export
-
-```
-
-### bvc scan
-```
-Scan all repository blocks and report missing or damaged ones.
-
-Usage:
-  bvc block scan	
+  bvc status
+  bvc status -s
+  bvc status --branch
 
 ```
 

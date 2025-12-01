@@ -1,5 +1,7 @@
 package command
 
+import "sort"
+
 var tree = NewTree()
 
 // RegisterCommand adds a command to the global tree
@@ -37,4 +39,18 @@ func AllCommands() []Command {
 
 	walk(tree.root)
 	return cmds
+}
+
+func RootCommands() []Command {
+	var roots []Command
+	for _, node := range tree.root.Subcommands {
+		if node.Cmd != nil {
+			roots = append(roots, node.Cmd)
+		}
+	}
+	// optional: sort alphabetically
+	sort.Slice(roots, func(i, j int) bool {
+		return roots[i].Name() < roots[j].Name()
+	})
+	return roots
 }

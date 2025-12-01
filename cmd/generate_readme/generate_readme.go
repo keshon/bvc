@@ -36,16 +36,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	commands := command.AllCommands()
+	// get only root-level commands
+	rootCommands := command.RootCommands()
 
-	// prepare a slice to hold all leaf command entries
 	type CmdEntry struct {
 		Path string
 		Cmd  command.Command
 	}
 	var entries []CmdEntry
 
-	// walk recursively to collect all leaf commands
+	// walk recursively from root commands
 	var walk func(prefix string, cmd command.Command)
 	walk = func(prefix string, cmd command.Command) {
 		path := cmd.Name()
@@ -62,7 +62,7 @@ func main() {
 		}
 	}
 
-	for _, cmd := range commands {
+	for _, cmd := range rootCommands {
 		walk("", cmd)
 	}
 
