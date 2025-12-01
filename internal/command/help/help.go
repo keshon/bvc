@@ -41,9 +41,10 @@ func runCommandHelp(fullPath string) error {
 
 	// keywords and their ANSI color
 	var helpKeywords = map[string]string{
-		"Usage:":    "\033[32m", // green
-		"Options:":  "\033[32m", // green
-		"Examples:": "\033[32m", // green
+		"Usage:":                 "\033[32m",
+		"Options:":               "\033[32m",
+		"Examples:":              "\033[32m",
+		"Available subcommands:": "\033[32m",
 	}
 
 	// reset ANSI code

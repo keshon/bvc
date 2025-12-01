@@ -8,6 +8,7 @@ import (
 
 	"github.com/keshon/bvc/internal/command"
 
+	// register all commands
 	_ "github.com/keshon/bvc/internal/command/add"
 	_ "github.com/keshon/bvc/internal/command/block"
 	_ "github.com/keshon/bvc/internal/command/branch"
@@ -37,16 +38,46 @@ func main() {
 
 	commands := command.AllCommands()
 
-	sort.Slice(commands, func(i, j int) bool {
-		return commands[i].Name() < commands[j].Name()
+	// prepare a slice to hold all leaf command entries
+	type CmdEntry struct {
+		Path string
+		Cmd  command.Command
+	}
+	var entries []CmdEntry
+
+	// walk recursively to collect all leaf commands
+	var walk func(prefix string, cmd command.Command)
+	walk = func(prefix string, cmd command.Command) {
+		path := cmd.Name()
+		if prefix != "" {
+			path = prefix + " " + cmd.Name()
+		}
+
+		if len(cmd.Subcommands()) == 0 {
+			entries = append(entries, CmdEntry{Path: path, Cmd: cmd})
+		}
+
+		for _, sc := range cmd.Subcommands() {
+			walk(path, sc)
+		}
+	}
+
+	for _, cmd := range commands {
+		walk("", cmd)
+	}
+
+	// sort entries alphabetically by full path
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Path < entries[j].Path
 	})
 
+	// generate sections
 	sections := ""
-	for _, cmd := range commands {
+	for _, e := range entries {
 		sections += fmt.Sprintf(
 			"### bvc %s\n```\n%s\n```\n\n",
-			cmd.Name(),
-			cmd.Help(),
+			e.Path,
+			e.Cmd.Help(),
 		)
 	}
 

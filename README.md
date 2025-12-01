@@ -25,18 +25,54 @@ Examples:
 
 ```
 
-### bvc block
+### bvc block list
 ```
-Manage repository blocks and analysis
+
+Display repository blocks list
 
 Usage:
-  bvc block <subcommand> [options]
+  bvc block list [branch|name]
 
-Available subcommands:
-  bvc block list
-  bvc block scan
+Examples:
+  bvc block list               List all blocks sorted by hash
+  bvc block list branch        List blocks sorted by branch name
+  bvc block list name          List blocks sorted by file name
+
+```
+
+### bvc block repair
+```
+Repair any missing or damaged blocks automatically.
+
+Examples:
   bvc block repair
+	
+
+```
+
+### bvc block reuse
+```
+Analyze block reuse across branches
+Options:
+  -f, --full            Print detailed shared block list
+  -e, --export          Save output to file
+
+Usage:
+  bvc block reuse [options]
+
+Examples:
   bvc block reuse
+  bvc block reuse --full
+  bvc block reuse --export
+
+```
+
+### bvc block scan
+```
+Scan all repository blocks and report missing or damaged ones.
+
+Usage:
+  bvc block scan	
 
 ```
 
