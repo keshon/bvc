@@ -36,7 +36,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// get only root-level commands
 	rootCommands := command.RootCommands()
 
 	type CmdEntry struct {
@@ -44,15 +43,22 @@ func main() {
 		Cmd  command.Command
 	}
 	var entries []CmdEntry
+	visited := make(map[command.Command]struct{})
 
-	// walk recursively from root commands
 	var walk func(prefix string, cmd command.Command)
 	walk = func(prefix string, cmd command.Command) {
+		// skip if already visited
+		if _, ok := visited[cmd]; ok {
+			return
+		}
+		visited[cmd] = struct{}{}
+
 		path := cmd.Name()
 		if prefix != "" {
 			path = prefix + " " + cmd.Name()
 		}
 
+		// only add leaf commands
 		if len(cmd.Subcommands()) == 0 {
 			entries = append(entries, CmdEntry{Path: path, Cmd: cmd})
 		}
