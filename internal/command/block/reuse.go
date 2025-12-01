@@ -25,6 +25,7 @@ func (c *ReuseCommand) Brief() string     { return "Analyze block reuse across t
 func (c *ReuseCommand) Usage() string     { return "block reuse [--full] [--export]" }
 func (c *ReuseCommand) Help() string {
 	return `Analyze block reuse across branches
+
 Options:
   -f, --full            Print detailed shared block list
   -e, --export          Save output to file
