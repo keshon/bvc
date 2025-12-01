@@ -8,7 +8,6 @@ import (
 
 	"github.com/keshon/bvc/internal/command"
 	"github.com/keshon/bvc/internal/config"
-	"github.com/keshon/bvc/internal/middleware"
 	"github.com/keshon/bvc/internal/repo"
 	"github.com/keshon/bvc/internal/util"
 )
@@ -120,13 +119,4 @@ func truncateStringInMid(s string, width int) string {
 	}
 	half := (width - 3) / 2
 	return s[:half] + "..." + s[len(s)-half:]
-}
-
-func init() {
-	command.RegisterCommand(
-		command.ApplyMiddlewares(
-			&ListCommand{},
-			middleware.WithDebugArgsPrint(),
-		),
-	)
 }

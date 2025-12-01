@@ -29,57 +29,127 @@ func (c *Command) Flags(fs *flag.FlagSet)         {}
 
 func (c *Command) Run(ctx *command.Context) error {
 	if len(ctx.Args) > 0 {
-		return runCommandHelp(strings.ToLower(ctx.Args[0]))
+		// pass all arguments joined with space
+		return runCommandHelp(strings.Join(ctx.Args, " "))
 	}
 	return runListAllCommands()
 }
 
 // runCommandHelp shows detailed help for a specific command
-func runCommandHelp(name string) error {
-	cmd, ok := command.GetCommand(name)
-	if !ok {
-		fmt.Printf("Unknown command: %s\n", name)
+func runCommandHelp(fullPath string) error {
+	args := strings.Split(fullPath, " ")
+
+	// keywords and their ANSI color
+	var helpKeywords = map[string]string{
+		"Usage:":    "\033[32m", // green
+		"Options:":  "\033[32m", // green
+		"Examples:": "\033[32m", // green
+	}
+
+	// reset ANSI code
+	const ansiReset = "\033[0m"
+
+	// resolve full path in command tree
+	node, remaining, err := command.ResolveCommand(args)
+	if err != nil || node == nil || node.Cmd == nil || len(remaining) > 0 {
+		fmt.Printf("Unknown command: %s\n", fullPath)
 		return nil
 	}
 
-	if usage := cmd.Usage(); usage != "" {
-		fmt.Printf("\033[90mUsage:\033[0m %s\n\n", usage)
-	}
-	fmt.Printf("%s\n\n", cmd.Help())
+	cmd := node.Cmd
 
-	if aliasesCmd, ok := cmd.(interface{ Aliases() []string }); ok {
-		if aliases := aliasesCmd.Aliases(); len(aliases) > 0 {
-			fmt.Printf("Aliases: %s\n", strings.Join(aliases, ", "))
+	// get raw help string
+	helpText := cmd.Help()
+
+	// recolor keywords on the fly
+	for k, style := range helpKeywords {
+		helpText = strings.ReplaceAll(helpText, k, style+k+ansiReset)
+	}
+
+	// print recolored help
+	fmt.Println(helpText)
+
+	// if the command has subcommands, show them
+	subcmds := cmd.Subcommands()
+	if len(subcmds) > 0 {
+		fmt.Println("\nSubcommands:")
+
+		// compute longest name for alignment
+		longest := 0
+		for _, sc := range subcmds {
+			if l := len(sc.Name()); l > longest {
+				longest = l
+			}
 		}
+
+		for _, sc := range subcmds {
+			desc := sc.Brief()
+			if desc == "" {
+				desc = "-"
+			}
+			padding := strings.Repeat(" ", longest-len(sc.Name())+2)
+			fmt.Printf("  \033[1m%s\033[0m%s%s\n", sc.Name(), padding, desc)
+		}
+
+		fmt.Printf("\nType 'help %s <subcommand>' for detailed info on a subcommand.\n", fullPath)
 	}
 
 	return nil
 }
 
-// runListAllCommands lists all commands in a Git-style layout
+// runListAllCommands lists all leaf commands (exclude parents without children)
 func runListAllCommands() error {
 	commands := command.AllCommands()
-	sort.Slice(commands, func(i, j int) bool {
-		return commands[i].Name() < commands[j].Name()
+	type CmdEntry struct {
+		Path string
+		Cmd  command.Command
+	}
+
+	var entries []CmdEntry
+
+	var walk func(prefix string, cmd command.Command)
+	walk = func(prefix string, cmd command.Command) {
+		path := cmd.Name()
+		if prefix != "" {
+			path = prefix + " " + cmd.Name()
+		}
+
+		// only add leaf commands (no subcommands)
+		if len(cmd.Subcommands()) == 0 {
+			entries = append(entries, CmdEntry{Path: path, Cmd: cmd})
+		}
+
+		for _, sc := range cmd.Subcommands() {
+			walk(path, sc)
+		}
+	}
+
+	// start from root-level commands
+	for _, cmd := range commands {
+		walk("", cmd)
+	}
+
+	// sort alphabetically by path
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Path < entries[j].Path
 	})
 
-	fmt.Print("Available commands:\n\n")
+	// find longest path for padding
 	longest := 0
-	for _, cmd := range commands {
-		if l := len(cmd.Name()); l > longest {
+	for _, e := range entries {
+		if l := len(e.Path); l > longest {
 			longest = l
 		}
 	}
 
-	for _, cmd := range commands {
-		name := cmd.Name()
-		desc := cmd.Brief()
+	fmt.Print("Available commands:\n\n")
+	for _, e := range entries {
+		desc := e.Cmd.Brief()
 		if desc == "" {
 			desc = "-"
 		}
-
-		padding := strings.Repeat(" ", longest-len(name)+2)
-		fmt.Printf("  \033[1m%s\033[0m%s%s\n", name, padding, desc)
+		padding := strings.Repeat(" ", longest-len(e.Path)+2)
+		fmt.Printf("  \033[1m%s\033[0m%s%s\n", e.Path, padding, desc)
 	}
 
 	fmt.Println("\nType 'help <command>' to see detailed information about a specific command.")

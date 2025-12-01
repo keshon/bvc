@@ -25,7 +25,7 @@ func (c *Command) Help() string {
 
 Options:
   -a, --all             Stage all changes, including deletions (-A)
-	  --update          Stage modifications and deletions only (-u)
+   --update             Stage modifications and deletions only (-u)
 
 Usage:
   bvc add <file|dir|.> [options]

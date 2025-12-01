@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/keshon/bvc/internal/command"
+	"github.com/keshon/bvc/internal/middleware"
 )
 
 // Base command for "block"
@@ -40,7 +41,6 @@ func (c *BlockCommand) Subcommands() []command.Command {
 
 func (c *BlockCommand) Flags(fs *flag.FlagSet) {}
 
-// Run prints usage if no subcommand is provided
 func (c *BlockCommand) Run(ctx *command.Context) error {
 	fmt.Println("Usage: block <subcommand> [options]")
 	fmt.Println("Available subcommands:")
@@ -69,4 +69,13 @@ func (c *BlockCommand) Run(ctx *command.Context) error {
 
 func spaces(n int) string {
 	return fmt.Sprintf("%*s", n, "")
+}
+
+func init() {
+	command.RegisterCommand(
+		command.ApplyMiddlewares(
+			&BlockCommand{},
+			middleware.WithDebugArgsPrint(),
+		),
+	)
 }
