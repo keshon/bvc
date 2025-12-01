@@ -53,6 +53,7 @@ Examples:
 ### bvc block reuse
 ```
 Analyze block reuse across branches
+
 Options:
   -f, --full            Print detailed shared block list
   -e, --export          Save output to file
@@ -117,6 +118,12 @@ Display help information for commands.
 Usage:
   help          List all commands.
   help <name>   Show detailed help for a specific command.
+  
+Examples:
+  bvc help
+  bvc help add
+  bvc help block scan
+
 ```
 
 ### bvc init

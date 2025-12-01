@@ -21,7 +21,13 @@ func (c *Command) Help() string {
 
 Usage:
   help          List all commands.
-  help <name>   Show detailed help for a specific command.`
+  help <name>   Show detailed help for a specific command.
+  
+Examples:
+  bvc help
+  bvc help add
+  bvc help block scan
+`
 }
 
 func (c *Command) Subcommands() []command.Command { return nil }
