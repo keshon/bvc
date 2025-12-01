@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"path/filepath"
@@ -192,14 +193,14 @@ func (sc *SnapshotContext) Save(fs Fileset) error {
 	}
 
 	path := filepath.Join(sc.SnapshotDir, fs.ID+".json")
-	return util.WriteJSON(path, fs)
+	return sc.writeJSON(path, fs)
 }
 
 // Load retrieves a Fileset by its ID from disk.
 func (sc *SnapshotContext) Load(filesetID string) (Fileset, error) {
 	path := filepath.Join(sc.SnapshotDir, filesetID+".json")
 	var fs Fileset
-	if err := util.ReadJSON(path, &fs); err != nil {
+	if err := sc.readJSON(path, &fs); err != nil {
 		return Fileset{}, fmt.Errorf("failed to read fileset %q: %w", filesetID, err)
 	}
 	return fs, nil
@@ -214,10 +215,46 @@ func (sc *SnapshotContext) List() ([]Fileset, error) {
 	var filesets []Fileset
 	for _, f := range files {
 		var fs Fileset
-		if err := util.ReadJSON(f, &fs); err != nil {
+		if err := sc.readJSON(f, &fs); err != nil {
 			return nil, fmt.Errorf("failed to read fileset %q: %w", f, err)
 		}
 		filesets = append(filesets, fs)
 	}
 	return filesets, nil
+}
+
+func (sc *SnapshotContext) writeJSON(path string, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(path)
+
+	tmpFile, tmpPath, err := sc.FS.CreateTempFile(dir, "tmp-*.json")
+	if err != nil {
+		return err
+	}
+	defer sc.FS.Remove(tmpPath) // ensure cleanup on error
+
+	// write JSON
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	// atomically rename
+	return sc.FS.Rename(tmpPath, path)
+}
+
+func (sc *SnapshotContext) readJSON(path string, v interface{}) error {
+	data, err := sc.FS.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
 }

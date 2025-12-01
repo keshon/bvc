@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/keshon/bvc/internal/fs"
 	"github.com/keshon/bvc/internal/progress"
 	"github.com/keshon/bvc/internal/repo/block"
 	"github.com/keshon/bvc/internal/repo/meta"
@@ -46,7 +45,7 @@ func (r *Repository) CountBlocks(onlyLatestCommit bool) (int, error) {
 		for _, commitID := range commitIDs {
 			commitPath := filepath.Join(r.Config.CommitsDir(), commitID+".json")
 			var commit meta.Commit
-			if err := util.ReadJSON(commitPath, &commit); err != nil {
+			if err := r.readJSON(commitPath, &commit); err != nil {
 				continue
 			}
 			if commit.FilesetID == "" {
@@ -55,7 +54,7 @@ func (r *Repository) CountBlocks(onlyLatestCommit bool) (int, error) {
 
 			filesetPath := filepath.Join(r.Config.SnapshotsDir(), commit.FilesetID+".json")
 			var fs snapshot.Fileset
-			if err := util.ReadJSON(filesetPath, &fs); err != nil {
+			if err := r.readJSON(filesetPath, &fs); err != nil {
 				continue
 			}
 
@@ -98,7 +97,7 @@ func (r *Repository) ListAllBlocks(onlyLatestCommit bool) (map[string]*BlockInfo
 		for _, commitID := range commitIDs {
 			commitPath := filepath.Join(r.Config.CommitsDir(), commitID+".json")
 			var commit meta.Commit
-			if err := util.ReadJSON(commitPath, &commit); err != nil {
+			if err := r.readJSON(commitPath, &commit); err != nil {
 				continue
 			}
 			if commit.FilesetID == "" {
@@ -107,7 +106,7 @@ func (r *Repository) ListAllBlocks(onlyLatestCommit bool) (map[string]*BlockInfo
 
 			filesetPath := filepath.Join(r.Config.SnapshotsDir(), commit.FilesetID+".json")
 			var fs snapshot.Fileset
-			if err := util.ReadJSON(filesetPath, &fs); err != nil {
+			if err := r.readJSON(filesetPath, &fs); err != nil {
 				continue
 			}
 
@@ -162,7 +161,6 @@ func (r *Repository) VerifyBlocks(onlyLatestCommit bool) error {
 // If onlyLatestCommit is false, collects blocks from all commits in all branches; otherwise only latest commits.
 // Returns error if any block is missing/damaged.
 func (r *Repository) VerifyBlocksStream(onlyLatestCommit bool) (<-chan block.BlockCheck, <-chan error) {
-	fs := fs.NewOSFS()
 	out := make(chan block.BlockCheck, 128)
 	errCh := make(chan error, 1)
 
@@ -170,7 +168,7 @@ func (r *Repository) VerifyBlocksStream(onlyLatestCommit bool) (<-chan block.Blo
 		defer close(out)
 		defer close(errCh)
 
-		if _, err := fs.Stat(r.Config.RepoDir); os.IsNotExist(err) {
+		if _, err := r.FS.Stat(r.Config.RepoDir); os.IsNotExist(err) {
 			errCh <- fmt.Errorf("repository not initialized (missing %s)", r.Config.RepoDir)
 			return
 		}

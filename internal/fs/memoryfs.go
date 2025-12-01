@@ -191,16 +191,19 @@ func (f *MemoryFS) CreateTempFile(dir, pattern string) (io.WriteCloser, string, 
 		return nil, "", err
 	}
 
-	tmpName := filepath.Join(dir, pattern+"-tmp")
-	buf := &bytes.Buffer{}
-
-	wc := &memWriteCloser{
-		buf: buf,
-		onClose: func() {
-			f.files[clean(tmpName)] = buf.Bytes()
-		},
+	for i := 0; ; i++ {
+		tmpName := filepath.Join(dir, fmt.Sprintf("%s-tmp-%d", pattern, i))
+		if _, exists := f.files[clean(tmpName)]; !exists {
+			buf := &bytes.Buffer{}
+			wc := &memWriteCloser{
+				buf: buf,
+				onClose: func() {
+					f.files[clean(tmpName)] = buf.Bytes()
+				},
+			}
+			return wc, tmpName, nil
+		}
 	}
-	return wc, tmpName, nil
 }
 
 type memWriteCloser struct {

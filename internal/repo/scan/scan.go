@@ -1,13 +1,14 @@
 package scan
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/keshon/bvc/internal/fs"
 	"github.com/keshon/bvc/internal/repo/ignore"
 	"github.com/keshon/bvc/internal/repo/meta"
-	"github.com/keshon/bvc/internal/util"
 )
 
 type ScanResult struct {
@@ -34,79 +35,94 @@ func NewScanner(workingTreeDir string, mc meta.MetaContextInterface, fsys fs.FS)
 	}
 }
 
+func (s *Scanner) readJSON(path string, v interface{}) error {
+	data, err := s.FS.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
+}
+
 func (s *Scanner) ScanAll() (*ScanResult, error) {
-	result := &ScanResult{}
+	r := &ScanResult{}
+	cfg := s.Meta.GetConfig()
 
-	repoDir := s.Meta.GetConfig().RepoDir
-	repoRel := filepath.ToSlash(filepath.Clean(repoDir))
+	// repo dir = wt/.bvc
+	repoDir := filepath.ToSlash(filepath.Clean(cfg.RepoDir))
 
-	matcher := ignore.NewIgnore(s.WorkingTreeDir, s.FS)
+	// ignore
+	ign := ignore.NewIgnore(s.WorkingTreeDir, s.FS)
 
-	// staged from index.json
-	indexSet := make(map[string]struct{})
-	indexPath := filepath.Join(repoDir, "index.json")
-	var raw []struct {
+	// load staged
+	indexSet := map[string]struct{}{}
+	indexPath := filepath.ToSlash(filepath.Join(repoDir, "index.json"))
+
+	var rawIdx []struct {
 		Path string `json:"path"`
 	}
-	if err := util.ReadJSON(indexPath, &raw); err == nil {
-		for _, e := range raw {
-			indexSet[filepath.ToSlash(filepath.Clean(e.Path))] = struct{}{}
+	if err := s.readJSON(indexPath, &rawIdx); err == nil {
+		for _, e := range rawIdx {
+			indexSet[cleanRel(e.Path)] = struct{}{}
 		}
 	}
 
-	// committed files
-	committedSet := make(map[string]struct{})
+	// load committed
+	committedSet := map[string]struct{}{}
 	branch, err := s.Meta.GetCurrentBranch()
 	if err == nil {
-		curCommit, err2 := s.Meta.GetLastCommitForBranch(branch.Name)
-		for curCommit != nil && err2 == nil {
-			snap := filepath.Join(s.Meta.GetConfig().SnapshotsDir(), curCommit.FilesetID+".json")
+		last, err := s.Meta.GetLastCommitForBranch(branch.Name)
+		for last != nil && err == nil {
+			snapPath := filepath.ToSlash(filepath.Join(cfg.SnapshotsDir(), last.FilesetID+".json"))
+
 			var payload struct {
 				Files []struct {
 					Path string `json:"path"`
 				}
 			}
-			if err3 := util.ReadJSON(snap, &payload); err3 == nil {
+
+			if err2 := s.readJSON(snapPath, &payload); err2 == nil {
 				for _, f := range payload.Files {
-					rel := filepath.ToSlash(filepath.Clean(f.Path))
-					committedSet[rel] = struct{}{}
+					committedSet[cleanRel(f.Path)] = struct{}{}
 				}
 			}
-			if len(curCommit.Parents) > 0 {
-				curCommit, err2 = s.Meta.GetCommit(curCommit.Parents[0])
-			} else {
+
+			if len(last.Parents) == 0 {
 				break
 			}
+			last, err = s.Meta.GetCommit(last.Parents[0])
 		}
 	}
 
-	// walk working tree
+	// walk filesystem
+	wt := filepath.ToSlash(filepath.Clean(s.WorkingTreeDir))
+
 	var walk func(rel string) error
 	walk = func(rel string) error {
-		dirAbs := filepath.Join(s.WorkingTreeDir, rel)
+		abs := filepath.Join(wt, rel)
 
-		entries, err := s.FS.ReadDir(dirAbs)
+		entries, err := s.FS.ReadDir(abs)
 		if err != nil {
 			return err
 		}
 
 		for _, e := range entries {
-			childRel := filepath.ToSlash(filepath.Join(rel, e.Name()))
+			name := e.Name()
+			childRel := filepath.ToSlash(filepath.Join(rel, name))
 
-			info, err := e.Info()
-			if err != nil || info == nil {
+			// skip .bvc fully
+			if isRepoDir(childRel, repoDir) {
 				continue
 			}
 
-			// skip repo metadata directory
-			if filepath.ToSlash(childRel) == repoRel {
+			fi, err := e.Info()
+			if err != nil {
 				continue
 			}
 
-			// directories
-			if info.IsDir() {
-				if matcher.Match(childRel) {
-					result.Ignored = append(result.Ignored, childRel)
+			// directory recursively
+			if fi.IsDir() {
+				if ign.Match(childRel) {
+					r.Ignored = append(r.Ignored, childRel)
 					continue
 				}
 				if err := walk(childRel); err != nil {
@@ -115,27 +131,28 @@ func (s *Scanner) ScanAll() (*ScanResult, error) {
 				continue
 			}
 
-			// ignored files
-			if matcher.Match(childRel) {
-				result.Ignored = append(result.Ignored, childRel)
+			// ignored file
+			if ign.Match(childRel) {
+				r.Ignored = append(r.Ignored, childRel)
 				continue
 			}
 
 			// staged
 			if _, ok := indexSet[childRel]; ok {
-				result.Staged = append(result.Staged, childRel)
+				r.Staged = append(r.Staged, childRel)
 				continue
 			}
 
-			// tracked
+			// tracked (commit)
 			if _, ok := committedSet[childRel]; ok {
-				result.Tracked = append(result.Tracked, childRel)
+				r.Tracked = append(r.Tracked, childRel)
 				continue
 			}
 
 			// untracked
-			result.Untracked = append(result.Untracked, childRel)
+			r.Untracked = append(r.Untracked, childRel)
 		}
+
 		return nil
 	}
 
@@ -143,11 +160,21 @@ func (s *Scanner) ScanAll() (*ScanResult, error) {
 		return nil, err
 	}
 
-	// sort output
-	sort.Strings(result.Tracked)
-	sort.Strings(result.Staged)
-	sort.Strings(result.Ignored)
-	sort.Strings(result.Untracked)
+	sort.Strings(r.Tracked)
+	sort.Strings(r.Staged)
+	sort.Strings(r.Ignored)
+	sort.Strings(r.Untracked)
 
-	return result, nil
+	return r, nil
+}
+
+func cleanRel(p string) string {
+	return filepath.ToSlash(filepath.Clean(p))
+}
+
+// correct detection of .bvc folder relative to working tree
+func isRepoDir(childRel, repoDir string) bool {
+	// repoDir may be "wt/.bvc"
+	// repoDir basename is ".bvc"
+	return strings.HasPrefix(childRel, filepath.Base(repoDir))
 }

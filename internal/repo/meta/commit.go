@@ -1,12 +1,11 @@
 package meta
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/keshon/bvc/internal/util"
 )
 
 type Commit struct {
@@ -22,7 +21,7 @@ type Commit struct {
 func (mc *MetaContext) GetCommit(commitID string) (*Commit, error) {
 	var c Commit
 	path := filepath.Join(mc.Config.CommitsDir(), commitID+".json")
-	if err := util.ReadJSON(path, &c); err != nil {
+	if err := mc.readJSON(path, &c); err != nil {
 		return nil, fmt.Errorf("failed to read commit %q: %w", commitID, err)
 	}
 	return &c, nil
@@ -31,7 +30,7 @@ func (mc *MetaContext) GetCommit(commitID string) (*Commit, error) {
 // CreateCommit writes a commit to store.
 func (mc *MetaContext) CreateCommit(commit *Commit) (string, error) {
 	path := filepath.Join(mc.Config.CommitsDir(), commit.ID+".json")
-	if err := util.WriteJSON(path, commit); err != nil {
+	if err := mc.writeJSON(path, commit); err != nil {
 		return "", fmt.Errorf("failed to write commit %q: %w", commit.ID, err)
 	}
 	return commit.ID, nil
@@ -119,4 +118,40 @@ func (mc *MetaContext) GetLastCommitForBranch(branch string) (*Commit, error) {
 		return nil, nil
 	}
 	return mc.GetCommit(lastID)
+}
+
+func (mc *MetaContext) writeJSON(path string, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(path)
+
+	tmpFile, tmpPath, err := mc.FS.CreateTempFile(dir, "tmp-*.json")
+	if err != nil {
+		return err
+	}
+	defer mc.FS.Remove(tmpPath) // ensure cleanup on error
+
+	// write JSON
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return err
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	// atomically rename
+	return mc.FS.Rename(tmpPath, path)
+}
+
+func (mc *MetaContext) readJSON(path string, v interface{}) error {
+	data, err := mc.FS.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, v)
 }

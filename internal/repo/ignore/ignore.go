@@ -59,7 +59,6 @@ func (m *Ignore) Match(path string) bool {
 	return false
 }
 
-// matchPattern handles *, ?, and ** like Git
 func matchPattern(pattern, path string) bool {
 	pattern = filepath.ToSlash(pattern)
 	path = filepath.ToSlash(path)
@@ -69,7 +68,18 @@ func matchPattern(pattern, path string) bool {
 		return true
 	}
 
+	// Special case: pattern has no "/" - match only the basename
+	if !strings.Contains(pattern, "/") {
+		return matchBase(filepath.Base(path), pattern)
+	}
+
 	return matchSegments(strings.Split(pattern, "/"), strings.Split(path, "/"))
+}
+
+// matchBase matches a pattern against just the basename
+func matchBase(name, pattern string) bool {
+	ok, _ := filepath.Match(pattern, name)
+	return ok
 }
 
 // matchSegments matches pattern segments recursively

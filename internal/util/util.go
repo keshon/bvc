@@ -1,53 +1,10 @@
 package util
 
 import (
-	"encoding/json"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"sync"
-
-	"github.com/keshon/bvc/internal/fs"
 )
-
-// WriteJSON writes a JSON file atomically using the FS interface.
-var WriteJSON = func(path string, v any) error {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	dir := filepath.Dir(path)
-	fsys := fs.NewOSFS() // can be replaced with any FS implementation
-
-	tmpFile, tmpPath, err := fsys.CreateTempFile(dir, "tmp-*.json")
-	if err != nil {
-		return err
-	}
-	defer fsys.Remove(tmpPath) // ensure cleanup on error
-
-	// Write JSON
-	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		return err
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		return err
-	}
-
-	// Atomically rename
-	return fsys.Rename(tmpPath, path)
-}
-
-// ReadJSON reads a JSON file and unmarshals it into v
-var ReadJSON = func(path string, v any) error {
-	data, err := fs.NewOSFS().ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, v)
-}
 
 // SortedKeys returns the keys of a map sorted alphabetically.
 func SortedKeys[M ~map[string]V, V any](m M) []string {
