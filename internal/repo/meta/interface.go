@@ -8,6 +8,9 @@ type MetaContextInterface interface {
 	ListBranches() ([]Branch, error)
 	CreateBranch(name string) (Branch, error)
 	BranchExists(name string) (bool, error)
+	CreateBranchAt(name, commitID string, force bool) (Branch, error)
+	DeleteBranch(name string) error
+	RenameBranch(old, new string, force bool) error
 
 	GetCommit(commitID string) (*Commit, error)
 	CreateCommit(commit *Commit) (string, error)

@@ -44,9 +44,14 @@ func (f *fakeMeta) GetBranch(name string) (meta.Branch, error) {
 	}
 	return meta.Branch{}, nil
 }
-func (f *fakeMeta) ListBranches() ([]meta.Branch, error)             { return nil, nil }
-func (f *fakeMeta) CreateBranch(name string) (meta.Branch, error)    { return meta.Branch{}, nil }
-func (f *fakeMeta) BranchExists(name string) (bool, error)           { return false, nil }
+func (f *fakeMeta) ListBranches() ([]meta.Branch, error)          { return nil, nil }
+func (f *fakeMeta) CreateBranch(name string) (meta.Branch, error) { return meta.Branch{}, nil }
+func (f *fakeMeta) BranchExists(name string) (bool, error)        { return false, nil }
+func (f *fakeMeta) CreateBranchAt(name, commitID string, force bool) (meta.Branch, error) {
+	return meta.Branch{}, nil
+}
+func (f *fakeMeta) DeleteBranch(name string) error                   { return nil }
+func (f *fakeMeta) RenameBranch(old, new string, force bool) error   { return nil }
 func (f *fakeMeta) CreateCommit(commit *meta.Commit) (string, error) { return "", nil }
 func (f *fakeMeta) SetLastCommitID(branch, commitID string) error    { return nil }
 func (f *fakeMeta) GetLastCommitID(branch string) (string, error)    { return "", nil }

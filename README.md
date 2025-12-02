@@ -79,11 +79,30 @@ Usage:
 
 ### bvc branch
 ```
-List all branches or create a new one.
+Create, list, rename, or delete branches.
+
+Options:
+  -d               Delete branch (safe; refuses if branch is not fully merged)
+  -D               Delete branch (force; deletes even if unmerged)
+  -m               Rename branch
+  -M               Rename branch (force; overwrite destination)
 
 Usage:
-  branch           - list all branches (current marked with '*')
-  branch <name>    - create a new branch from the current one
+  bvc branch                     List all branches (current marked with '*')
+  bvc branch <name>              Create a new branch at the current HEAD
+  bvc branch <name> <start>      Create a new branch at the given commit/branch
+  bvc branch -d <name>           Delete a branch
+  bvc branch -D <name>           Force-delete a branch
+  bvc branch -m <old> <new>      Rename a branch
+  bvc branch -M <old> <new>      Force-rename (overwrite if exists)
+
+Examples:
+  bvc branch
+  bvc branch feature
+  bvc branch feature main
+  bvc branch -d feature
+  bvc branch -m old-name new-name
+
 ```
 
 ### bvc checkout
