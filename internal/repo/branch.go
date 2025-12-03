@@ -17,7 +17,7 @@ func (r *Repository) CreateBranch(name, startPoint string, force bool) (string, 
 		return "", fmt.Errorf("branch %q already exists", name)
 	}
 
-	// Resolve start commit
+	// resolve start commit
 	var commitID string
 
 	if startPoint == "" {
@@ -38,7 +38,7 @@ func (r *Repository) CreateBranch(name, startPoint string, force bool) (string, 
 		commitID = commit
 	}
 
-	// Create branch with commit pointer
+	// create branch with commit pointer
 	br, err := r.Meta.CreateBranchAt(name, commitID, force)
 	if err != nil {
 		return "", fmt.Errorf("create branch: %w", err)
@@ -58,14 +58,14 @@ func (r *Repository) DeleteBranch(name string, force bool) error {
 		return fmt.Errorf("cannot delete current branch %q", name)
 	}
 
-	// Ensure the branch exists
+	// ensure the branch exists
 	_, err = r.Meta.GetBranch(name)
 	if err != nil {
 		return fmt.Errorf("branch %q does not exist: %w", name, err)
 	}
 
 	if !force {
-		// Check if fully merged
+		// check if fully merged
 		merged, err := r.isBranchFullyMerged(name, current.Name)
 		if err != nil {
 			return err
@@ -149,7 +149,7 @@ func (r *Repository) isBranchFullyMerged(src, target string) (bool, error) {
 		set[id] = struct{}{}
 	}
 
-	// If every commit in src is reachable from target → fully merged
+	// if every commit in src is reachable from target - fully merged
 	for _, id := range srcCommits {
 		if _, ok := set[id]; !ok {
 			return false, nil

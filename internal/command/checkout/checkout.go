@@ -31,64 +31,22 @@ func (c *Command) Run(ctx *command.Context) error {
 	}
 	branchName := ctx.Args[0]
 
-	// open the repository context
 	r, err := repo.NewRepositoryByPath(config.ResolveRepoDir())
 	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return fmt.Errorf("open repository: %w", err)
 	}
 
-	// ensure branch exists
-	targetBranch, err := r.Meta.GetBranch(branchName)
+	result, err := r.Checkout(branchName)
 	if err != nil {
 		return err
 	}
 
-	// resolve its last commit
-	commitID, err := r.Meta.GetLastCommitID(targetBranch.Name)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(commitID)
-
-	// case 1: handle empty branch
-	if commitID == "" {
-		if err := r.File.RestoreFilesToWorkingTree(nil, fmt.Sprintf("empty branch '%s'", branchName)); err != nil {
-			return err
-		}
-		if _, err := r.Meta.SetHeadRef(branchName); err != nil {
-			return err
-		}
-		fmt.Println("Branch is empty, switched to", branchName)
+	if result.Empty {
+		fmt.Printf("Branch '%s' is empty — switched.\n", result.Branch)
 		return nil
 	}
 
-	// case 2: handle non-empty branch
-	// load commit and fileset
-	commit, err := r.Meta.GetCommit(commitID)
-	if err != nil {
-		return fmt.Errorf("failed to load commit %s: %w", commitID, err)
-	}
-
-	fs, err := r.Snapshot.Load(commit.FilesetID)
-	if err != nil {
-		return fmt.Errorf("failed to load fileset %s: %w", commit.FilesetID, err)
-	}
-
-	// restore files
-	if err := r.File.RestoreFilesToWorkingTree(fs.Files, fmt.Sprintf("branch '%s'", branchName)); err != nil {
-		return fmt.Errorf("restore failed: %w", err)
-	}
-
-	// update HEAD and last commit
-	if _, err := r.Meta.SetHeadRef(branchName); err != nil {
-		return err
-	}
-	if err := r.Meta.SetLastCommitID(branchName, commitID); err != nil {
-		return err
-	}
-
-	fmt.Println("Switched to branch", branchName)
+	fmt.Printf("Switched to branch '%s' at commit %s\n", result.Branch, result.CommitID)
 	return nil
 }
 
