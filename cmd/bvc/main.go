@@ -1,39 +1,33 @@
 package main
 
 import (
+	"bvc/command"
+	"bvc/internal/commands/config"
+	"bvc/internal/commands/help"
+	"bvc/internal/commands/initrepo"
+	"bvc/internal/commands/prune"
+	"bvc/internal/commands/snapshot"
+	"bvc/internal/commands/status"
+	"bvc/internal/commands/stream"
+	"bvc/internal/commands/sync"
 	"fmt"
 	"os"
-
-	"github.com/keshon/bvc/internal/command"
-
-	// Register commands
-	_ "github.com/keshon/bvc/internal/command/add"
-	_ "github.com/keshon/bvc/internal/command/block"
-	_ "github.com/keshon/bvc/internal/command/branch"
-	_ "github.com/keshon/bvc/internal/command/checkout"
-	_ "github.com/keshon/bvc/internal/command/cherry-pick"
-	_ "github.com/keshon/bvc/internal/command/commit"
-	_ "github.com/keshon/bvc/internal/command/help"
-	_ "github.com/keshon/bvc/internal/command/init"
-	_ "github.com/keshon/bvc/internal/command/log"
-	_ "github.com/keshon/bvc/internal/command/merge"
-	_ "github.com/keshon/bvc/internal/command/reset"
-	_ "github.com/keshon/bvc/internal/command/status"
 )
 
 func main() {
-	args := os.Args[1:]
+	reg := command.NewRegistry()
 
-	// No arguments? Print usage and exit
-	if len(args) == 0 {
-		fmt.Println("Usage: bvc <command> [args...]")
-		fmt.Println("Available commands:")
-		for _, cmd := range command.AllCommands() {
-			fmt.Printf("  %s: %s\n", cmd.Name(), cmd.Brief())
-		}
-		os.Exit(0)
+	reg.Register(&config.ConfigCmd{})
+	reg.Register(&help.HelpCmd{Reg: reg})
+	reg.Register(&initrepo.InitCmd{})
+	reg.Register(&prune.PruneCmd{})
+	reg.Register(&snapshot.SnapshotCmd{})
+	reg.Register(&status.StatusCmd{})
+	reg.Register(&stream.StreamCmd{})
+	reg.Register(&sync.SyncCmd{})
+
+	if err := reg.Dispatch(); err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
 	}
-
-	// Delegate to runner
-	command.RunCLI(args)
 }

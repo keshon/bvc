@@ -1,0 +1,40 @@
+package snapshot
+
+import (
+	"bvc/command"
+	"bvc/internal/util"
+	"flag"
+	"fmt"
+)
+
+type CheckoutCmd struct{}
+
+func (c *CheckoutCmd) Name() string { return "checkout" }
+func (c *CheckoutCmd) Help() string { return "Restore project from snapshot" }
+
+func (c *CheckoutCmd) Flags(fs *flag.FlagSet) {}
+
+func (c *CheckoutCmd) SubCommands() []command.Command { return nil }
+
+func (c *CheckoutCmd) Run(ctx command.Context) error {
+
+	if len(ctx.Args) < 1 {
+		return fmt.Errorf("snapshot ID is required")
+	}
+	id := ctx.Args[0]
+
+	repo, err := util.OpenRepo(".")
+	if err != nil {
+		return err
+	}
+	if err := repo.RequireMode("snapshot-first"); err != nil {
+		return err
+	}
+
+	fmt.Printf("Checking out snapshot '%s'\n", id)
+	if err := repo.CheckoutSnapshot(id, true); err != nil {
+		return fmt.Errorf("checkout: %w", err)
+	}
+	fmt.Println("Checkout complete.")
+	return nil
+}

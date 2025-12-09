@@ -1,53 +1,32 @@
 package util
 
 import (
-	"runtime"
-	"sort"
-	"sync"
+	"bvc/internal/blockstore"
+	"bvc/internal/engine"
+	"bvc/internal/snapshot"
+	"bvc/internal/stream"
+	"bvc/internal/workfs"
+	"bvc/storage"
+	"io"
+	"path/filepath"
 )
 
-// SortedKeys returns the keys of a map sorted alphabetically.
-func SortedKeys[M ~map[string]V, V any](m M) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+func CopyClose(dst io.Writer, src io.ReadCloser) error {
+	defer src.Close()
+	_, err := io.Copy(dst, src)
+	return err
 }
 
-// WorkerCount returns the number of workers for concurrent operations.
-func WorkerCount() int {
-	return runtime.NumCPU()
-}
+func OpenRepo(path string) (*engine.Engine, error) {
+	repoDir := filepath.Join(path, workfs.DefaultRepoDir)
+	store := storage.NewLocalStorage(repoDir)
 
-// Parallel runs fn concurrently for each item in inputs, limited by workerLimit.
-func Parallel[T any](inputs []T, workerLimit int, fn func(T) error) error {
-	if len(inputs) == 0 {
-		return nil
-	}
+	blocks := blockstore.NewStore(store, "blocks")
+	snaps := snapshot.NewStore(store, "snaps")
+	streams := stream.NewStore(store, "streams")
+	ignore := workfs.LoadIgnore(path)
 
-	sem := make(chan struct{}, workerLimit)
-	errCh := make(chan error, len(inputs))
-	var wg sync.WaitGroup
+	repo := engine.NewEngine(path, blocks, snaps, streams, ignore, store)
 
-	for _, in := range inputs {
-		sem <- struct{}{}
-		wg.Add(1)
-		go func(x T) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			if err := fn(x); err != nil {
-				errCh <- err
-			}
-		}(in)
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		return err
-	}
-	return nil
+	return repo, nil
 }

@@ -1,0 +1,42 @@
+package stream
+
+import (
+	"bvc/command"
+	"bvc/internal/util"
+	"flag"
+	"fmt"
+)
+
+type CloneCmd struct{}
+
+func (c *CloneCmd) Name() string                   { return "clone" }
+func (c *CloneCmd) Help() string                   { return "Clone a stream into a new stream" }
+func (c *CloneCmd) Flags(fs *flag.FlagSet)         {}
+func (c *CloneCmd) SubCommands() []command.Command { return nil }
+
+func (c *CloneCmd) Run(ctx command.Context) error {
+	if len(ctx.Args) < 2 {
+		return fmt.Errorf("usage: bvc stream clone <source> <dest>")
+	}
+	src, dst := ctx.Args[0], ctx.Args[1]
+
+	repo, err := util.OpenRepo(".")
+	if err != nil {
+		return err
+	}
+
+	if err := repo.RequireMode("stream-first"); err != nil {
+		return err
+	}
+
+	if _, err := repo.Streams.Load(src); err != nil {
+		return fmt.Errorf("source stream '%s' not found", src)
+	}
+
+	if err := repo.StreamClone(src, dst); err != nil {
+		return err
+	}
+
+	fmt.Printf("Stream '%s' cloned to '%s'\n", src, dst)
+	return nil
+}
