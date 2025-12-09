@@ -2,6 +2,7 @@ package workfs
 
 import (
 	"bufio"
+	"bvc/util"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,11 +34,13 @@ func LoadIgnore(root string) *FileIgnore {
 }
 
 func (ig *FileIgnore) Match(rel string, isDir bool) bool {
+	rel = util.Normalize(rel)
 	rel = filepath.ToSlash(rel)
 	if ig.static[rel] {
 		return true
 	}
 	for _, p := range ig.patterns {
+		p = util.Normalize(p)
 		p = filepath.ToSlash(p)
 		if strings.HasSuffix(p, "/") && isDir {
 			p = strings.TrimSuffix(p, "/")

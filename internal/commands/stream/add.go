@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -21,17 +21,17 @@ func (c *AddCmd) Run(ctx command.Context) error {
 	name := ctx.Args[0]
 	id := ctx.Args[1]
 
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
 
-	_, err = repo.Snaps.Load(id)
+	_, err = r.Snaps.Load(id)
 	if err != nil {
 		return fmt.Errorf("snapshot '%s' not found", id)
 	}
 
-	if err := repo.StreamAdd(name, id); err != nil {
+	if err := r.StreamAdd(name, id); err != nil {
 		return err
 	}
 

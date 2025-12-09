@@ -2,7 +2,7 @@ package snapshot
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -22,15 +22,15 @@ func (c *MergeCmd) Run(ctx command.Context) error {
 	b := ctx.Args[1]
 	newName := ctx.Args[2]
 
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
-	if err := repo.RequireMode("snapshot-first"); err != nil {
+	if err := r.RequireMode("snapshot-first"); err != nil {
 		return err
 	}
 
-	meta, err := repo.MergeSnapshots(a, b, newName)
+	meta, err := r.MergeSnapshots(a, b, newName)
 	if err != nil {
 		return err
 	}

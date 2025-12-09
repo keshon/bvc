@@ -15,6 +15,7 @@ import (
 	"bvc/internal/stream"
 	"bvc/internal/workfs"
 	"bvc/storage"
+	"bvc/util"
 )
 
 const BlockSize = 4 * 1024 * 1024
@@ -92,6 +93,7 @@ func (e *Engine) CreateSnapshot(name, desc string) (*snapshot.Meta, error) {
 	}
 
 	if err := workfs.WalkFiles(e.Root, e.Ignore, func(rel string, f *os.File) error {
+		rel = util.Normalize(rel)
 		buf := make([]byte, BlockSize)
 		for {
 			n, err := f.Read(buf)
@@ -160,6 +162,7 @@ func (e *Engine) MergeSnapshots(aID, bID, newName string) (*snapshot.Meta, error
 	result := map[string][]string{}
 
 	for rel, aBlocks := range a.Files {
+		rel = util.Normalize(rel)
 		if bBlocks, ok := b.Files[rel]; ok {
 			if equalSlices(aBlocks, bBlocks) {
 				result[rel] = aBlocks
@@ -178,6 +181,7 @@ func (e *Engine) MergeSnapshots(aID, bID, newName string) (*snapshot.Meta, error
 	}
 
 	for rel, bBlocks := range b.Files {
+		rel = util.Normalize(rel)
 		if _, ok := result[rel]; !ok {
 			result[rel] = bBlocks
 		}
@@ -349,7 +353,8 @@ func (e *Engine) CleanupWorkdir() error {
 		if err != nil {
 			return err
 		}
-		rel, _ := filepath.Rel(e.Root, pathname)
+		relRaw, _ := filepath.Rel(e.Root, pathname)
+		rel := util.Normalize(relRaw)
 		if rel == workfs.DefaultRepoDir || ig.Match(rel, info.IsDir()) {
 			if info.IsDir() {
 				return filepath.SkipDir

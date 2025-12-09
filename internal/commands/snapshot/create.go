@@ -2,7 +2,7 @@ package snapshot
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 	"time"
@@ -24,12 +24,11 @@ func (c *CreateCmd) Flags(fs *flag.FlagSet) {
 func (c *CreateCmd) SubCommands() []command.Command { return nil }
 
 func (c *CreateCmd) Run(ctx command.Context) error {
-	// если name не задан через флаг, генерируем
 	if c.name == "" {
 		c.name = "snap-" + time.Now().Format("20060102-150405")
 	}
 
-	repo, err := util.OpenRepo(".")
+	repo, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
@@ -40,10 +39,14 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 		return fmt.Errorf("create snapshot: %w", err)
 	}
 
-	repo.HeadSetSnapshot(meta.ID)
+	if repo.Mode == "snapshot-first" {
+		if err := repo.HeadSetSnapshot(meta.ID); err != nil {
+			return err
+		}
+	}
 
 	fmt.Printf("Snapshot created: id=%s created_at=%s files=%d\n",
-		meta.ID, meta.CreatedAt.Format("2006-01-02T15:04:05Z07:00"), len(meta.Files))
+		meta.ID, meta.CreatedAt.Format(time.RFC3339), len(meta.Files))
 
 	for p, hashes := range meta.Files {
 		fmt.Printf("  %s (%d blocks)\n", p, len(hashes))

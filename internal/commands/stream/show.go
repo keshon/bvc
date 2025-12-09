@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -15,17 +15,17 @@ func (c *ShowCmd) Flags(fs *flag.FlagSet)         {}
 func (c *ShowCmd) SubCommands() []command.Command { return nil }
 
 func (c *ShowCmd) Run(ctx command.Context) error {
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
 
-	name, err := repo.GetHeadOrArg(ctx.Args, "stream:")
+	name, err := r.GetHeadOrArg(ctx.Args, "stream:")
 	if err != nil {
 		return err
 	}
 
-	ids, err := repo.StreamSnapshots(name)
+	ids, err := r.StreamSnapshots(name)
 	if err != nil {
 		return err
 	}

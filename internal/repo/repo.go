@@ -1,4 +1,4 @@
-package util
+package repo
 
 import (
 	"bvc/internal/blockstore"
@@ -7,15 +7,8 @@ import (
 	"bvc/internal/stream"
 	"bvc/internal/workfs"
 	"bvc/storage"
-	"io"
 	"path/filepath"
 )
-
-func CopyClose(dst io.Writer, src io.ReadCloser) error {
-	defer src.Close()
-	_, err := io.Copy(dst, src)
-	return err
-}
 
 func OpenRepo(path string) (*engine.Engine, error) {
 	repoDir := filepath.Join(path, workfs.DefaultRepoDir)

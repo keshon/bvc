@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -20,15 +20,15 @@ func (c *RemoveCmd) Run(ctx command.Context) error {
 	}
 	name := ctx.Args[0]
 
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
-	if err := repo.RequireMode("stream-first"); err != nil {
+	if err := r.RequireMode("stream-first"); err != nil {
 		return err
 	}
 
-	if err := repo.StreamRemove(name); err != nil {
+	if err := r.StreamRemove(name); err != nil {
 		return err
 	}
 

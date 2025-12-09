@@ -3,8 +3,8 @@ package snapshot
 import (
 	"bvc/command"
 
+	"bvc/internal/repo"
 	"bvc/internal/snapshot"
-	"bvc/internal/util"
 	"flag"
 	"fmt"
 	"sort"
@@ -20,22 +20,22 @@ func (c *ListCmd) Flags(fs *flag.FlagSet) {}
 func (c *ListCmd) SubCommands() []command.Command { return nil }
 
 func (c *ListCmd) Run(ctx command.Context) error {
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
-	if err := repo.RequireMode("snapshot-first"); err != nil {
+	if err := r.RequireMode("snapshot-first"); err != nil {
 		return err
 	}
 
-	listIds, err := repo.Snaps.List()
+	listIds, err := r.Snaps.List()
 	if err != nil {
 		return fmt.Errorf("list snapshots: %w", err)
 	}
 
 	list := make([]snapshot.Meta, len(listIds))
 	for i, id := range listIds {
-		meta, err := repo.Snaps.Load(id)
+		meta, err := r.Snaps.Load(id)
 		if err != nil {
 			return err
 		}

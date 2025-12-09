@@ -2,7 +2,7 @@ package snapshot
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -23,16 +23,16 @@ func (c *CheckoutCmd) Run(ctx command.Context) error {
 	}
 	id := ctx.Args[0]
 
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
-	if err := repo.RequireMode("snapshot-first"); err != nil {
+	if err := r.RequireMode("snapshot-first"); err != nil {
 		return err
 	}
 
 	fmt.Printf("Checking out snapshot '%s'\n", id)
-	if err := repo.CheckoutSnapshot(id, true); err != nil {
+	if err := r.CheckoutSnapshot(id, true); err != nil {
 		return fmt.Errorf("checkout: %w", err)
 	}
 	fmt.Println("Checkout complete.")

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bvc/util"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ func NewLocalStorage(base string) *LocalStorage {
 }
 
 func (l *LocalStorage) path(key string) string {
+	key = util.Normalize(key)
 	return filepath.Join(l.BasePath, key)
 }
 
@@ -52,6 +54,8 @@ func (l *LocalStorage) Exists(key string) (bool, error) {
 }
 
 func (l *LocalStorage) List(prefix string) ([]string, error) {
+	prefix = util.Normalize(prefix)
+
 	var result []string
 	err := filepath.Walk(l.BasePath, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -61,7 +65,8 @@ func (l *LocalStorage) List(prefix string) ([]string, error) {
 			return nil
 		}
 		rel, _ := filepath.Rel(l.BasePath, p)
-		rel = filepath.ToSlash(rel)
+		rel = util.Normalize(rel)
+
 		pfx := strings.TrimSuffix(prefix, "/") + "/"
 		if pfx == "/" {
 			pfx = ""

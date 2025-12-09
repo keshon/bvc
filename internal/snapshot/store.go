@@ -10,11 +10,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"path"
 	"strings"
 	"time"
 
 	"bvc/storage"
+	"bvc/util"
 )
 
 type Meta struct {
@@ -35,7 +35,7 @@ func NewStore(backend storage.Storage, prefix string) *Store {
 }
 
 func (s *Store) Load(id string) (*Meta, error) {
-	rc, err := s.Backend.Get(path.Join(s.Prefix, id))
+	rc, err := s.Backend.Get(util.JoinNorm(s.Prefix, id))
 	if err != nil {
 		return nil, fmt.Errorf("snapshot '%s' not found", id)
 	}
@@ -53,17 +53,18 @@ func (s *Store) Save(m *Meta) error {
 	if err != nil {
 		return err
 	}
-	return s.Backend.Put(path.Join(s.Prefix, m.ID), bytes.NewReader(data))
+	return s.Backend.Put(util.JoinNorm(s.Prefix, m.ID), bytes.NewReader(data))
 }
 
 func (s *Store) List() ([]string, error) {
-	keys, err := s.Backend.List(s.Prefix)
+	keys, err := s.Backend.List(util.Normalize(s.Prefix))
 	if err != nil {
 		return nil, err
 	}
-	prefix := s.Prefix + "/"
+	prefix := util.Normalize(s.Prefix) + "/"
 	var ids []string
 	for _, k := range keys {
+		k = util.Normalize(k)
 		if strings.HasPrefix(k, prefix) {
 			ids = append(ids, k[len(prefix):])
 		}
@@ -72,6 +73,5 @@ func (s *Store) List() ([]string, error) {
 }
 
 func (s *Store) Delete(id string) error {
-	key := path.Join(s.Prefix, id)
-	return s.Backend.Delete(key)
+	return s.Backend.Delete(util.JoinNorm(s.Prefix, id))
 }

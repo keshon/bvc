@@ -2,8 +2,8 @@ package status
 
 import (
 	"bvc/command"
+	"bvc/internal/repo"
 	"bvc/internal/snapshot"
-	"bvc/internal/util"
 	"flag"
 	"fmt"
 	"os"
@@ -18,7 +18,7 @@ func (c *StatusCmd) SubCommands() []command.Command { return nil }
 
 func (c *StatusCmd) Run(ctx command.Context) error {
 
-	repo, err := util.OpenRepo(".")
+	repo, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}

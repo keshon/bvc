@@ -1,6 +1,7 @@
 package workfs
 
 import (
+	"bvc/util"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,7 +19,9 @@ func WalkFiles(root string, ig Ignore, fn func(rel string, f *os.File) error) er
 		if err != nil {
 			return err
 		}
-		rel, _ := filepath.Rel(root, path)
+		relRaw, _ := filepath.Rel(root, path)
+		rel := util.Normalize(relRaw)
+
 		if filepath.Base(path) == DefaultRepoDir || ig.Match(rel, d.IsDir()) {
 			if d.IsDir() {
 				return filepath.SkipDir
@@ -39,6 +42,7 @@ func WalkFiles(root string, ig Ignore, fn func(rel string, f *os.File) error) er
 
 // RestoreFile writes blocks (using provided getter) into dst via tmp + rename.
 func RestoreFile(root, rel string, blocks []string, getBlock func(hash string, w io.Writer) error) error {
+	rel = util.Normalize(rel)
 	dst := filepath.Join(root, rel)
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err

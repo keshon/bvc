@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -16,26 +16,26 @@ func (c *CheckoutCmd) Flags(fs *flag.FlagSet)         {}
 func (c *CheckoutCmd) SubCommands() []command.Command { return nil }
 
 func (c *CheckoutCmd) Run(ctx command.Context) error {
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
 
-	name, err := repo.GetHeadOrArg(ctx.Args, "stream:")
+	name, err := r.GetHeadOrArg(ctx.Args, "stream:")
 
-	snaps, err := repo.StreamSnapshots(name)
+	snaps, err := r.StreamSnapshots(name)
 	if err != nil {
 		return err
 	}
 
-	if repo.Mode == "snapshot-first" {
+	if r.Mode == "snapshot-first" {
 		// sequential apply all snapshots
 		for _, s := range snaps {
-			if err := repo.CheckoutSnapshot(s, true); err != nil { // false or true??
+			if err := r.CheckoutSnapshot(s, true); err != nil { // false or true??
 				return err
 			}
 		}
-		return repo.HeadSetStream("stream:" + name)
+		return r.HeadSetStream("stream:" + name)
 	}
 
 	// stream-first => only last snapshot, but allow empty stream
@@ -43,16 +43,16 @@ func (c *CheckoutCmd) Run(ctx command.Context) error {
 		fmt.Printf("Stream '%s' is empty, switching HEAD\n", name)
 
 		// clean workdir (git style)
-		if err := repo.CleanupWorkdir(); err != nil {
+		if err := r.CleanupWorkdir(); err != nil {
 			return err
 		}
 
-		return repo.HeadSetStream("stream:" + name)
+		return r.HeadSetStream("stream:" + name)
 	}
 
 	latest := snaps[len(snaps)-1]
-	if err := repo.CheckoutSnapshot(latest, true); err != nil {
+	if err := r.CheckoutSnapshot(latest, true); err != nil {
 		return err
 	}
-	return repo.HeadSetStream("stream:" + name)
+	return r.HeadSetStream("stream:" + name)
 }

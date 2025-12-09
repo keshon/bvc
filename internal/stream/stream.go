@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"path"
+	"strings"
 
 	"bvc/storage"
+	"bvc/util"
 )
 
 type Meta struct {
@@ -24,7 +25,7 @@ func NewStore(backend storage.Storage, prefix string) *Store {
 }
 
 func (s *Store) Create(name string) error {
-	key := path.Join(s.Prefix, name)
+	key := util.JoinNorm(s.Prefix, name)
 	exists, err := s.Backend.Exists(key)
 	if err != nil {
 		return err
@@ -41,7 +42,7 @@ func (s *Store) Create(name string) error {
 }
 
 func (s *Store) Load(name string) (*Meta, error) {
-	key := path.Join(s.Prefix, name)
+	key := util.JoinNorm(s.Prefix, name)
 	rc, err := s.Backend.Get(key)
 	if err != nil {
 		return nil, fmt.Errorf("stream '%s' not found", name)
@@ -59,21 +60,26 @@ func (s *Store) Save(meta *Meta) error {
 	if err != nil {
 		return err
 	}
-	return s.Backend.Put(path.Join(s.Prefix, meta.Name), bytes.NewReader(data))
+	return s.Backend.Put(util.JoinNorm(s.Prefix, meta.Name),
+		bytes.NewReader(data))
 }
 
 func (s *Store) List() ([]string, error) {
-	keys, err := s.Backend.List(s.Prefix + "/")
+	keys, err := s.Backend.List(util.Normalize(s.Prefix))
 	if err != nil {
 		return nil, err
 	}
+	prefix := util.Normalize(s.Prefix) + "/"
 	var names []string
 	for _, k := range keys {
-		names = append(names, k[len(s.Prefix)+1:])
+		k = util.Normalize(k)
+		if strings.HasPrefix(k, prefix) {
+			names = append(names, k[len(prefix):])
+		}
 	}
 	return names, nil
 }
 
 func (s *Store) Delete(name string) error {
-	return s.Backend.Delete(path.Join(s.Prefix, name))
+	return s.Backend.Delete(util.JoinNorm(s.Prefix, name))
 }

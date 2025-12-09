@@ -2,7 +2,7 @@ package snapshot
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -15,17 +15,17 @@ func (c *ShowCmd) Flags(fs *flag.FlagSet)         {}
 func (c *ShowCmd) SubCommands() []command.Command { return nil }
 
 func (c *ShowCmd) Run(ctx command.Context) error {
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
 
-	id, err := repo.GetHeadOrArg(ctx.Args, "snapshot:")
+	id, err := r.GetHeadOrArg(ctx.Args, "snapshot:")
 	if err != nil {
 		return err
 	}
 
-	meta, err := repo.Snaps.Load(id)
+	meta, err := r.Snaps.Load(id)
 	if err != nil {
 		return fmt.Errorf("load snapshot: %w", err)
 	}

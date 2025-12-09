@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -20,20 +20,20 @@ func (c *CloneCmd) Run(ctx command.Context) error {
 	}
 	src, dst := ctx.Args[0], ctx.Args[1]
 
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
 
-	if err := repo.RequireMode("stream-first"); err != nil {
+	if err := r.RequireMode("stream-first"); err != nil {
 		return err
 	}
 
-	if _, err := repo.Streams.Load(src); err != nil {
+	if _, err := r.Streams.Load(src); err != nil {
 		return fmt.Errorf("source stream '%s' not found", src)
 	}
 
-	if err := repo.StreamClone(src, dst); err != nil {
+	if err := r.StreamClone(src, dst); err != nil {
 		return err
 	}
 

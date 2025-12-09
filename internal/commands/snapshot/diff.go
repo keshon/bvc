@@ -2,7 +2,7 @@ package snapshot
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -21,19 +21,19 @@ func (c *DiffCmd) Run(ctx command.Context) error {
 	aID := ctx.Args[0]
 	bID := ctx.Args[1]
 
-	repo, err := util.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
-	if err := repo.RequireMode("snapshot-first"); err != nil {
+	if err := r.RequireMode("snapshot-first"); err != nil {
 		return err
 	}
 
-	a, err := repo.Snaps.Load(aID)
+	a, err := r.Snaps.Load(aID)
 	if err != nil {
 		return err
 	}
-	b, err := repo.Snaps.Load(bID)
+	b, err := r.Snaps.Load(bID)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bvc/command"
-	"bvc/internal/util"
+	"bvc/internal/repo"
 	"flag"
 	"fmt"
 )
@@ -20,7 +20,7 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 	}
 	name := ctx.Args[0]
 
-	repo, err := util.OpenRepo(".")
+	repo, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
@@ -29,7 +29,12 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 		return err
 	}
 
+	if repo.Mode == "stream-first" {
+		if err := repo.HeadSetStream(name); err != nil {
+			return err
+		}
+	}
+
 	fmt.Printf("Stream '%s' created\n", name)
 	return nil
-
 }
