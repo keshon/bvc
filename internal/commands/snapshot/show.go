@@ -5,6 +5,7 @@ import (
 	"bvc/internal/repo"
 	"flag"
 	"fmt"
+	"time"
 )
 
 type ShowCmd struct{}
@@ -30,10 +31,15 @@ func (c *ShowCmd) Run(ctx command.Context) error {
 		return fmt.Errorf("load snapshot: %w", err)
 	}
 
-	fmt.Printf("Snapshot %s\nName: %s\nCreated: %s\nDescription: %s\nFiles: %d\n",
-		meta.ID, meta.Name, meta.CreatedAt, meta.Description, len(meta.Files))
+	fmt.Printf("Snapshot\n")
+	fmt.Printf("  ID: %s\n", meta.ID)
+	fmt.Printf("  Name: %s\n", meta.Name)
+	fmt.Printf("  Created: %s\n", meta.CreatedAt.Format(time.RFC3339))
+	fmt.Printf("  Description: %s\n", meta.Description)
+	fmt.Printf("  Files: %d\n", len(meta.Files))
 	for p, blocks := range meta.Files {
-		fmt.Printf("  %s (%d blocks)\n", p, len(blocks))
+		fmt.Printf("    %s  %d blocks\n", p, len(blocks))
 	}
+
 	return nil
 }

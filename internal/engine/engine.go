@@ -295,7 +295,7 @@ func (e *Engine) StreamRemove(name string) error {
 
 	// if HEAD points to that stream, clear it
 	head, _ := e.Head.Load()
-	if head.Mode == "stream" && head.Ref == name {
+	if head.Mode == "stream-first" && head.Ref == name {
 		_ = e.Head.Clear()
 	}
 
@@ -392,14 +392,14 @@ func (e *Engine) HeadSetSnapshot(id string) error {
 	if _, err := e.Snaps.Load(id); err != nil {
 		return err
 	}
-	return e.Head.Save("snapshot", id)
+	return e.Head.Save("snapshot-first", id)
 }
 
 func (e *Engine) HeadSetStream(name string) error {
 	if _, err := e.Streams.Load(name); err != nil {
 		return err
 	}
-	return e.Head.Save("stream", name)
+	return e.Head.Save("stream-first", name)
 }
 
 func (e *Engine) GetHeadOrArg(args []string, expectedMode string) (string, error) {
@@ -431,9 +431,9 @@ func (e *Engine) CheckoutHead() error {
 		return nil
 	}
 	switch m.Mode {
-	case "snapshot":
+	case "snapshot-first":
 		return e.CheckoutSnapshot(m.Ref, true)
-	case "stream":
+	case "stream-first":
 		return e.StreamCheckout(m.Ref)
 	default:
 		return fmt.Errorf("invalid head mode")

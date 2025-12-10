@@ -28,28 +28,43 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 		c.name = "snap-" + time.Now().Format("20060102-150405")
 	}
 
-	repo, err := repo.OpenRepo(".")
+	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Creating snapshot '%s' with description '%s'\n", c.name, c.description)
-	meta, err := repo.CreateSnapshot(c.name, c.description)
+	meta, err := r.CreateSnapshot(c.name, c.description)
 	if err != nil {
 		return fmt.Errorf("create snapshot: %w", err)
 	}
 
-	if repo.Mode == "snapshot-first" {
-		if err := repo.HeadSetSnapshot(meta.ID); err != nil {
+	switch r.Mode {
+	case "snapshot-first":
+		if err := r.HeadSetSnapshot(meta.ID); err != nil {
 			return err
+		}
+	case "stream-first":
+		head, err := r.Head.Load()
+		if err != nil {
+			return fmt.Errorf("load HEAD: %w", err)
+		}
+		if head.Mode != "stream-first" || head.Ref == "" {
+			break
+		}
+		if err := r.StreamAdd(head.Ref, meta.ID); err != nil {
+			return fmt.Errorf("add snapshot to current stream: %w", err)
 		}
 	}
 
-	fmt.Printf("Snapshot created: id=%s created_at=%s files=%d\n",
-		meta.ID, meta.CreatedAt.Format(time.RFC3339), len(meta.Files))
-
+	fmt.Printf("Snapshot\n")
+	fmt.Printf("  ID: %s\n", meta.ID)
+	fmt.Printf("  Name: %s\n", meta.Name)
+	fmt.Printf("  Created: %s\n", meta.CreatedAt.Format(time.RFC3339))
+	fmt.Printf("  Description: %s\n", meta.Description)
+	fmt.Printf("  Files: %d\n", len(meta.Files))
 	for p, hashes := range meta.Files {
-		fmt.Printf("  %s (%d blocks)\n", p, len(hashes))
+		fmt.Printf("    %s  %d blocks\n", p, len(hashes))
 	}
+
 	return nil
 }
