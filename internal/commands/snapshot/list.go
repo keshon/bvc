@@ -35,11 +35,11 @@ func (c *ListCmd) Run(ctx command.Context) error {
 
 	list := make([]snapshot.Meta, len(listIds))
 	for i, id := range listIds {
-		meta, err := r.Snaps.Load(id)
+		snap, err := r.Snaps.Load(id)
 		if err != nil {
 			return err
 		}
-		list[i] = *meta
+		list[i] = *snap
 	}
 
 	// sort by created_at

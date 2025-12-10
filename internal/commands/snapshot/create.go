@@ -33,14 +33,14 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 		return err
 	}
 
-	meta, err := r.CreateSnapshot(c.name, c.description)
+	snap, err := r.CreateSnapshot(c.name, c.description)
 	if err != nil {
 		return fmt.Errorf("create snapshot: %w", err)
 	}
 
 	switch r.Mode {
 	case "snapshot-first":
-		if err := r.HeadSetSnapshot(meta.ID); err != nil {
+		if err := r.HeadSetSnapshot(snap.ID); err != nil {
 			return err
 		}
 	case "stream-first":
@@ -49,20 +49,20 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 			return fmt.Errorf("load HEAD: %w", err)
 		}
 		if head.Mode != "stream-first" || head.Ref == "" {
-			break
+			return fmt.Errorf("HEAD is not pointing to a stream")
 		}
-		if err := r.StreamAdd(head.Ref, meta.ID); err != nil {
+		if err := r.StreamAdd(head.Ref, snap.ID); err != nil {
 			return fmt.Errorf("add snapshot to current stream: %w", err)
 		}
 	}
 
-	fmt.Printf("Snapshot\n")
-	fmt.Printf("  ID: %s\n", meta.ID)
-	fmt.Printf("  Name: %s\n", meta.Name)
-	fmt.Printf("  Created: %s\n", meta.CreatedAt.Format(time.RFC3339))
-	fmt.Printf("  Description: %s\n", meta.Description)
-	fmt.Printf("  Files: %d\n", len(meta.Files))
-	for p, hashes := range meta.Files {
+	fmt.Printf("Snapshot created\n")
+	fmt.Printf("  ID: %s\n", snap.ID)
+	fmt.Printf("  Name: %s\n", snap.Name)
+	fmt.Printf("  Created: %s\n", snap.CreatedAt.Format(time.RFC3339))
+	fmt.Printf("  Description: %s\n", snap.Description)
+	fmt.Printf("  Files: %d\n", len(snap.Files))
+	for p, hashes := range snap.Files {
 		fmt.Printf("    %s  %d blocks\n", p, len(hashes))
 	}
 

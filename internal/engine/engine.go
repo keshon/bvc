@@ -31,6 +31,13 @@ type Engine struct {
 }
 
 func NewEngine(root string, blocks *blockstore.Store, snaps *snapshot.Store, streams *stream.Store, ig workfs.Ignore, headBackend storage.Storage) *Engine {
+	// load HEAD
+	defaultMode := "snapshot-first"
+	head, err := NewHeadStore(headBackend, "HEAD").Load()
+	if err == nil && head.Mode != "" {
+		defaultMode = head.Mode
+	}
+
 	return &Engine{
 		Root:    root,
 		Blocks:  blocks,
@@ -38,7 +45,7 @@ func NewEngine(root string, blocks *blockstore.Store, snaps *snapshot.Store, str
 		Streams: streams,
 		Ignore:  ig,
 		Head:    NewHeadStore(headBackend, "HEAD"),
-		Mode:    "snapshot-first",
+		Mode:    defaultMode,
 	}
 }
 
@@ -414,7 +421,7 @@ func (e *Engine) GetHeadOrArg(args []string, expectedMode string) (string, error
 		return "", fmt.Errorf("load head: %w", err)
 	}
 	if head.Mode != expectedMode {
-		return "", fmt.Errorf("HEAD is not pointing to a %s", expectedMode)
+		return "", fmt.Errorf("HEAD is not pointing to mode %s", expectedMode)
 	}
 	if head.Ref == "" {
 		return "", fmt.Errorf("HEAD is empty")

@@ -20,7 +20,7 @@ func (c *ShowCmd) Run(ctx command.Context) error {
 		return err
 	}
 
-	name, err := r.GetHeadOrArg(ctx.Args, "stream:")
+	name, err := r.GetHeadOrArg(ctx.Args, "stream-first")
 	if err != nil {
 		return err
 	}

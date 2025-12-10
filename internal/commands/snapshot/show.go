@@ -21,23 +21,23 @@ func (c *ShowCmd) Run(ctx command.Context) error {
 		return err
 	}
 
-	id, err := r.GetHeadOrArg(ctx.Args, "snapshot:")
+	id, err := r.GetHeadOrArg(ctx.Args, "snapshot-first")
 	if err != nil {
 		return err
 	}
 
-	meta, err := r.Snaps.Load(id)
+	snap, err := r.Snaps.Load(id)
 	if err != nil {
 		return fmt.Errorf("load snapshot: %w", err)
 	}
 
 	fmt.Printf("Snapshot\n")
-	fmt.Printf("  ID: %s\n", meta.ID)
-	fmt.Printf("  Name: %s\n", meta.Name)
-	fmt.Printf("  Created: %s\n", meta.CreatedAt.Format(time.RFC3339))
-	fmt.Printf("  Description: %s\n", meta.Description)
-	fmt.Printf("  Files: %d\n", len(meta.Files))
-	for p, blocks := range meta.Files {
+	fmt.Printf("  ID: %s\n", snap.ID)
+	fmt.Printf("  Name: %s\n", snap.Name)
+	fmt.Printf("  Created: %s\n", snap.CreatedAt.Format(time.RFC3339))
+	fmt.Printf("  Description: %s\n", snap.Description)
+	fmt.Printf("  Files: %d\n", len(snap.Files))
+	for p, blocks := range snap.Files {
 		fmt.Printf("    %s  %d blocks\n", p, len(blocks))
 	}
 

@@ -21,7 +21,7 @@ func (c *CheckoutCmd) Run(ctx command.Context) error {
 		return err
 	}
 
-	name, err := r.GetHeadOrArg(ctx.Args, "stream:")
+	name, err := r.GetHeadOrArg(ctx.Args, "stream-first")
 
 	snaps, err := r.StreamSnapshots(name)
 	if err != nil {
@@ -35,24 +35,23 @@ func (c *CheckoutCmd) Run(ctx command.Context) error {
 				return err
 			}
 		}
-		return r.HeadSetStream("stream:" + name)
+		return r.HeadSetStream(name)
 	}
 
-	// stream-first => only last snapshot, but allow empty stream
+	// stream-first - only last snapshot, but allow empty stream
 	if len(snaps) == 0 {
 		fmt.Printf("Stream '%s' is empty, switching HEAD\n", name)
 
-		// clean workdir (git style)
 		if err := r.CleanupWorkdir(); err != nil {
 			return err
 		}
 
-		return r.HeadSetStream("stream:" + name)
+		return r.HeadSetStream(name)
 	}
 
 	latest := snaps[len(snaps)-1]
 	if err := r.CheckoutSnapshot(latest, true); err != nil {
 		return err
 	}
-	return r.HeadSetStream("stream:" + name)
+	return r.HeadSetStream(name)
 }

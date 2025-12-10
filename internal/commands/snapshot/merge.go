@@ -30,11 +30,11 @@ func (c *MergeCmd) Run(ctx command.Context) error {
 		return err
 	}
 
-	meta, err := r.MergeSnapshots(a, b, newName)
+	snap, err := r.MergeSnapshots(a, b, newName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Merged into snapshot:", meta.ID)
+	fmt.Println("Merged into snapshot:", snap.ID)
 	return nil
 }
