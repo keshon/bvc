@@ -1,48 +1,88 @@
-name: Go CI
+name: Go CI & Release
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - 'v*' # Trigger only on tags like v1.0.0
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
     steps:
-    # Checkout code
-    - uses: actions/checkout@v4
+      # Checkout repository
+      - uses: actions/checkout@v4
 
-    # Set up Go
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
+      # Set up Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
 
-    # Cache Go modules
-    - name: Cache Go modules
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+      # Cache Go modules
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    # Install dependencies
-    - name: Tidy dependencies
-      run: go mod tidy
+      # Build binary
+      - name: Build binary
+        run: |
+          ext=""
+          if [ "${{ matrix.goos }}" == "windows" ]; then
+            ext=".exe"
+          fi
+          env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o bvc-${{ matrix.goos }}-${{ matrix.goarch }}${ext} ./cmd/bvc
 
-    # Build all packages
-    - name: Build packages
-      run: go build -v ./...
+      # Run tests (optional)
+      - name: Run tests
+        run: go test -v ./...
 
-    # Build the main binary
-    - name: Build bvc binary
-      run: go build -v -o bvc ./cmd/bvc
+      # Only create Release on one job (avoid duplication)
+      - name: Create GitHub Release
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Run tests
-    - name: Run tests
-      run: go test -v ./...
+      # Upload binaries to Release
+      - name: Upload Release Assets
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bvc-linux-amd64
+          asset_name: bvc-linux-amd64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (Windows)
+        if: matrix.goos == 'windows' && matrix.goarch == 'amd64'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bvc-windows-amd64.exe
+          asset_name: bvc-windows-amd64.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (macOS)
+        if: matrix.goos == 'darwin' && matrix.goarch == 'amd64'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bvc-darwin-amd64
+          asset_name: bvc-darwin-amd64
+          asset_content_type: application/octet-stream
