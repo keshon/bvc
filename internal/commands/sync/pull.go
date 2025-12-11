@@ -1,9 +1,10 @@
 package sync
 
 import (
-	"bvc/pkg/command"
 	"flag"
 	"fmt"
+
+	"github.com/keshon/bvc/pkg/command"
 )
 
 type PullCmd struct{}

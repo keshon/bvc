@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 
-	"bvc/internal/repo"
-	"bvc/pkg/command"
-	"bvc/pkg/util"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/pkg/command"
+	"github.com/keshon/bvc/pkg/util"
 )
 
 type DiffCmd struct{}

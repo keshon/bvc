@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"bvc/internal/repo"
-	"bvc/pkg/command"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/pkg/command"
 )
 
 type ShowCmd struct{}

@@ -1,9 +1,6 @@
 package check
 
 import (
-	"bvc/internal/repo"
-	"bvc/pkg/command"
-	"bvc/pkg/util"
 	"bytes"
 	"context"
 	"flag"
@@ -11,6 +8,10 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/pkg/command"
+	"github.com/keshon/bvc/pkg/util"
 )
 
 type BlocksCmd struct {

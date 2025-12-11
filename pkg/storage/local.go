@@ -1,12 +1,13 @@
 package storage
 
 import (
-	"bvc/pkg/util"
 	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/keshon/bvc/pkg/util"
 )
 
 type LocalStorage struct {

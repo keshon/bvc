@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bvc/pkg/util"
+	"github.com/keshon/bvc/pkg/util"
 )
 
 type FileIgnore struct {

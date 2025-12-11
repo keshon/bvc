@@ -1,65 +1,89 @@
-# BVC (Block Version Control)
+# Block Version Control (BVC)
 
-BVC is a content-addressable version control system for managing snapshots of files and organizing them into streams (catalogs). It is designed to provide efficient and reliable project backup, versioning, and history tracking.  
+BVC is a content-addressable version control system for managing snapshots of files and organizing them into streams (catalogs). It provides reliable project backup, versioning, and history tracking.
 
-BVC supports two workflow modes:  
-- **Snapshot-first**: Each snapshot represents a full point-in-time backup of the project. This mode is suited for strict versioning and incremental backups, allowing you to restore or compare any snapshot independently.  
-- **Stream-first**: Snapshots are organized into streams, which act like evolving project branches or catalogs. This mode is optimized for linear workflows, where the latest snapshot in a stream represents the current state, and earlier snapshots can be incrementally applied or merged.  
+> [!WARNING]
+> This proof-of-concept pet project is obviously not intended for production use. 
 
-Both modes use content-addressable storage for deduplication and integrity, ensuring that identical file blocks are stored only once while maintaining a complete history of changes.
+## The idea
 
-## Key Concepts
+**Rustic blocks backup + Git versioning = BVC Frankenstein**
 
-- **Snapshots**: Immutable versions of the project at a point in time. Each snapshot stores file blocks identified by content hashes.
-- **Streams**: Ordered collections of snapshots, similar to branches or catalogs, allowing workflows over sequences of snapshots.
-- **Blocks**: Individual pieces of file data stored once and referenced by snapshots, enabling deduplication.
+BVC merges concepts from **Rustic** and **Git**, combining simple snapshot-based workflows with content-addressable versioning.
+
+* **Snapshots (Rustic-inspired)**
+  Each snapshot captures the state of the project at a point in time. Files are split into blocks for deduplication, and snapshots store the exact content of these blocks. Snapshots are independent—you can restore any snapshot without worrying about intermediate changes.
+
+* **Streams**
+  Streams group snapshots and behave differently depending on the workflow mode:
+
+  * **Snapshot-first mode**: streams act like **tags or collections**. They do not imply a sequence of changes but are named groups of snapshots for easier reference.
+  * **Stream-first mode**: streams behave like **Git branches**, representing evolving lines of development. Snapshots in a stream act like commits that can be added, merged, or checkout the latest snapshot to recreate a working state.
+
+* **Blocks (Content-addressable storage)**
+  Files are split into blocks identified by their hash, enabling:
+
+  * Deduplication: identical data is stored only once across snapshots and streams.
+  * Integrity: block corruption can be detected and recovered if a healthy copy exists.
+
+---
 
 ## Basic Commands
 
 ### Repository Initialization
 
-- `init` — Initialize a new repository in the current directory. Choose between `snapshot-first` or `stream-first` modes.
+* `init` — Initialize a repository in the current directory. Choose between `snapshot-first` or `stream-first` modes.
 
 ### Snapshots
 
-- `snapshot create` — Create a new snapshot of the project.
-- `snapshot list` — List all snapshots.
-- `snapshot show <id>` — Show detailed information of a snapshot.
-- `snapshot checkout <id>` — Restore project files from a snapshot.
-- `snapshot diff <a> <b>` — Compare two snapshots.
-- `snapshot merge <a> <b> <new>` — Merge two snapshots into a new one.
+* `snapshot create` — Create a new snapshot of the project.
+* `snapshot list` — List all snapshots.
+* `snapshot show <id>` — Show detailed information for a snapshot.
+* `snapshot checkout <id>` — Restore files from a snapshot.
+* `snapshot diff <a> <b>` — Compare two snapshots.
+* `snapshot merge <a> <b> <new>` — Merge two snapshots into a new one.
 
 ### Streams
 
-- `stream create <name>` — Create a new stream.
-- `stream add <stream> <snapshotID>` — Add a snapshot to a stream.
-- `stream list` — List all streams.
-- `stream show <name>` — Show snapshots in a stream.
-- `stream checkout <name>` — Checkout the latest snapshot(s) from a stream.
-- `stream clone <src> <dst>` — Clone a stream.
-- `stream remove <name>` — Remove a stream.
+* `stream create <name>` — Create a new stream.
+* `stream add <stream> <snapshotID>` — Add a snapshot to a stream.
+* `stream list` — List all streams.
+* `stream show <name>` — Show snapshots in a stream.
+* `stream checkout <name>` — Checkout the latest snapshot(s) from a stream.
+* `stream clone <src> <dst>` — Clone a stream.
+* `stream remove <name>` — Remove a stream.
 
 ### Maintenance
 
-- `prune [-dry]` — Remove unused blocks not referenced by any snapshot. Use `-dry` to see what would be removed without deleting.
+* `prune [-dry]` — Remove unused blocks not referenced by any snapshot. Use `-dry` to preview what would be removed.
 
 ### Repository Status
 
-- `status` — Show changed files since the last snapshot or current stream.
+* `status` — Show changed files since the last snapshot or current stream.
+
+### Integrity Checks
+
+* `check workspace [-repair]` — Verify files in the working directory against the latest snapshot or stream.
+
+  * Without `-repair`: reports missing or corrupted files.
+  * With `-repair`: attempts to restore missing files from HEAD snapshots.
+
+* `check blocks [-repair]` — Verify integrity of all blocks referenced by snapshots.
+
+  * Without `-repair`: lists missing or corrupted blocks.
+  * With `-repair`: recalculates missing blocks from healthy files in the workspace.
 
 ### Synchronization
 
-- `sync pull` — Pull snapshots and blocks from remote storage (not implemented).
-- `sync push` — Push snapshots and blocks to remote storage (not implemented).
+* `sync pull` — Pull snapshots and blocks from remote storage (**not implemented**).
+* `sync push` — Push snapshots and blocks to remote storage (**not implemented**).
 
 ### Help
 
-- `help` — Show available commands and their descriptions.
+* `help` — Show available commands and descriptions.
 
-## Features
+---
 
-- Parallelized operations for snapshot creation, checkout, and pruning for improved performance.
-- Content-addressable storage for block deduplication and integrity.
-- Flexible workflow modes: snapshot-first and stream-first.
-- Safe conflict handling and merge capabilities for snapshots.
+## License
 
+BVC is licensed under the [MIT License](LICENSE).

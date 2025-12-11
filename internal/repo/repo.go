@@ -3,12 +3,12 @@ package repo
 import (
 	"path/filepath"
 
-	"bvc/internal/blockstore"
-	"bvc/internal/engine"
-	"bvc/internal/snapshot"
-	"bvc/internal/stream"
-	"bvc/internal/workfs"
-	"bvc/pkg/storage"
+	"github.com/keshon/bvc/internal/blockstore"
+	"github.com/keshon/bvc/internal/engine"
+	"github.com/keshon/bvc/internal/snapshot"
+	"github.com/keshon/bvc/internal/stream"
+	"github.com/keshon/bvc/internal/workfs"
+	"github.com/keshon/bvc/pkg/storage"
 )
 
 func OpenRepo(path string) (*engine.Engine, error) {

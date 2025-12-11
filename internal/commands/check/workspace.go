@@ -1,14 +1,15 @@
 package check
 
 import (
-	"bvc/internal/repo"
-	"bvc/pkg/command"
-	"bvc/pkg/util"
 	"context"
 	"flag"
 	"fmt"
 	"os"
 	"sync"
+
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/pkg/command"
+	"github.com/keshon/bvc/pkg/util"
 )
 
 type WorkspaceCmd struct {

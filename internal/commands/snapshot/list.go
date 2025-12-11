@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"sort"
 
-	"bvc/pkg/command"
+	"github.com/keshon/bvc/pkg/command"
 
-	"bvc/internal/repo"
-	"bvc/internal/snapshot"
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/internal/snapshot"
 )
 
 type ListCmd struct{}

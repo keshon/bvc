@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"bvc/internal/blockstore"
-	"bvc/internal/snapshot"
-	"bvc/internal/stream"
-	"bvc/internal/workfs"
-	"bvc/pkg/storage"
-	"bvc/pkg/util"
+	"github.com/keshon/bvc/internal/blockstore"
+	"github.com/keshon/bvc/internal/snapshot"
+	"github.com/keshon/bvc/internal/stream"
+	"github.com/keshon/bvc/internal/workfs"
+	"github.com/keshon/bvc/pkg/storage"
+	"github.com/keshon/bvc/pkg/util"
 )
 
 const BlockSize = 4 * 1024 * 1024

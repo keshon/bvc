@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"bvc/pkg/util"
+	"github.com/keshon/bvc/pkg/util"
 )
 
 const DefaultRepoDir = ".bvc"

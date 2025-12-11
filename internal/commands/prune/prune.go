@@ -1,10 +1,11 @@
 package prune
 
 import (
-	"bvc/internal/repo"
-	"bvc/pkg/command"
 	"flag"
 	"fmt"
+
+	"github.com/keshon/bvc/internal/repo"
+	"github.com/keshon/bvc/pkg/command"
 )
 
 type PruneCmd struct {

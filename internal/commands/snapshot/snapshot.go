@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"bvc/pkg/command"
+	"github.com/keshon/bvc/pkg/command"
 )
 
 type SnapshotCmd struct{}

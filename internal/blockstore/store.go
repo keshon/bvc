@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"bvc/pkg/storage"
+	"github.com/keshon/bvc/pkg/storage"
 )
 
 // Store — thin wrapper around storage.Storage that exposes content-addressable API.

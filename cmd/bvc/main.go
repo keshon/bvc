@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	"bvc/internal/commands/check"
-	"bvc/internal/commands/help"
-	"bvc/internal/commands/initrepo"
-	"bvc/internal/commands/prune"
-	"bvc/internal/commands/snapshot"
-	"bvc/internal/commands/status"
-	"bvc/internal/commands/stream"
-	"bvc/internal/commands/sync"
+	"github.com/keshon/bvc/internal/commands/check"
+	"github.com/keshon/bvc/internal/commands/help"
+	"github.com/keshon/bvc/internal/commands/initrepo"
+	"github.com/keshon/bvc/internal/commands/prune"
+	"github.com/keshon/bvc/internal/commands/snapshot"
+	"github.com/keshon/bvc/internal/commands/status"
+	"github.com/keshon/bvc/internal/commands/stream"
+	"github.com/keshon/bvc/internal/commands/sync"
 
-	"bvc/pkg/command"
+	"github.com/keshon/bvc/pkg/command"
 )
 
 func main() {

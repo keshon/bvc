@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"bvc/pkg/storage"
+	"github.com/keshon/bvc/pkg/storage"
 )
 
 type headMeta struct {
