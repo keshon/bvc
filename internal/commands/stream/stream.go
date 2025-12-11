@@ -1,9 +1,10 @@
 package stream
 
 import (
-	"bvc/command"
 	"flag"
 	"fmt"
+
+	"bvc/pkg/command"
 )
 
 type StreamCmd struct{}

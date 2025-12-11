@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"bvc/storage"
-	"bvc/util"
+	"bvc/pkg/storage"
+	"bvc/pkg/util"
 )
 
 type Meta struct {

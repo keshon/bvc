@@ -1,13 +1,14 @@
 package repo
 
 import (
+	"path/filepath"
+
 	"bvc/internal/blockstore"
 	"bvc/internal/engine"
 	"bvc/internal/snapshot"
 	"bvc/internal/stream"
 	"bvc/internal/workfs"
-	"bvc/storage"
-	"path/filepath"
+	"bvc/pkg/storage"
 )
 
 func OpenRepo(path string) (*engine.Engine, error) {

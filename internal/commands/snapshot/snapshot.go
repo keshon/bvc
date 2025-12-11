@@ -1,9 +1,10 @@
 package snapshot
 
 import (
-	"bvc/command"
 	"flag"
 	"fmt"
+
+	"bvc/pkg/command"
 )
 
 // snapshot root command

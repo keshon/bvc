@@ -1,11 +1,12 @@
 package snapshot
 
 import (
-	"bvc/command"
-	"bvc/internal/repo"
 	"flag"
 	"fmt"
 	"time"
+
+	"bvc/internal/repo"
+	"bvc/pkg/command"
 )
 
 type ShowCmd struct{}

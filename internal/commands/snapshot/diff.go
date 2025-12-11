@@ -1,11 +1,12 @@
 package snapshot
 
 import (
-	"bvc/command"
-	"bvc/internal/repo"
-	"bvc/util"
 	"flag"
 	"fmt"
+
+	"bvc/internal/repo"
+	"bvc/pkg/command"
+	"bvc/pkg/util"
 )
 
 type DiffCmd struct{}

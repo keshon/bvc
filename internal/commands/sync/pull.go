@@ -1,7 +1,7 @@
 package sync
 
 import (
-	"bvc/command"
+	"bvc/pkg/command"
 	"flag"
 	"fmt"
 )

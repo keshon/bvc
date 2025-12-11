@@ -1,8 +1,9 @@
 package main
 
 import (
-	"bvc/command"
-	"bvc/internal/commands/config"
+	"fmt"
+	"os"
+
 	"bvc/internal/commands/help"
 	"bvc/internal/commands/initrepo"
 	"bvc/internal/commands/prune"
@@ -10,14 +11,12 @@ import (
 	"bvc/internal/commands/status"
 	"bvc/internal/commands/stream"
 	"bvc/internal/commands/sync"
-	"fmt"
-	"os"
+	"bvc/pkg/command"
 )
 
 func main() {
 	reg := command.NewRegistry()
 
-	reg.Register(&config.ConfigCmd{})
 	reg.Register(&help.HelpCmd{Reg: reg})
 	reg.Register(&initrepo.InitCmd{})
 	reg.Register(&prune.PruneCmd{})

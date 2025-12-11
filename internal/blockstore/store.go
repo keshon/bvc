@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"bvc/storage"
+	"bvc/pkg/storage"
 )
 
 // Store — thin wrapper around storage.Storage that exposes content-addressable API.

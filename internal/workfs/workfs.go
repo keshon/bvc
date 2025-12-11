@@ -1,10 +1,11 @@
 package workfs
 
 import (
-	"bvc/util"
 	"io"
 	"os"
 	"path/filepath"
+
+	"bvc/pkg/util"
 )
 
 const DefaultRepoDir = ".bvc"

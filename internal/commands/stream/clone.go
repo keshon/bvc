@@ -1,10 +1,11 @@
 package stream
 
 import (
-	"bvc/command"
-	"bvc/internal/repo"
 	"flag"
 	"fmt"
+
+	"bvc/internal/repo"
+	"bvc/pkg/command"
 )
 
 type CloneCmd struct{}

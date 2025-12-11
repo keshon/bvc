@@ -1,9 +1,10 @@
 package help
 
 import (
-	"bvc/command"
 	"flag"
 	"fmt"
+
+	"bvc/pkg/command"
 )
 
 type HelpCmd struct {

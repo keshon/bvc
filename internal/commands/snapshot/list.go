@@ -1,13 +1,14 @@
 package snapshot
 
 import (
-	"bvc/command"
-
-	"bvc/internal/repo"
-	"bvc/internal/snapshot"
 	"flag"
 	"fmt"
 	"sort"
+
+	"bvc/pkg/command"
+
+	"bvc/internal/repo"
+	"bvc/internal/snapshot"
 )
 
 type ListCmd struct{}

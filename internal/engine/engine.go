@@ -2,20 +2,22 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"bvc/internal/blockstore"
 	"bvc/internal/snapshot"
 	"bvc/internal/stream"
 	"bvc/internal/workfs"
-	"bvc/storage"
-	"bvc/util"
+	"bvc/pkg/storage"
+	"bvc/pkg/util"
 )
 
 const BlockSize = 4 * 1024 * 1024
@@ -99,9 +101,34 @@ func (e *Engine) CreateSnapshot(name, desc string) (*snapshot.Meta, error) {
 		Files:       map[string][]string{},
 	}
 
-	if err := workfs.WalkFiles(e.Root, e.Ignore, func(rel string, f *os.File) error {
+	type fileEntry struct {
+		rel string
+		p   string
+	}
+	var files []fileEntry
+
+	err := workfs.WalkFiles(e.Root, e.Ignore, func(rel string, f *os.File) error {
+		abs := f.Name()
 		rel = util.Normalize(rel)
+		files = append(files, fileEntry{rel: rel, p: abs})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var mu sync.Mutex
+
+	err = util.Parallel(files, 8, func(ctx context.Context, fe fileEntry) error {
+		f, err := os.Open(fe.p)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		var blocks []string
 		buf := make([]byte, BlockSize)
+
 		for {
 			n, err := f.Read(buf)
 			if n > 0 {
@@ -109,7 +136,7 @@ func (e *Engine) CreateSnapshot(name, desc string) (*snapshot.Meta, error) {
 				if err != nil {
 					return err
 				}
-				meta.Files[rel] = append(meta.Files[rel], h)
+				blocks = append(blocks, h)
 			}
 			if err == io.EOF {
 				break
@@ -118,8 +145,14 @@ func (e *Engine) CreateSnapshot(name, desc string) (*snapshot.Meta, error) {
 				return err
 			}
 		}
+
+		mu.Lock()
+		meta.Files[fe.rel] = blocks
+		mu.Unlock()
+
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -138,15 +171,22 @@ func (e *Engine) CheckoutSnapshot(id string, clean bool) error {
 		}
 	}
 
-	for rel, blocks := range meta.Files {
-		if err := workfs.RestoreFile(e.Root, rel, blocks, func(h string, w io.Writer) error {
-			return e.Blocks.Get(h, w, true)
-		}); err != nil {
-			return fmt.Errorf("writing file %s: %w", rel, err)
-		}
+	type fileEntry struct {
+		rel    string
+		blocks []string
 	}
 
-	return nil
+	var items []fileEntry
+	for rel, blocks := range meta.Files {
+		items = append(items, fileEntry{rel: rel, blocks: blocks})
+	}
+
+	err = util.Parallel(items, 8, func(ctx context.Context, fe fileEntry) error {
+		return workfs.RestoreFile(e.Root, fe.rel, fe.blocks, func(h string, w io.Writer) error {
+			return e.Blocks.Get(h, w, true)
+		})
+	})
+	return err
 }
 
 func (e *Engine) CheckoutSnapshotPartial(id string) error {
@@ -346,10 +386,10 @@ func (e *Engine) Prune(dry bool) ([]string, error) {
 		return toDelete, nil
 	}
 
-	for _, k := range toDelete {
-		_ = e.Blocks.Backend.Delete(k)
-	}
-	return toDelete, nil
+	err = util.Parallel(toDelete, 8, func(ctx context.Context, key string) error {
+		return e.Blocks.Backend.Delete(key)
+	})
+	return toDelete, err
 }
 
 func (e *Engine) CleanupWorkdir() error {

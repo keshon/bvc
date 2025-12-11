@@ -2,10 +2,11 @@ package workfs
 
 import (
 	"bufio"
-	"bvc/util"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"bvc/pkg/util"
 )
 
 type FileIgnore struct {

@@ -1,7 +1,8 @@
 package storage
 
 import (
-	"bvc/util"
+	"bvc/pkg/util"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -80,19 +81,28 @@ func (l *LocalStorage) List(prefix string) ([]string, error) {
 }
 
 func (l *LocalStorage) PutBatch(items map[string]io.Reader) error {
-	for key, r := range items {
-		if err := l.Put(key, r); err != nil {
-			return err
-		}
+	if len(items) == 0 {
+		return nil
 	}
-	return nil
+
+	// Extract keys to drive parallelism
+	keys := make([]string, 0, len(items))
+	for k := range items {
+		keys = append(keys, k)
+	}
+
+	return util.Parallel(keys, 8, func(ctx context.Context, key string) error {
+		r := items[key]
+		return l.Put(key, r)
+	})
 }
 
 func (l *LocalStorage) DeleteBatch(keys []string) error {
-	for _, key := range keys {
-		if err := l.Delete(key); err != nil {
-			return err
-		}
+	if len(keys) == 0 {
+		return nil
 	}
-	return nil
+
+	return util.Parallel(keys, 8, func(ctx context.Context, key string) error {
+		return l.Delete(key)
+	})
 }

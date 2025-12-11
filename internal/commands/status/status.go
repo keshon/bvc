@@ -1,13 +1,14 @@
 package status
 
 import (
-	"bvc/command"
-	"bvc/internal/repo"
-	"bvc/util"
 	"flag"
 	"fmt"
 	"os"
 	"sort"
+
+	"bvc/internal/repo"
+	"bvc/pkg/command"
+	"bvc/pkg/util"
 )
 
 type StatusCmd struct{}
