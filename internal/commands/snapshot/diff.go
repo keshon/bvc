@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bvc/command"
 	"bvc/internal/repo"
+	"bvc/util"
 	"flag"
 	"fmt"
 )
@@ -45,7 +46,7 @@ func (c *DiffCmd) Run(ctx command.Context) error {
 			fmt.Printf("DELETED: %s\n", rel)
 			continue
 		}
-		if !equalStringSlices(aBlocks, bBlocks) {
+		if !util.EqualStringSlices(aBlocks, bBlocks) {
 			fmt.Printf("MODIFIED: %s\n", rel)
 		}
 	}
@@ -57,16 +58,4 @@ func (c *DiffCmd) Run(ctx command.Context) error {
 	}
 
 	return nil
-}
-
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

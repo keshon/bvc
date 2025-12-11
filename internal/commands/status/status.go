@@ -3,6 +3,7 @@ package status
 import (
 	"bvc/command"
 	"bvc/internal/repo"
+	"bvc/util"
 	"flag"
 	"fmt"
 	"os"
@@ -87,7 +88,7 @@ func (c *StatusCmd) Run(ctx command.Context) error {
 			changes = append(changes, "NEW: "+rel)
 			continue
 		}
-		if !equalStringSlices(curr, old) {
+		if !util.EqualStringSlices(curr, old) {
 			changes = append(changes, "MODIFIED: "+rel)
 		}
 	}
@@ -110,16 +111,4 @@ func (c *StatusCmd) Run(ctx command.Context) error {
 		fmt.Println(line)
 	}
 	return nil
-}
-
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

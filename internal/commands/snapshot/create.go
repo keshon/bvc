@@ -54,6 +54,8 @@ func (c *CreateCmd) Run(ctx command.Context) error {
 		if err := r.StreamAdd(head.Ref, snap.ID); err != nil {
 			return fmt.Errorf("add snapshot to current stream: %w", err)
 		}
+	default:
+		return fmt.Errorf("unsupported mode: %s", r.Mode)
 	}
 
 	fmt.Printf("Snapshot created\n")

@@ -22,6 +22,9 @@ func (c *CheckoutCmd) Run(ctx command.Context) error {
 	}
 
 	name, err := r.GetHeadOrArg(ctx.Args, "stream-first")
+	if err != nil {
+		return err
+	}
 
 	snaps, err := r.StreamSnapshots(name)
 	if err != nil {
