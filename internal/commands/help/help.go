@@ -7,24 +7,18 @@ import (
 	"bvc/pkg/command"
 )
 
-type HelpCmd struct {
-	Reg *command.Registry
-}
+type HelpCmd struct{}
 
-func NewHelpCmd(reg *command.Registry) *HelpCmd {
-	return &HelpCmd{Reg: reg}
-}
-
-func (c *HelpCmd) Name() string           { return "help" }
-func (c *HelpCmd) Help() string           { return "Show help for all commands" }
-func (c *HelpCmd) Flags(fs *flag.FlagSet) {}
-
+func (c *HelpCmd) Name() string                   { return "help" }
+func (c *HelpCmd) Brief() string                  { return "Show help" }
+func (c *HelpCmd) Help() string                   { return "Show help for all commands" }
+func (c *HelpCmd) Flags(fs *flag.FlagSet)         {}
 func (c *HelpCmd) SubCommands() []command.Command { return nil }
 
-func (c *HelpCmd) Run(ctx command.Context) error {
+func (c *HelpCmd) Run(ctx *command.Context) error {
 	fmt.Println("Available commands:")
 
-	all := c.Reg.GetAll()
+	all := command.DefaultRegistry.GetAll()
 
 	for _, cmd := range all {
 		name := cmd.Name()

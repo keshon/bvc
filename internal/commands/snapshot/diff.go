@@ -12,11 +12,12 @@ import (
 type DiffCmd struct{}
 
 func (c *DiffCmd) Name() string                   { return "diff" }
+func (c *DiffCmd) Brief() string                  { return "Compare two snapshots" }
 func (c *DiffCmd) Help() string                   { return "Compare two snapshots" }
 func (c *DiffCmd) Flags(fs *flag.FlagSet)         {}
 func (c *DiffCmd) SubCommands() []command.Command { return nil }
 
-func (c *DiffCmd) Run(ctx command.Context) error {
+func (c *DiffCmd) Run(ctx *command.Context) error {
 	if len(ctx.Args) < 2 {
 		return fmt.Errorf("usage: bvc snapshot diff <snapshotA> <snapshotB>")
 	}

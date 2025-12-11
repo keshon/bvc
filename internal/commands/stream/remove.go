@@ -11,11 +11,12 @@ import (
 type RemoveCmd struct{}
 
 func (c *RemoveCmd) Name() string                   { return "remove" }
+func (c *RemoveCmd) Brief() string                  { return "Remove a stream" }
 func (c *RemoveCmd) Help() string                   { return "Remove a stream" }
 func (c *RemoveCmd) Flags(fs *flag.FlagSet)         {}
 func (c *RemoveCmd) SubCommands() []command.Command { return nil }
 
-func (c *RemoveCmd) Run(ctx command.Context) error {
+func (c *RemoveCmd) Run(ctx *command.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("usage: bvc stream remove <name>")
 	}

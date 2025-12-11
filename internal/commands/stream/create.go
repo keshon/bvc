@@ -11,10 +11,11 @@ import (
 type CreateCmd struct{}
 
 func (c *CreateCmd) Name() string                   { return "create" }
+func (c *CreateCmd) Brief() string                  { return "Create a new stream" }
 func (c *CreateCmd) Help() string                   { return "Create a new stream" }
 func (c *CreateCmd) Flags(fs *flag.FlagSet)         {}
 func (c *CreateCmd) SubCommands() []command.Command { return nil }
-func (c *CreateCmd) Run(ctx command.Context) error {
+func (c *CreateCmd) Run(ctx *command.Context) error {
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("usage: bvc stream create <name>")
 	}

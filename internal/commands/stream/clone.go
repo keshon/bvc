@@ -11,11 +11,12 @@ import (
 type CloneCmd struct{}
 
 func (c *CloneCmd) Name() string                   { return "clone" }
+func (c *CloneCmd) Brief() string                  { return "Clone a stream into a new stream" }
 func (c *CloneCmd) Help() string                   { return "Clone a stream into a new stream" }
 func (c *CloneCmd) Flags(fs *flag.FlagSet)         {}
 func (c *CloneCmd) SubCommands() []command.Command { return nil }
 
-func (c *CloneCmd) Run(ctx command.Context) error {
+func (c *CloneCmd) Run(ctx *command.Context) error {
 	if len(ctx.Args) < 2 {
 		return fmt.Errorf("usage: bvc stream clone <source> <dest>")
 	}

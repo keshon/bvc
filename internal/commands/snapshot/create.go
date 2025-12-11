@@ -15,16 +15,17 @@ type CreateCmd struct {
 }
 
 func (c *CreateCmd) Name() string { return "create" }
+func (c *CreateCmd) Brief() string {
+	return "Create a new snapshot of the project"
+}
 func (c *CreateCmd) Help() string { return "Create a new snapshot of the project" }
-
 func (c *CreateCmd) Flags(fs *flag.FlagSet) {
 	fs.StringVar(&c.name, "name", "", "Snapshot name (optional)")
 	fs.StringVar(&c.description, "desc", "", "Description of the snapshot")
 }
-
 func (c *CreateCmd) SubCommands() []command.Command { return nil }
 
-func (c *CreateCmd) Run(ctx command.Context) error {
+func (c *CreateCmd) Run(ctx *command.Context) error {
 	if c.name == "" {
 		c.name = "snap-" + time.Now().Format("20060102-150405")
 	}

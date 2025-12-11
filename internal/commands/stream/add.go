@@ -11,11 +11,12 @@ import (
 type AddCmd struct{}
 
 func (c *AddCmd) Name() string                   { return "add" }
+func (c *AddCmd) Brief() string                  { return "Add snapshot to stream" }
 func (c *AddCmd) Help() string                   { return "Add snapshot to stream" }
 func (c *AddCmd) Flags(fs *flag.FlagSet)         {}
 func (c *AddCmd) SubCommands() []command.Command { return nil }
 
-func (c *AddCmd) Run(ctx command.Context) error {
+func (c *AddCmd) Run(ctx *command.Context) error {
 	if len(ctx.Args) < 2 {
 		return fmt.Errorf("usage: bvc stream add <stream> <snapshotID>")
 	}

@@ -14,11 +14,12 @@ import (
 type StatusCmd struct{}
 
 func (c *StatusCmd) Name() string                   { return "status" }
+func (c *StatusCmd) Brief() string                  { return "Show changed files since last snapshot or current stream" }
 func (c *StatusCmd) Help() string                   { return "Show changed files since last snapshot or current stream" }
 func (c *StatusCmd) Flags(fs *flag.FlagSet)         {}
 func (c *StatusCmd) SubCommands() []command.Command { return nil }
 
-func (c *StatusCmd) Run(ctx command.Context) error {
+func (c *StatusCmd) Run(ctx *command.Context) error {
 	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err

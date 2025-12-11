@@ -10,14 +10,13 @@ import (
 
 type CheckoutCmd struct{}
 
-func (c *CheckoutCmd) Name() string { return "checkout" }
-func (c *CheckoutCmd) Help() string { return "Restore project from snapshot" }
-
-func (c *CheckoutCmd) Flags(fs *flag.FlagSet) {}
-
+func (c *CheckoutCmd) Name() string                   { return "checkout" }
+func (c *CheckoutCmd) Brief() string                  { return "Restore project from snapshot" }
+func (c *CheckoutCmd) Help() string                   { return "Restore project from snapshot" }
+func (c *CheckoutCmd) Flags(fs *flag.FlagSet)         {}
 func (c *CheckoutCmd) SubCommands() []command.Command { return nil }
 
-func (c *CheckoutCmd) Run(ctx command.Context) error {
+func (c *CheckoutCmd) Run(ctx *command.Context) error {
 
 	if len(ctx.Args) < 1 {
 		return fmt.Errorf("snapshot ID is required")

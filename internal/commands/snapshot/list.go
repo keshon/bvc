@@ -13,14 +13,13 @@ import (
 
 type ListCmd struct{}
 
-func (c *ListCmd) Name() string { return "list" }
-func (c *ListCmd) Help() string { return "List all snapshots" }
-
-func (c *ListCmd) Flags(fs *flag.FlagSet) {}
-
+func (c *ListCmd) Name() string                   { return "list" }
+func (c *ListCmd) Brief() string                  { return "List all snapshots" }
+func (c *ListCmd) Help() string                   { return "List all snapshots" }
+func (c *ListCmd) Flags(fs *flag.FlagSet)         {}
 func (c *ListCmd) SubCommands() []command.Command { return nil }
 
-func (c *ListCmd) Run(ctx command.Context) error {
+func (c *ListCmd) Run(ctx *command.Context) error {
 	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err

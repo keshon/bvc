@@ -12,11 +12,12 @@ type CheckoutCmd struct {
 }
 
 func (c *CheckoutCmd) Name() string                   { return "checkout" }
+func (c *CheckoutCmd) Brief() string                  { return "Checkout latest snapshot from stream" }
 func (c *CheckoutCmd) Help() string                   { return "Checkout latest snapshot from stream" }
 func (c *CheckoutCmd) Flags(fs *flag.FlagSet)         {}
 func (c *CheckoutCmd) SubCommands() []command.Command { return nil }
 
-func (c *CheckoutCmd) Run(ctx command.Context) error {
+func (c *CheckoutCmd) Run(ctx *command.Context) error {
 	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err

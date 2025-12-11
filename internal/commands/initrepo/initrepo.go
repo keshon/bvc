@@ -12,14 +12,15 @@ type InitCmd struct {
 	Path string
 }
 
-func (c *InitCmd) Name() string { return "init" }
-func (c *InitCmd) Help() string { return "Initialize repository" }
+func (c *InitCmd) Name() string  { return "init" }
+func (c *InitCmd) Brief() string { return "Initialize repository" }
+func (c *InitCmd) Help() string  { return "Initialize repository" }
 func (c *InitCmd) Flags(fs *flag.FlagSet) {
 	fs.StringVar(&c.Path, "path", ".", "Path to initialize repository")
 }
 func (c *InitCmd) SubCommands() []command.Command { return nil }
 
-func (c *InitCmd) Run(ctx command.Context) error {
+func (c *InitCmd) Run(ctx *command.Context) error {
 	r, err := repo.OpenRepo(c.Path)
 	if err != nil {
 		return err
