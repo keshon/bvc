@@ -1,0 +1,42 @@
+name: Build Release
+
+on:
+  release:
+    types: [published]  # запуск при создании/публикации релиза
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [amd64, arm64]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Build
+      run: |
+        OS=$(echo ${{ matrix.os }} | sed 's/-latest//')
+        ARCH=${{ matrix.arch }}
+        OUTPUT=bvc_${OS}_${ARCH}
+        if [ "$OS" = "windows" ]; then
+          OUTPUT=${OUTPUT}.exe
+        fi
+        go build -o $OUTPUT ./cmd/bvc
+        echo "Built $OUTPUT"
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          bvc_*.exe
+          bvc_*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
