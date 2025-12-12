@@ -8,9 +8,7 @@ import (
 	"github.com/keshon/bvc/pkg/command"
 )
 
-type ResetCmd struct {
-	target string
-}
+type ResetCmd struct{}
 
 func (c *ResetCmd) Name() string { return "reset" }
 func (c *ResetCmd) Brief() string {
