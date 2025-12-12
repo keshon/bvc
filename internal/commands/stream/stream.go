@@ -15,11 +15,13 @@ func (c *StreamCmd) Help() string           { return "Manage snapshot streams (c
 func (c *StreamCmd) Flags(fs *flag.FlagSet) {}
 func (c *StreamCmd) SubCommands() []command.Command {
 	return []command.Command{
-		&CreateCmd{},
 		&AddCmd{},
-		&ListCmd{},
-		&ShowCmd{},
 		&CheckoutCmd{},
+		&CloneCmd{},
+		&CreateCmd{},
+		&ListCmd{},
+		&ResetCmd{},
+		&ShowCmd{},
 		&RemoveCmd{},
 	}
 }

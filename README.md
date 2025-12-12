@@ -28,7 +28,7 @@ BVC merges concepts from **Rustic** and **Git**, combining simple snapshot-based
 
 ---
 
-## Basic Commands
+## Available Commands
 
 ### Repository Initialization
 

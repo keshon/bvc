@@ -27,14 +27,18 @@ func (c *CheckoutCmd) Run(ctx *command.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := r.RequireMode("snapshot-first"); err != nil {
-		return err
-	}
 
 	fmt.Printf("Checking out snapshot '%s'\n", id)
 	if err := r.CheckoutSnapshot(id, true); err != nil {
 		return fmt.Errorf("checkout: %w", err)
 	}
+
+	if r.Mode == "snapshot-first" {
+		if err := r.HeadSetSnapshot(id); err != nil {
+			return err
+		}
+	}
+
 	fmt.Println("Checkout complete.")
 	return nil
 }
