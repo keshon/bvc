@@ -1,15 +1,21 @@
 package command
 
-import "flag"
+import (
+	"context"
+	"flag"
+)
 
 type Context struct {
-	Args []string
+	Ctx   context.Context
+	Args  []string
+	Flags *flag.FlagSet
 }
 
 type Command interface {
 	Name() string
+	Brief() string
 	Help() string
 	Flags(fs *flag.FlagSet)
-	Run(ctx Context) error
+	Run(ctx *Context) error
 	SubCommands() []Command
 }

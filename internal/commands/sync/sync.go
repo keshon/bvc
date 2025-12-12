@@ -9,9 +9,10 @@ import (
 type SyncCmd struct{}
 
 func (c *SyncCmd) Name() string           { return "sync" }
+func (c *SyncCmd) Brief() string          { return "Synchronize snapshots and blocks with remote" }
 func (c *SyncCmd) Help() string           { return "Synchronize snapshots and blocks with remote" }
 func (c *SyncCmd) Flags(fs *flag.FlagSet) {}
-func (c *SyncCmd) Run(ctx command.Context) error {
+func (c *SyncCmd) Run(ctx *command.Context) error {
 	fmt.Print("Available subcommands:")
 	for _, sc := range c.SubCommands() {
 		fmt.Print(" " + sc.Name())

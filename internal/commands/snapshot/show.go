@@ -12,11 +12,12 @@ import (
 type ShowCmd struct{}
 
 func (c *ShowCmd) Name() string                   { return "show" }
+func (c *ShowCmd) Brief() string                  { return "Show details of a snapshot" }
 func (c *ShowCmd) Help() string                   { return "Show details of a snapshot" }
 func (c *ShowCmd) Flags(fs *flag.FlagSet)         {}
 func (c *ShowCmd) SubCommands() []command.Command { return nil }
 
-func (c *ShowCmd) Run(ctx command.Context) error {
+func (c *ShowCmd) Run(ctx *command.Context) error {
 	r, err := repo.OpenRepo(".")
 	if err != nil {
 		return err

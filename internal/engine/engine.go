@@ -248,6 +248,22 @@ func (e *Engine) MergeSnapshots(aID, bID, newName string) (*snapshot.Meta, error
 	return meta, nil
 }
 
+func (e *Engine) CheckoutFile(snapshotID, rel string) error {
+	snap, err := e.Snaps.Load(snapshotID)
+	if err != nil {
+		return err
+	}
+
+	blocks, ok := snap.Files[rel]
+	if !ok {
+		return fmt.Errorf("file '%s' not found in snapshot %s", rel, snapshotID)
+	}
+
+	return workfs.RestoreFile(e.Root, rel, blocks, func(h string, w io.Writer) error {
+		return e.Blocks.Get(h, w, true)
+	})
+}
+
 // ------------------------ Stream operations ------------------------
 
 func (e *Engine) StreamCreate(name string) error {
