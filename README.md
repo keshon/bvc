@@ -14,7 +14,7 @@ Both modes use content-addressable storage for deduplication and integrity, ensu
 - **Streams**: Ordered collections of snapshots, similar to branches or catalogs, allowing workflows over sequences of snapshots.
 - **Blocks**: Individual pieces of file data stored once and referenced by snapshots, enabling deduplication.
 
-## Basic Commands
+## Available Commands
 
 ### Repository Initialization
 

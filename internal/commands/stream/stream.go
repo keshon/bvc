@@ -23,11 +23,13 @@ func (c *StreamCmd) Run(ctx command.Context) error {
 
 func (c *StreamCmd) SubCommands() []command.Command {
 	return []command.Command{
-		&CreateCmd{},
 		&AddCmd{},
-		&ListCmd{},
-		&ShowCmd{},
 		&CheckoutCmd{},
+		&CloneCmd{},
+		&CreateCmd{},
+		&ListCmd{},
+		&ResetCmd{},
+		&ShowCmd{},
 		&RemoveCmd{},
 	}
 }
